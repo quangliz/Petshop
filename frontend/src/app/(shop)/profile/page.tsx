@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { 
-  User as UserIcon, Plus, Trash2, Heart, Sparkles, ShieldCheck
+import {
+  User as UserIcon, Plus, Trash2, Heart, Sparkles, ShieldCheck, Pencil
 } from 'lucide-react';
 
 const NavItem = ({ icon, label, active = false }: { icon: any, label: string, active?: boolean }) => (
@@ -18,7 +18,7 @@ const NavItem = ({ icon, label, active = false }: { icon: any, label: string, ac
   </div>
 );
 
-const PetCard = ({ pet, onDelete }: { pet: any, onDelete: any }) => {
+const PetCard = ({ pet, onDelete, onEdit }: { pet: any, onDelete: any, onEdit: any }) => {
   const speciesColors: any = {
     dog: 'oklch(0.95 0.05 55)',
     cat: 'oklch(0.93 0.06 195)',
@@ -31,7 +31,13 @@ const PetCard = ({ pet, onDelete }: { pet: any, onDelete: any }) => {
     <div className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div style={{ height: 120, background: speciesColors[pet.species] || speciesColors.other, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56 }}>
         {pet.avatar_url ? <img src={pet.avatar_url} alt={pet.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : emoji[pet.species] || emoji.other}
-        <button 
+        <button
+          onClick={() => onEdit(pet)}
+          style={{ position: 'absolute', top: 12, right: 48, width: 32, height: 32, borderRadius: 16, background: 'rgba(255,255,255,0.8)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-700)' }}
+        >
+          <Pencil size={16} />
+        </button>
+        <button
           onClick={() => { if(confirm("Xoá hồ sơ này?")) onDelete(pet.id) }}
           style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: 16, background: 'rgba(255,255,255,0.8)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)' }}
         >
@@ -72,6 +78,7 @@ export default function GeneralProfilePage() {
   
   const [profileForm, setProfileForm] = useState({ full_name: '', phone: '', address: '' });
   const [petFormVisible, setPetFormVisible] = useState(false);
+  const [editingPet, setEditingPet] = useState<any>(null);
   const [petFormData, setPetFormData] = useState({ name: '', species: 'dog', breed: '', age_months: '', weight_kg: '', gender: 'unknown', health_notes: '', allergies: '' });
   const [file, setFile] = useState<File | null>(null);
   
@@ -122,6 +129,27 @@ export default function GeneralProfilePage() {
     }
   });
 
+  const updatePet = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await api.put(`/pets/${id}`, data);
+      return res.data;
+    },
+    onSuccess: async (updatedPet) => {
+      if (file) {
+        const formDataUpload = new FormData();
+        formDataUpload.append("file", file);
+        await api.post(`/pets/${updatedPet.id}/avatar`, formDataUpload, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['pets'] });
+      setEditingPet(null);
+      setPetFormVisible(false);
+      setFile(null);
+      setPetFormData({ name: '', species: 'dog', breed: '', age_months: '', weight_kg: '', gender: 'unknown', health_notes: '', allergies: '' });
+    }
+  });
+
   const deletePet = useMutation({
     mutationFn: async (id: string) => { await api.delete(`/pets/${id}`); },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['pets'] }); }
@@ -142,6 +170,7 @@ export default function GeneralProfilePage() {
         </div>
         <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <NavItem icon={<UserIcon size={18}/>} label="Thông tin tài khoản" active />
+          <NavItem icon={<Heart size={18}/>} label="Thú cưng của tôi" />
         </nav>
       </aside>
 
@@ -180,7 +209,13 @@ export default function GeneralProfilePage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
-            {pets?.map((pet: any) => <PetCard key={pet.id} pet={pet} onDelete={deletePet.mutate} />)}
+            {pets?.map((pet: any) => (
+              <PetCard key={pet.id} pet={pet} onDelete={deletePet.mutate} onEdit={(p: any) => {
+                setEditingPet(p);
+                setPetFormData({ name: p.name, species: p.species, breed: p.breed || '', age_months: p.age_months ? String(p.age_months) : '', weight_kg: p.weight_kg ? String(p.weight_kg) : '', gender: p.gender, health_notes: p.health_notes || '', allergies: p.allergies || '' });
+                setPetFormVisible(true);
+              }} />
+            ))}
             <div 
               onClick={() => setPetFormVisible(true)}
               style={{
@@ -203,10 +238,17 @@ export default function GeneralProfilePage() {
         {petFormVisible && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(26, 24, 20, 0.4)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
             <div className="card" style={{ width: '100%', maxWidth: 600, maxHeight: '90vh', overflowY: 'auto', padding: 32 }}>
-              <h3 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Mở hồ sơ y tế mới</h3>
+              <h3 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{editingPet ? 'Chỉnh sửa hồ sơ' : 'Mở hồ sơ y tế mới'}</h3>
               <p style={{ fontSize: 14, color: 'var(--neutral-500)', marginBottom: 24 }}>Điền thông tin để AI có thể tư vấn chính xác nhất cho bé</p>
-              
-              <form onSubmit={(e) => { e.preventDefault(); createPet.mutate(petFormData); }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (editingPet) {
+                  updatePet.mutate({ id: editingPet.id, data: petFormData });
+                } else {
+                  createPet.mutate(petFormData);
+                }
+              }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                 <div style={{ gridColumn: 'span 2' }}>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Tên thú cưng *</label>
                   <input required style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={petFormData.name} onChange={e => setPetFormData({...petFormData, name: e.target.value})} />
@@ -233,9 +275,13 @@ export default function GeneralProfilePage() {
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Dị ứng (quan trọng)</label>
                   <input placeholder="VD: Dị ứng thịt gà, dị ứng sữa..." style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={petFormData.allergies} onChange={e => setPetFormData({...petFormData, allergies: e.target.value})} />
                 </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Ảnh thú cưng</label>
+                  <input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} style={{ width: '100%', padding: '8px 0', fontSize: 13 }} />
+                </div>
                 <div style={{ gridColumn: 'span 2', display: 'flex', gap: 12, marginTop: 12 }}>
-                  <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => setPetFormVisible(false)}>Huỷ bỏ</button>
-                  <button type="submit" className="btn btn-primary" style={{ flex: 2 }} disabled={createPet.isPending}>{createPet.isPending ? "Đang lưu..." : "Lưu hồ sơ"}</button>
+                  <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => { setPetFormVisible(false); setEditingPet(null); setFile(null); setPetFormData({ name: '', species: 'dog', breed: '', age_months: '', weight_kg: '', gender: 'unknown', health_notes: '', allergies: '' }); }}>Huỷ bỏ</button>
+                  <button type="submit" className="btn btn-primary" style={{ flex: 2 }} disabled={createPet.isPending || updatePet.isPending}>{(createPet.isPending || updatePet.isPending) ? "Đang lưu..." : "Lưu hồ sơ"}</button>
                 </div>
               </form>
             </div>

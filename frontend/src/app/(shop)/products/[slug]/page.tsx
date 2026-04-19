@@ -1,13 +1,22 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
 import api from '@/lib/api';
+import { addToGuestCart } from '@/lib/guestCart';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
-import { Minus, Plus, ShoppingCart, ChevronRight, Star, Sparkles, ShieldCheck, RefreshCw, Truck } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, ChevronRight, Star, ShieldCheck, RefreshCw, Truck } from 'lucide-react';
 
-const Rating = ({ value, count }: { value: number, count?: number }) => (
+type VariantImage = { id: string; url: string; is_main: boolean };
+type Variant = {
+  id: string; sku: string | null; price: number; sale_price: number | null;
+  stock_qty: number; attributes: Record<string, string>; is_active: boolean; images: VariantImage[];
+};
+type ProductImage = { id: string; url: string; is_main: boolean; sort_order: number; variant_id: string | null };
+
+const Rating = ({ value, count }: { value: number; count?: number }) => (
   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'oklch(0.75 0.15 75)' }}>
     <div style={{ display: 'inline-flex' }}>
       {[0, 1, 2, 3, 4].map(i => (
@@ -20,7 +29,6 @@ const Rating = ({ value, count }: { value: number, count?: number }) => (
 
 export default function ProductDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [quantity, setQuantity] = useState(1);
@@ -34,25 +42,68 @@ export default function ProductDetailPage() {
     }
   });
 
+  const variants: Variant[] = useMemo(() => product?.variants ?? [], [product]);
+  const hasVariants = variants.length > 0;
+
+  // Build attribute options from variants: { attrKey -> Set<value> }
+  const attrOptions = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const v of variants) {
+      for (const [k, val] of Object.entries(v.attributes || {})) {
+        if (!map[k]) map[k] = [];
+        if (!map[k].includes(val)) map[k].push(val);
+      }
+    }
+    return map;
+  }, [variants]);
+
+  // Selected attribute values per key
+  const [selectedAttrs, setSelectedAttrs] = useState<Record<string, string>>({});
+
+  // Find matching variant from selected attrs
+  const selectedVariant: Variant | null = useMemo(() => {
+    if (!hasVariants) return null;
+    const keys = Object.keys(attrOptions);
+    if (keys.length === 0) return variants[0] ?? null;
+    return variants.find((v) =>
+      keys.every((k) => !selectedAttrs[k] || v.attributes[k] === selectedAttrs[k])
+    ) ?? null;
+  }, [variants, selectedAttrs, attrOptions, hasVariants]);
+
+  // Effective price, stock, image
+  const effectivePrice = selectedVariant
+    ? (selectedVariant.sale_price ?? selectedVariant.price)
+    : (product?.sale_price ?? product?.price ?? 0);
+  const originalPrice = selectedVariant ? selectedVariant.price : product?.price ?? 0;
+  const effectiveStock = selectedVariant ? selectedVariant.stock_qty : (product?.stock_qty ?? 0);
+
+  // Image logic: variant image > product main image > product.images.main
+  const mainImage = useMemo(() => {
+    if (selectedVariant) {
+      const vi = selectedVariant.images.find((i) => i.is_main) ?? selectedVariant.images[0];
+      if (vi) return vi.url;
+    }
+    const productImages: ProductImage[] = product?.product_images ?? [];
+    const main = productImages.find((i) => i.is_main && !i.variant_id) ?? productImages.find((i) => !i.variant_id);
+    if (main) return main.url;
+    return product?.images?.main ?? null;
+  }, [selectedVariant, product]);
+
   const addToCartMutation = useMutation({
     mutationFn: async () => {
-      await api.post('/cart/items', {
-        product_id: product.id,
-        quantity: quantity
-      });
+      await api.post('/cart/items', { product_id: product.id, quantity });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
       alert("Đã thêm vào giỏ hàng thành công!");
     },
-    onError: (err: any) => {
-      alert(err.response?.data?.detail || "Lỗi khi thêm vào giỏ hàng");
-    }
+    onError: (err: { response?: { data?: { detail?: string } } }) => alert(err.response?.data?.detail || "Lỗi khi thêm vào giỏ hàng"),
   });
 
   const handleAddToCart = () => {
     if (!user) {
-      router.push('/login');
+      addToGuestCart(product.id, quantity);
+      alert("Đã thêm vào giỏ hàng tạm thời. Đăng nhập để thanh toán.");
       return;
     }
     addToCartMutation.mutate();
@@ -61,7 +112,9 @@ export default function ProductDetailPage() {
   if (isLoading) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--neutral-500)' }}>Đang tải...</div>;
   if (!product) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--danger)' }}>Không tìm thấy sản phẩm</div>;
 
-  const price = product.sale_price || product.price;
+  const discountPct = selectedVariant
+    ? (selectedVariant.sale_price ? Math.round((1 - selectedVariant.sale_price / selectedVariant.price) * 100) : 0)
+    : (product.sale_price ? Math.round((1 - product.sale_price / product.price) * 100) : 0);
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
@@ -78,14 +131,16 @@ export default function ProductDetailPage() {
         {/* Gallery */}
         <div style={{ position: 'sticky', top: 100 }}>
           <div className="card" style={{ aspectRatio: '1/1', overflow: 'hidden', background: 'var(--neutral-50)', position: 'relative' }}>
-            {product.images?.main ? (
-              <img src={product.images.main} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            {mainImage ? (
+              <img src={mainImage} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)' }}>KHÔNG CÓ HÌNH ẢNH</div>
             )}
-            <div style={{ position: 'absolute', top: 20, left: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {product.sale_price && <span className="badge badge-sale" style={{ fontSize: 13, padding: '5px 12px' }}>GIẢM {Math.round((1 - product.sale_price/product.price)*100)}%</span>}
-            </div>
+            {discountPct > 0 && (
+              <div style={{ position: 'absolute', top: 20, left: 20 }}>
+                <span className="badge badge-sale" style={{ fontSize: 13, padding: '5px 12px' }}>GIẢM {discountPct}%</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -94,7 +149,9 @@ export default function ProductDetailPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
               <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary-600)', background: 'var(--primary-50)', padding: '4px 10px', borderRadius: 6, textTransform: 'uppercase' }}>{product.brand || "LOCAL BRAND"}</span>
-              <span style={{ fontSize: 12, color: 'var(--neutral-400)' }}>SKU: {product.sku || "PS-001"}</span>
+              {(selectedVariant?.sku || product.sku) && (
+                <span style={{ fontSize: 12, color: 'var(--neutral-400)' }}>SKU: {selectedVariant?.sku ?? product.sku}</span>
+              )}
             </div>
             <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, color: 'var(--neutral-900)', margin: '0 0 16px' }}>{product.name}</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
@@ -107,50 +164,109 @@ export default function ProductDetailPage() {
           <div style={{
             background: 'linear-gradient(135deg, var(--neutral-50) 0%, white 100%)',
             padding: '24px 28px', borderRadius: 20, border: '1px solid var(--neutral-100)',
-            display: 'flex', alignItems: 'baseline', gap: 12
+            display: 'flex', alignItems: 'baseline', gap: 12,
           }}>
-            <span style={{ fontSize: 32, fontWeight: 800, color: 'var(--primary-600)' }}>{price.toLocaleString()}đ</span>
-            {product.sale_price && <span style={{ fontSize: 18, color: 'var(--neutral-400)', textDecoration: 'line-through' }}>{product.price.toLocaleString()}đ</span>}
+            <span style={{ fontSize: 32, fontWeight: 800, color: 'var(--primary-600)' }}>{effectivePrice.toLocaleString()}đ</span>
+            {effectivePrice < originalPrice && (
+              <span style={{ fontSize: 18, color: 'var(--neutral-400)', textDecoration: 'line-through' }}>{originalPrice.toLocaleString()}đ</span>
+            )}
           </div>
 
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-            {[
-              { l: 'Phân loại', v: product.category_name || 'Chưa phân loại' },
-              { l: 'Dành cho', v: product.target_species?.label || (product.target_species?.species?.join(', ') ?? 'Tất cả') },
-              { l: 'Khối lượng', v: product.attributes?.weight || 'N/A' },
-              { l: 'Xuất xứ', v: product.attributes?.origin || 'N/A' },
-            ].map((a, i) => (
-              <div key={i} style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid var(--neutral-100)', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: 11, color: 'var(--neutral-400)', fontWeight: 600, textTransform: 'uppercase' }}>{a.l}</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--neutral-800)' }}>{a.v}</span>
+          {/* Variant Selector */}
+          {hasVariants && Object.entries(attrOptions).map(([attrKey, values]) => (
+            <div key={attrKey}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--neutral-600)', marginBottom: 8, textTransform: 'capitalize' }}>
+                {attrKey}:
+                {selectedAttrs[attrKey] && (
+                  <span style={{ color: 'var(--neutral-900)', marginLeft: 6 }}>{selectedAttrs[attrKey]}</span>
+                )}
               </div>
-            ))}
-          </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {values.map((val) => {
+                  const active = selectedAttrs[attrKey] === val;
+                  const matchingVariant = variants.find((v) => {
+                    const testAttrs = { ...selectedAttrs, [attrKey]: val };
+                    return Object.entries(testAttrs).every(([k, tv]) => !tv || v.attributes[k] === tv);
+                  });
+                  const available = matchingVariant ? matchingVariant.stock_qty > 0 : true;
+                  return (
+                    <button
+                      key={val}
+                      onClick={() => setSelectedAttrs((prev) => ({ ...prev, [attrKey]: active ? "" : val }))}
+                      style={{
+                        padding: '6px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                        border: active ? '2px solid var(--primary-500)' : '1.5px solid var(--neutral-200)',
+                        background: active ? 'var(--primary-50)' : 'white',
+                        color: active ? 'var(--primary-700)' : available ? 'var(--neutral-700)' : 'var(--neutral-400)',
+                        opacity: available ? 1 : 0.5,
+                        position: 'relative',
+                      }}
+                    >
+                      {val}
+                      {!available && (
+                        <span style={{ fontSize: 10, color: 'var(--neutral-400)', marginLeft: 4 }}>(hết)</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* Quick info */}
+          {!hasVariants && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+              {[
+                { l: 'Phân loại', v: product.category_name || 'Chưa phân loại' },
+                { l: 'Dành cho', v: product.target_species?.label || (product.target_species?.species?.join(', ') ?? 'Tất cả') },
+                { l: 'Khối lượng', v: product.attributes?.weight || 'N/A' },
+                { l: 'Xuất xứ', v: product.attributes?.origin || 'N/A' },
+              ].map((a, i) => (
+                <div key={i} style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid var(--neutral-100)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontSize: 11, color: 'var(--neutral-400)', fontWeight: 600, textTransform: 'uppercase' }}>{a.l}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--neutral-800)' }}>{a.v}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {selectedVariant && Object.keys(selectedVariant.attributes).length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+              {Object.entries(selectedVariant.attributes).map(([k, v]) => (
+                <div key={k} style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid var(--neutral-100)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontSize: 11, color: 'var(--neutral-400)', fontWeight: 600, textTransform: 'uppercase' }}>{k}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--neutral-800)' }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 16, borderTop: '1px solid var(--neutral-100)' }}>
+            {effectiveStock === 0 && (
+              <div style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>Hết hàng</div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{
                 display: 'flex', alignItems: 'center', background: 'white', borderRadius: 14, border: '1.5px solid var(--neutral-200)',
-                padding: '4px 6px', height: 52
+                padding: '4px 6px', height: 52,
               }}>
-                <button 
+                <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   style={{ width: 40, height: 40, borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--neutral-600)' }}
                 >
                   <Minus size={18} />
                 </button>
                 <span style={{ width: 44, textAlign: 'center', fontSize: 18, fontWeight: 700 }}>{quantity}</span>
-                <button 
-                  onClick={() => setQuantity(Math.min(product.stock_qty || 99, quantity + 1))}
+                <button
+                  onClick={() => setQuantity(Math.min(effectiveStock || 99, quantity + 1))}
                   style={{ width: 40, height: 40, borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--neutral-600)' }}
                 >
                   <Plus size={18} />
                 </button>
               </div>
-              <button 
+              <button
                 onClick={handleAddToCart}
-                disabled={product.stock_qty === 0 || addToCartMutation.isPending}
+                disabled={effectiveStock === 0 || addToCartMutation.isPending}
                 className="btn btn-primary btn-lg"
                 style={{ flex: 1, height: 52, borderRadius: 14, fontSize: 16 }}
               >
@@ -159,22 +275,6 @@ export default function ProductDetailPage() {
             </div>
             <button className="btn btn-outline btn-lg" style={{ height: 52, borderRadius: 14, fontSize: 16, fontWeight: 700 }}>Mua ngay</button>
           </div>
-
-          {/* AI Banner */}
-          {/* <div style={{
-            marginTop: 16, padding: '20px 24px', borderRadius: 20,
-            background: 'linear-gradient(135deg, var(--teal-50) 0%, white 100%)',
-            border: '1px solid var(--teal-100)', display: 'flex', alignItems: 'center', gap: 16
-          }}>
-            <div style={{ width: 48, height: 48, borderRadius: 24, background: 'var(--teal-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', boxShadow: '0 4px 12px var(--teal-100)' }}>
-              <Sparkles size={22} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--teal-700)' }}>Hỏi AI về sản phẩm này?</div>
-              <div style={{ fontSize: 12, color: 'var(--teal-600)' }}>"Bé poodle 3kg nhà mình ăn hạt này được không?"</div>
-            </div>
-            <button className="btn btn-teal btn-sm" style={{ borderRadius: 10 }}>Hỏi ngay</button>
-          </div> */}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 8 }}>
             {[
@@ -198,20 +298,14 @@ export default function ProductDetailPage() {
           { id: 'review', label: 'Đánh giá', count: 42 },
           { id: 'ship', label: 'Vận chuyển' },
         ].map(tab => (
-          <button 
-            key={tab.id} 
-            onClick={() => setActiveTab(tab.id)} 
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
             style={{
-              padding: '16px 24px', 
-              fontSize: 15, 
-              fontWeight: 600,
+              padding: '16px 24px', fontSize: 15, fontWeight: 600,
               color: activeTab === tab.id ? 'var(--neutral-900)' : 'var(--neutral-500)',
               borderBottom: activeTab === tab.id ? '2px solid var(--primary-500)' : '2px solid transparent',
-              marginBottom: -1,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
+              marginBottom: -1, background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.2s ease',
             }}
           >
             {tab.label} {tab.count && <span style={{ color: 'var(--neutral-400)', fontWeight: 500, fontSize: 13 }}>({tab.count})</span>}
@@ -221,26 +315,21 @@ export default function ProductDetailPage() {
 
       <div style={{ padding: '32px 0', fontSize: 15, lineHeight: 1.8, color: 'var(--neutral-700)', maxWidth: 800 }}>
         {activeTab === 'desc' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <p style={{ fontSize: 16, fontWeight: 500, color: 'var(--neutral-900)' }}>
-              {product.name}
-            </p>
-            <p>
-              {product.description || "Sản phẩm chất lượng cao dành cho thú cưng của bạn. Đã được kiểm định an toàn và khuyên dùng bởi các chuyên gia y tế. Chúng tôi cam kết mang đến những sản phẩm tốt nhất, giúp bé cưng của bạn phát triển khỏe mạnh và hạnh phúc."}
-            </p>
-            {/* Example content from prototype if description is short/missing */}
-            {!product.description && (
-              <>
-                <p>Nổi bật với:</p>
-                <ul style={{ paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <li><b>Dinh dưỡng tối ưu</b> — hỗ trợ phát triển toàn diện</li>
-                  <li><b>Thành phần tự nhiên</b> — an toàn tuyệt đối cho sức khỏe</li>
-                  <li><b>Hương vị hấp dẫn</b> — kích thích vị giác của thú cưng</li>
-                  <li><b>Công nghệ hiện đại</b> — bảo quản dưỡng chất trọn vẹn</li>
-                </ul>
-              </>
-            )}
-          </div>
+          product.description ? (
+            <div className="prose prose-neutral max-w-none">
+              <ReactMarkdown>{product.description}</ReactMarkdown>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <p style={{ fontSize: 16, fontWeight: 500, color: 'var(--neutral-900)' }}>{product.name}</p>
+              <p>Sản phẩm chất lượng cao dành cho thú cưng của bạn. Đã được kiểm định an toàn và khuyên dùng bởi các chuyên gia y tế.</p>
+              <ul style={{ paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <li><b>Dinh dưỡng tối ưu</b> — hỗ trợ phát triển toàn diện</li>
+                <li><b>Thành phần tự nhiên</b> — an toàn tuyệt đối cho sức khỏe</li>
+                <li><b>Hương vị hấp dẫn</b> — kích thích vị giác của thú cưng</li>
+              </ul>
+            </div>
+          )
         )}
         {activeTab === 'spec' && (
           <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', rowGap: 16 }}>
@@ -248,10 +337,18 @@ export default function ProductDetailPage() {
             <span style={{ fontWeight: 600 }}>{product.brand || "Local Brand"}</span>
             <span style={{ color: 'var(--neutral-500)' }}>Loại sản phẩm:</span>
             <span style={{ fontWeight: 600 }}>{product.category_name}</span>
-            <span style={{ color: 'var(--neutral-500)' }}>Trọng lượng:</span>
-            <span style={{ fontWeight: 600 }}>{product.attributes?.weight || "N/A"}</span>
-            <span style={{ color: 'var(--neutral-500)' }}>Xuất xứ:</span>
-            <span style={{ fontWeight: 600 }}>{product.attributes?.origin || "Việt Nam"}</span>
+            {hasVariants && selectedVariant && Object.entries(selectedVariant.attributes).map(([k, v]) => (
+              <React.Fragment key={k}>
+                <span style={{ color: 'var(--neutral-500)', textTransform: 'capitalize' }}>{k}:</span>
+                <span style={{ fontWeight: 600 }}>{v}</span>
+              </React.Fragment>
+            ))}
+            {!hasVariants && <>
+              <span style={{ color: 'var(--neutral-500)' }}>Trọng lượng:</span>
+              <span style={{ fontWeight: 600 }}>{product.attributes?.weight || "N/A"}</span>
+              <span style={{ color: 'var(--neutral-500)' }}>Xuất xứ:</span>
+              <span style={{ fontWeight: 600 }}>{product.attributes?.origin || "Việt Nam"}</span>
+            </>}
           </div>
         )}
         {activeTab === 'review' && (

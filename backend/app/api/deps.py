@@ -1,4 +1,4 @@
-from typing import Generator, Annotated
+from typing import Generator, Annotated, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
@@ -46,3 +46,20 @@ def get_current_user(db: SessionDep, token: TokenDep) -> User:
     return user
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login", auto_error=False)
+
+def get_optional_user(db: SessionDep, token: Optional[str] = Depends(oauth2_scheme_optional)) -> Optional[User]:
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+        uuid_obj = uuid.UUID(user_id)
+        return db.query(User).filter(User.id == uuid_obj).first()
+    except (JWTError, ValueError):
+        return None
+
+OptionalUser = Annotated[Optional[User], Depends(get_optional_user)]

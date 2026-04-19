@@ -43,6 +43,8 @@ class Product(Base):
     embedding = relationship("ProductEmbedding", back_populates="product", uselist=False, cascade="all, delete-orphan")
     cart_items = relationship("CartItem", back_populates="product", cascade="all, delete-orphan", passive_deletes=True)
     order_items = relationship("OrderItem", back_populates="product")
+    variants = relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan")
+    product_images = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan")
 
 class ProductEmbedding(Base):
     __tablename__ = "product_embeddings"
@@ -53,3 +55,35 @@ class ProductEmbedding(Base):
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     product = relationship("Product", back_populates="embedding")
+
+
+class ProductVariant(Base):
+    __tablename__ = "product_variants"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"))
+    sku: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    price: Mapped[float] = mapped_column(Numeric(10, 2))
+    sale_price: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True)
+    stock_qty: Mapped[int] = mapped_column(Integer, default=0)
+    attributes: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    product = relationship("Product", back_populates="variants")
+    images = relationship("ProductImage", back_populates="variant", cascade="all, delete-orphan")
+
+
+class ProductImage(Base):
+    __tablename__ = "product_images"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"))
+    variant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("product_variants.id", ondelete="SET NULL"), nullable=True)
+    url: Mapped[str] = mapped_column(String)
+    alt_text: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    is_main: Mapped[bool] = mapped_column(Boolean, default=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    product = relationship("Product", back_populates="product_images")
+    variant = relationship("ProductVariant", back_populates="images")

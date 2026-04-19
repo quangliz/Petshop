@@ -1,9 +1,10 @@
 "use client";
-import React from 'react';
+import React, { useRef } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { PawPrint, Sparkles, ArrowRight, MessageSquare, Star, Search, Plus } from 'lucide-react';
+import { useAuthStore } from '@/lib/store';
+import { PawPrint, Sparkles, ArrowRight, MessageSquare, Star, Search, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Icon = ({ name, size = 18 }: { name: string, size?: number }) => {
   switch (name) {
@@ -29,11 +30,11 @@ const Rating = ({ value, size = 12, count }: { value: number, size?: number, cou
   </div>
 );
 
-const ProductCard = ({ product }: { product: any }) => (
-  <Link href={`/products/${product.slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+const ProductCardSmall = ({ product }: { product: any }) => (
+  <Link href={`/products/${product.slug}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0, width: 180, scrollSnapAlign: 'start' }}>
     <div className="card" style={{
-      cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column',
-      transition: 'transform 160ms ease, box-shadow 160ms ease', height: '100%'
+      cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%',
+      transition: 'transform 160ms ease, box-shadow 160ms ease',
     }}
     onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
     onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
@@ -42,48 +43,90 @@ const ProductCard = ({ product }: { product: any }) => (
         {product.images?.main ? (
           <img src={product.images.main} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <div style={{ width: '100%', height: '100%', background: 'repeating-linear-gradient(45deg, var(--neutral-100), var(--neutral-100) 8px, var(--neutral-50) 8px, var(--neutral-50) 16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)', fontSize: 10, fontFamily: 'var(--font-mono)' }}>NO IMAGE</div>
+          <div style={{ width: '100%', height: '100%', background: 'repeating-linear-gradient(45deg, var(--neutral-100), var(--neutral-100) 8px, var(--neutral-50) 8px, var(--neutral-50) 16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)', fontSize: 9, fontFamily: 'var(--font-mono)' }}>NO IMAGE</div>
         )}
-        <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {product.sale_price && (
-            <span className="badge badge-sale">-{Math.round((1 - product.sale_price / product.price) * 100)}%</span>
-          )}
-        </div>
+        {product.sale_price && (
+          <span className="badge badge-sale" style={{ position: 'absolute', top: 8, left: 8, fontSize: 9 }}>-{Math.round((1 - product.sale_price / product.price) * 100)}%</span>
+        )}
       </div>
-      <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-        <div style={{ fontSize: 11, color: 'var(--neutral-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{product.brand || "LOCAL BRAND"}</div>
+      <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+        <div style={{ fontSize: 10, color: 'var(--neutral-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{product.brand || "LOCAL BRAND"}</div>
         <div style={{
-          fontSize: 14, fontWeight: 600, color: 'var(--neutral-800)', lineHeight: 1.35,
+          fontSize: 12, fontWeight: 600, color: 'var(--neutral-800)', lineHeight: 1.35,
           display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          minHeight: 38
+          minHeight: 32,
         }}>{product.name}</div>
-        <Rating value={4.5} count={12} size={11} />
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 'auto', paddingTop: 6 }}>
-          <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
-          {product.sale_price && <span style={{ fontSize: 12, color: 'var(--neutral-400)', textDecoration: 'line-through' }}>{product.price.toLocaleString()}đ</span>}
+        <Rating value={4.5} count={12} size={10} />
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 'auto', paddingTop: 4 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
+          {product.sale_price && <span style={{ fontSize: 11, color: 'var(--neutral-400)', textDecoration: 'line-through' }}>{product.price.toLocaleString()}đ</span>}
         </div>
       </div>
     </div>
   </Link>
 );
 
+const CarouselRow = ({ items }: { items: any[] }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const scroll = (dir: number) => ref.current?.scrollBy({ left: dir * 400, behavior: 'smooth' });
+
+  if (!items?.length) return <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--neutral-400)', fontSize: 13 }}>Chưa có sản phẩm</div>;
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={() => scroll(-1)} style={{
+        position: 'absolute', left: -16, top: '50%', transform: 'translateY(-50%)', zIndex: 2,
+        width: 36, height: 36, borderRadius: 18, background: 'white', border: '1px solid var(--neutral-200)',
+        boxShadow: 'var(--shadow-sm)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--neutral-700)',
+      }}>
+        <ChevronLeft size={18} />
+      </button>
+      <div ref={ref} style={{
+        display: 'flex', gap: 16, overflowX: 'auto', scrollSnapType: 'x mandatory',
+        scrollbarWidth: 'none', padding: '4px 4px 8px',
+      }}>
+        {items.map((p: any) => <ProductCardSmall key={p.id} product={p} />)}
+      </div>
+      <button onClick={() => scroll(1)} style={{
+        position: 'absolute', right: -16, top: '50%', transform: 'translateY(-50%)', zIndex: 2,
+        width: 36, height: 36, borderRadius: 18, background: 'white', border: '1px solid var(--neutral-200)',
+        boxShadow: 'var(--shadow-sm)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--neutral-700)',
+      }}>
+        <ChevronRight size={18} />
+      </button>
+    </div>
+  );
+};
+
 export default function Home() {
-  const { data: productsData } = useQuery({
+  const { user } = useAuthStore();
+
+  const { data: bestSellers } = useQuery({
     queryKey: ['best-sellers'],
     queryFn: async () => {
-      const res = await api.get('/products/?size=8');
+      const res = await api.get('/products/best-sellers?limit=8');
       return res.data;
     }
   });
 
-  const categories = [
-    { id: 'food', name: 'Thức ăn', emoji: '🍖', count: 184 },
-    { id: 'toys', name: 'Đồ chơi', emoji: '🎾', count: 92 },
-    { id: 'litter', name: 'Cát vệ sinh', emoji: '🪴', count: 28 },
-    { id: 'health', name: 'Sức khoẻ', emoji: '💊', count: 67 },
-    { id: 'grooming', name: 'Chăm lông', emoji: '✂️', count: 45 },
-    { id: 'accessory', name: 'Phụ kiện', emoji: '🎀', count: 136 },
-  ];
+  const { data: newArrivals } = useQuery({
+    queryKey: ['new-arrivals'],
+    queryFn: async () => {
+      const res = await api.get('/products/new-arrivals?limit=8');
+      return res.data;
+    }
+  });
+
+  const { data: recommendations } = useQuery({
+    queryKey: ['recommendations'],
+    queryFn: async () => {
+      const res = await api.get('/products/recommendations?limit=8');
+      return res.data;
+    },
+    enabled: !!user,
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', paddingBottom: 80 }}>
@@ -160,105 +203,42 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Category Section */}
-      <section style={{ padding: '56px 32px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Danh mục nổi bật</h2>
-          <Link href="/shop" style={{ fontSize: 13, fontWeight: 600, color: 'var(--neutral-600)', display: 'flex', alignItems: 'center', gap: 4, textDecoration: 'none' }}>Xem tất cả <Icon name="arrowR" size={14} /></Link>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14 }}>
-          {categories.map((c, i) => (
-            <Link key={c.id} href="/shop" style={{ textDecoration: 'none' }}>
-              <div className="card" style={{
-                padding: '22px 14px', display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 10, cursor: 'pointer',
-                transition: 'all 160ms ease',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = 'var(--primary-200)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.borderColor = ''; }}
-              >
-                <div style={{
-                  width: 56, height: 56, borderRadius: 18,
-                  background: i % 2 === 0 ? 'oklch(0.95 0.05 55)' : 'oklch(0.93 0.06 195)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
-                }}>{c.emoji}</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--neutral-800)' }}>{c.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--neutral-500)' }}>{c.count} sản phẩm</div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+      {/* Pet Recommendations (logged-in users with pets) */}
+      {user && recommendations?.items?.length > 0 && (
+        <section style={{ padding: '48px 48px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div>
+              <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Gợi ý cho bé của bạn</h2>
+              <p style={{ fontSize: 14, color: 'var(--neutral-600)', margin: '4px 0 0' }}>Sản phẩm phù hợp với loài thú cưng bạn đang nuôi</p>
+            </div>
+            <Link href="/shop" style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-600)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>Xem tất cả <ArrowRight size={14} /></Link>
+          </div>
+          <CarouselRow items={recommendations.items} />
+        </section>
+      )}
 
-      {/* Best Sellers Section */}
-      <section style={{ padding: '56px 32px 0' }}>
+      {/* Best Sellers */}
+      <section style={{ padding: '48px 48px 0' }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <h2 style={{ fontSize: 30, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Sản phẩm mới nhất</h2>
-            <p style={{ fontSize: 14, color: 'var(--neutral-600)', margin: '4px 0 0' }}>Những sản phẩm vừa được cập nhật tại cửa hàng</p>
+            <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Bán chạy tuần này</h2>
+            <p style={{ fontSize: 14, color: 'var(--neutral-600)', margin: '4px 0 0' }}>Những sản phẩm được yêu thích nhất trong 7 ngày qua</p>
           </div>
-          <div style={{ display: 'flex', gap: 4, padding: 4, background: 'white', borderRadius: 10, border: '1px solid var(--neutral-100)' }}>
-            <button style={{ padding: '6px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600, background: 'var(--neutral-900)', color: 'white' }}>Tất cả</button>
-            <button style={{ padding: '6px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600, color: 'var(--neutral-600)' }}>Chó</button>
-            <button style={{ padding: '6px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600, color: 'var(--neutral-600)' }}>Mèo</button>
-          </div>
+          <Link href="/shop" style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-600)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>Xem tất cả <ArrowRight size={14} /></Link>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
-          {productsData?.items?.map((p: any) => <ProductCard key={p.id} product={p} />)}
-        </div>
+        <CarouselRow items={bestSellers?.items || []} />
       </section>
 
-      {/* AI Banner Section */}
-      <section style={{ padding: '72px 32px 0' }}>
-        <div style={{
-          background: 'linear-gradient(135deg, var(--neutral-900) 0%, oklch(0.25 0.05 190) 60%, var(--teal-700) 100%)',
-          borderRadius: 28, padding: '48px 56px', color: 'white', position: 'relative', overflow: 'hidden',
-        }}>
-          <div style={{ position: 'absolute', top: -50, right: -50, width: 300, height: 300, borderRadius: '50%', background: 'oklch(0.62 0.12 195 / 0.2)', filter: 'blur(40px)' }} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 48, alignItems: 'center', position: 'relative' }}>
-            <div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', background: 'rgba(255,255,255,0.1)', borderRadius: 999, fontSize: 12, fontWeight: 600, marginBottom: 16 }}>
-                <Icon name="sparkles" size={12} /> TRỢ LÝ AI 24/7
-              </div>
-              <h2 style={{ fontSize: 40, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, margin: '0 0 16px' }}>
-                Bé pet khoẻ, bạn nhàn.<br/>
-                <span style={{ color: 'var(--teal-500)' }}>Hỏi AI bất cứ lúc nào.</span>
-              </h2>
-              <p style={{ fontSize: 15, lineHeight: 1.6, color: 'rgba(255,255,255,0.75)', maxWidth: 420, margin: '0 0 28px' }}>
-                Từ chọn thức ăn đúng cân nặng, lịch tiêm phòng, đến xử lý tình huống khẩn cấp — AI hiểu hồ sơ pet của bạn và gợi ý chính xác.
-              </p>
-              <button style={{
-                display: 'inline-flex', alignItems: 'center', gap: 10, padding: '14px 26px',
-                background: 'white', color: 'var(--neutral-900)', border: 'none', borderRadius: 999,
-                fontSize: 15, fontWeight: 700, boxShadow: '0 8px 20px rgba(0,0,0,0.2)', cursor: 'pointer'
-              }}>
-                <Icon name="sparkles" size={16} /> Thử chat AI ngay →
-              </button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[
-                { q: 'Miu 3 tháng nên ăn hạt gì?', t: 'Mèo con' },
-                { q: 'Lucky golden nên tẩy giun bao lâu 1 lần?', t: 'Chó' },
-                { q: 'Cát đậu hũ có dùng được cho mèo con không?', t: 'Vệ sinh' },
-              ].map((q, i) => (
-                <div key={i} style={{
-                  background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14,
-                  padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
-                }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 16, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name="chat" size={14} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, color: 'white' }}>{q.q}</div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{q.t}</div>
-                  </div>
-                  <Icon name="arrowR" size={14} />
-                </div>
-              ))}
-            </div>
+      {/* New Arrivals */}
+      <section style={{ padding: '48px 48px 48px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div>
+            <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Mới về tuần này</h2>
+            <p style={{ fontSize: 14, color: 'var(--neutral-600)', margin: '4px 0 0' }}>Sản phẩm vừa được cập nhật tại cửa hàng trong tuần này</p>
           </div>
+          <Link href="/shop" style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-600)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>Xem tất cả <ArrowRight size={14} /></Link>
         </div>
+        <CarouselRow items={newArrivals?.items || []} />
       </section>
     </div>
   );

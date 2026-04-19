@@ -64,3 +64,5 @@ chroma_db/
 # ── Uploads tạm ────────────────────────────────
 uploads/
 tmp/
+
+CLAUDE/

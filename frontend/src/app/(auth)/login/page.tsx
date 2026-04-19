@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { getGuestCart, clearGuestCart } from '@/lib/guestCart';
 import { Mail, Lock, Sparkles, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
@@ -33,8 +34,15 @@ export default function LoginPage() {
       });
       
       setAuth(userRes.data, token);
+      const guestCart = getGuestCart();
+      if (guestCart.length > 0) {
+        for (const item of guestCart) {
+          try { await api.post('/cart/items', item, { headers: { Authorization: `Bearer ${token}` } }); } catch {}
+        }
+        clearGuestCart();
+      }
       router.push('/');
-    } catch (err) {
+    } catch {
       setError('Email hoặc mật khẩu không chính xác');
     } finally {
       setLoading(false);

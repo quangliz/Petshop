@@ -9,7 +9,7 @@ import cloudinary.uploader
 
 from app.api.deps import SessionDep, CurrentUser
 from app.models.user import User, RoleEnum
-from app.models.catalog import Product
+from app.models.catalog import Product, ProductVariant, ProductImage
 from app.models.commerce import Order, OrderItem, OrderStatusEnum
 
 router = APIRouter()
@@ -45,6 +45,47 @@ class ProductUpdate(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: str
+
+class VariantCreate(BaseModel):
+    sku: Optional[str] = None
+    price: float
+    sale_price: Optional[float] = None
+    stock_qty: int = 0
+    attributes: Optional[dict] = None
+    is_active: bool = True
+
+class VariantUpdate(BaseModel):
+    sku: Optional[str] = None
+    price: Optional[float] = None
+    sale_price: Optional[float] = None
+    stock_qty: Optional[int] = None
+    attributes: Optional[dict] = None
+    is_active: Optional[bool] = None
+
+def _variant_dict(v: ProductVariant) -> dict:
+    return {
+        "id": str(v.id),
+        "sku": v.sku,
+        "price": float(v.price),
+        "sale_price": float(v.sale_price) if v.sale_price else None,
+        "stock_qty": v.stock_qty,
+        "attributes": v.attributes or {},
+        "is_active": v.is_active,
+        "images": [
+            {"id": str(img.id), "url": img.url, "is_main": img.is_main, "sort_order": img.sort_order}
+            for img in v.images
+        ],
+    }
+
+def _product_image_dict(img: ProductImage) -> dict:
+    return {
+        "id": str(img.id),
+        "url": img.url,
+        "alt_text": img.alt_text,
+        "is_main": img.is_main,
+        "sort_order": img.sort_order,
+        "variant_id": str(img.variant_id) if img.variant_id else None,
+    }
 
 # ─── Stats ────────────────────────────────────────────────────────────────────
 @router.get("/stats")
@@ -195,8 +236,153 @@ def admin_upload_product_image(product_id: str, db: SessionDep, current_user: Cu
         result = cloudinary.uploader.upload(file.file, folder="petshop/products")
         url = result.get("secure_url")
         product.images = {"main": url}
+        existing_main = db.query(ProductImage).filter(
+            ProductImage.product_id == product.id, ProductImage.is_main, ProductImage.variant_id.is_(None)
+        ).first()
+        if existing_main:
+            existing_main.url = url
+        else:
+            db.add(ProductImage(product_id=product.id, url=url, is_main=True, sort_order=0))
         db.commit()
         return {"image_url": url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/products/{product_id}/detail")
+def admin_get_product_detail(product_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+    require_admin(current_user)
+    product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+    product_images = sorted(product.product_images, key=lambda i: i.sort_order)
+    return {
+        "id": str(product.id),
+        "name": product.name,
+        "slug": product.slug,
+        "price": float(product.price),
+        "sale_price": float(product.sale_price) if product.sale_price else None,
+        "stock_qty": product.stock_qty,
+        "brand": product.brand,
+        "description": product.description,
+        "category_id": product.category_id,
+        "is_active": product.is_active,
+        "images": product.images,
+        "product_images": [_product_image_dict(img) for img in product_images if img.variant_id is None],
+        "variants": [_variant_dict(v) for v in product.variants],
+    }
+
+@router.post("/products/{product_id}/images")
+def admin_upload_product_image_v2(
+    product_id: str, db: SessionDep, current_user: CurrentUser,
+    file: UploadFile = File(...),
+    variant_id: Optional[str] = None,
+    is_main: bool = False,
+) -> Any:
+    require_admin(current_user)
+    product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+    vid = uuid.UUID(variant_id) if variant_id else None
+    if vid:
+        variant = db.query(ProductVariant).filter(
+            ProductVariant.id == vid, ProductVariant.product_id == product.id
+        ).first()
+        if not variant:
+            raise HTTPException(status_code=404, detail="Không tìm thấy biến thể")
+    try:
+        result = cloudinary.uploader.upload(file.file, folder="petshop/products")
+        url = result.get("secure_url")
+        if is_main and not vid:
+            product.images = {"main": url}
+            existing_main = db.query(ProductImage).filter(
+                ProductImage.product_id == product.id, ProductImage.is_main, ProductImage.variant_id.is_(None)
+            ).first()
+            if existing_main:
+                existing_main.url = url
+                db.commit()
+                return {"id": str(existing_main.id), "url": url}
+        count = db.query(func.count(ProductImage.id)).filter(ProductImage.product_id == product.id).scalar()
+        img = ProductImage(product_id=product.id, variant_id=vid, url=url, is_main=is_main, sort_order=count)
+        db.add(img)
+        db.commit()
+        db.refresh(img)
+        return _product_image_dict(img)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/products/{product_id}/images/{image_id}")
+def admin_delete_product_image(product_id: str, image_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+    require_admin(current_user)
+    img = db.query(ProductImage).filter(
+        ProductImage.id == uuid.UUID(image_id), ProductImage.product_id == uuid.UUID(product_id)
+    ).first()
+    if not img:
+        raise HTTPException(status_code=404, detail="Không tìm thấy ảnh")
+    db.delete(img)
+    db.commit()
+    return {"message": "Đã xóa"}
+
+@router.post("/products/{product_id}/variants")
+def admin_create_variant(product_id: str, variant_in: VariantCreate, db: SessionDep, current_user: CurrentUser) -> Any:
+    require_admin(current_user)
+    product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+    variant = ProductVariant(product_id=product.id, **variant_in.dict())
+    db.add(variant)
+    db.commit()
+    db.refresh(variant)
+    return _variant_dict(variant)
+
+@router.put("/products/{product_id}/variants/{variant_id}")
+def admin_update_variant(product_id: str, variant_id: str, variant_in: VariantUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
+    require_admin(current_user)
+    variant = db.query(ProductVariant).filter(
+        ProductVariant.id == uuid.UUID(variant_id), ProductVariant.product_id == uuid.UUID(product_id)
+    ).first()
+    if not variant:
+        raise HTTPException(status_code=404, detail="Không tìm thấy biến thể")
+    for field, value in variant_in.dict(exclude_unset=True).items():
+        setattr(variant, field, value)
+    db.commit()
+    db.refresh(variant)
+    return _variant_dict(variant)
+
+@router.delete("/products/{product_id}/variants/{variant_id}")
+def admin_delete_variant(product_id: str, variant_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+    require_admin(current_user)
+    variant = db.query(ProductVariant).filter(
+        ProductVariant.id == uuid.UUID(variant_id), ProductVariant.product_id == uuid.UUID(product_id)
+    ).first()
+    if not variant:
+        raise HTTPException(status_code=404, detail="Không tìm thấy biến thể")
+    db.delete(variant)
+    db.commit()
+    return {"message": "Đã xóa"}
+
+@router.post("/products/{product_id}/variants/{variant_id}/image")
+def admin_upload_variant_image(product_id: str, variant_id: str, db: SessionDep, current_user: CurrentUser, file: UploadFile = File(...)) -> Any:
+    require_admin(current_user)
+    variant = db.query(ProductVariant).filter(
+        ProductVariant.id == uuid.UUID(variant_id), ProductVariant.product_id == uuid.UUID(product_id)
+    ).first()
+    if not variant:
+        raise HTTPException(status_code=404, detail="Không tìm thấy biến thể")
+    try:
+        result = cloudinary.uploader.upload(file.file, folder="petshop/products/variants")
+        url = result.get("secure_url")
+        existing = db.query(ProductImage).filter(
+            ProductImage.variant_id == variant.id, ProductImage.is_main
+        ).first()
+        if existing:
+            existing.url = url
+            db.commit()
+            return {"id": str(existing.id), "url": url}
+        img = ProductImage(product_id=variant.product_id, variant_id=variant.id, url=url, is_main=True)
+        db.add(img)
+        db.commit()
+        db.refresh(img)
+        return {"id": str(img.id), "url": url}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

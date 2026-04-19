@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { addToGuestCart } from '@/lib/guestCart';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
-import { useRouter } from 'next/navigation';
 import { ChevronRight, Star, ShoppingCart, Filter as FilterIcon, Check } from 'lucide-react';
 
 const FilterGroup = ({ title, children }: { title: string, children: React.ReactNode }) => (
@@ -40,10 +40,10 @@ const FilterSidebar = ({
 }: {
   categories: { id: number, name: string, slug: string }[];
   brands: string[];
-  categoryFilter: string;
-  setCategoryFilter: (c: string) => void;
-  brandFilter: string;
-  setBrandFilter: (b: string) => void;
+  categoryFilter: string[];
+  setCategoryFilter: (c: string[]) => void;
+  brandFilter: string[];
+  setBrandFilter: (b: string[]) => void;
   priceRangeFilter: [number | '', number | ''];
   setPriceRangeFilter: (r: [number | '', number | '']) => void;
   setPage: (p: number) => void;
@@ -52,12 +52,12 @@ const FilterSidebar = ({
   const [localPriceRange, setLocalPriceRange] = useState<[number | '', number | '']>(priceRangeFilter);
 
   const toggleCategory = (val: string) => {
-    setCategoryFilter(categoryFilter === val ? '' : val);
+    setCategoryFilter(categoryFilter.includes(val) ? categoryFilter.filter(s => s !== val) : [...categoryFilter, val]);
     setPage(1);
   };
 
   const toggleBrand = (val: string) => {
-    setBrandFilter(brandFilter === val ? '' : val);
+    setBrandFilter(brandFilter.includes(val) ? brandFilter.filter(s => s !== val) : [...brandFilter, val]);
     setPage(1);
   };
 
@@ -75,8 +75,8 @@ const FilterSidebar = ({
           </div>
           <button
             onClick={() => {
-              setCategoryFilter('');
-              setBrandFilter('');
+              setCategoryFilter([]);
+              setBrandFilter([]);
               setPriceRangeFilter(['', '']);
               setLocalPriceRange(['', '']);
               setPage(1);
@@ -90,26 +90,26 @@ const FilterSidebar = ({
         <FilterGroup title="Danh mục">
           {categories?.map(c => (
             <Checkbox key={c.id} label={c.name}
-              checked={categoryFilter === c.slug} onChange={() => toggleCategory(c.slug)} />
+              checked={categoryFilter.includes(c.slug)} onChange={() => toggleCategory(c.slug)} />
           ))}
         </FilterGroup>
 
         <FilterGroup title="Thương hiệu">
           {brands?.map(b => (
             <Checkbox key={b} label={b}
-              checked={brandFilter === b} onChange={() => toggleBrand(b)} />
+              checked={brandFilter.includes(b)} onChange={() => toggleBrand(b)} />
           ))}
         </FilterGroup>
 
         <FilterGroup title="Khoảng giá">
           <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-            <input type="number" min="0" placeholder="Từ (₫)"
+            <input type="number" min="0" step="1000" placeholder="Từ (₫)"
               value={localPriceRange[0] === '' ? '' : localPriceRange[0]}
               onChange={e => setLocalPriceRange([e.target.value === '' ? '' : Math.max(0, Number(e.target.value)), localPriceRange[1]])}
               style={{ width: '100%', padding: '8px', border: '1px solid var(--neutral-200)', borderRadius: '6px', fontSize: 13, outline: 'none' }}
             />
             <span style={{ display: 'flex', alignItems: 'center', color: 'var(--neutral-500)' }}>-</span>
-            <input type="number" min="0" placeholder="Đến (₫)"
+            <input type="number" min={localPriceRange[0] === '' ? 0 : localPriceRange[0]} step="1000" placeholder="Đến (₫)"
               value={localPriceRange[1] === '' ? '' : localPriceRange[1]}
               onChange={e => setLocalPriceRange([localPriceRange[0], e.target.value === '' ? '' : Math.max(0, Number(e.target.value))])}
               style={{ width: '100%', padding: '8px', border: '1px solid var(--neutral-200)', borderRadius: '6px', fontSize: 13, outline: 'none' }}
@@ -186,14 +186,13 @@ export default function ShopListing() {
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState('newest');
   const [search] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [brandFilter, setBrandFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+  const [brandFilter, setBrandFilter] = useState<string[]>([]);
   const [priceRangeFilter, setPriceRangeFilter] = useState<[number | '', number | '']>(['', '']);
 
   const size = 12;
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const router = useRouter();
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
@@ -216,8 +215,8 @@ export default function ShopListing() {
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), size: String(size), sort });
       if (search) params.set('q', search);
-      if (categoryFilter) params.set('category_slug', categoryFilter);
-      if (brandFilter) params.set('brand', brandFilter);
+      categoryFilter.forEach(s => params.append('category_slug', s));
+      brandFilter.forEach(b => params.append('brand', b));
       if (priceRangeFilter[0] !== '') params.set('min_price', String(priceRangeFilter[0]));
       if (priceRangeFilter[1] !== '') params.set('max_price', String(priceRangeFilter[1]));
       const res = await api.get(`/products/?${params.toString()}`);
@@ -241,7 +240,8 @@ export default function ShopListing() {
   const handleAddToCart = (e: React.MouseEvent, productId: string) => {
     e.preventDefault();
     if (!user) {
-      router.push('/login');
+      addToGuestCart(productId);
+      alert("Đã thêm vào giỏ hàng tạm thời. Đăng nhập để thanh toán.");
       return;
     }
     addToCartMutation.mutate(productId);

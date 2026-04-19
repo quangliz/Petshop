@@ -1,11 +1,12 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuthStore } from "@/lib/store";
 import { ShoppingCart, Search } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
+import { getGuestCartCount } from "@/lib/guestCart";
 
 const Logo = ({ size = 28 }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -40,7 +41,10 @@ export default function Header() {
     enabled: !!user,
   });
 
-  const cartItemCount = cart?.items?.reduce((acc: number, item: { quantity: number }) => acc + item.quantity, 0) || 0;
+  const serverCartCount = cart?.items?.reduce((acc: number, item: { quantity: number }) => acc + item.quantity, 0) || 0;
+  const [guestCartCount, setGuestCartCount] = useState(0);
+  useEffect(() => { setGuestCartCount(getGuestCartCount()); }, []);
+  const cartItemCount = user ? serverCartCount : guestCartCount;
 
   return (
     <header style={{

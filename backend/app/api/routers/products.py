@@ -1,10 +1,13 @@
 from typing import Any, List, Optional
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import desc, asc, func
+from sqlalchemy import desc, asc, func, String, or_
 
-from app.api.deps import SessionDep
+from app.api.deps import SessionDep, OptionalUser
 from app.models.catalog import Product, Category
+from app.models.commerce import Order, OrderItem
+from app.models.user import Pet
 
 router = APIRouter()
 
@@ -22,14 +25,56 @@ class ProductResponse(BaseModel):
     category_name: Optional[str] = None
     target_species: Optional[dict] = None
     attributes: Optional[dict] = None
+    variants: Optional[List[Any]] = None
+    product_images: Optional[List[Any]] = None
+
+def _product_dict(p: Product, include_variants: bool = False) -> dict:
+    d = {
+        "id": str(p.id),
+        "name": p.name,
+        "slug": p.slug,
+        "description": p.description,
+        "price": float(p.price),
+        "sale_price": float(p.sale_price) if p.sale_price else None,
+        "stock_qty": p.stock_qty,
+        "brand": p.brand,
+        "images": p.images,
+        "is_active": p.is_active,
+        "category_name": p.category.name if p.category else None,
+        "target_species": p.target_species,
+        "attributes": p.attributes,
+    }
+    if include_variants:
+        product_images = sorted(p.product_images, key=lambda i: i.sort_order)
+        d["product_images"] = [
+            {"id": str(img.id), "url": img.url, "is_main": img.is_main, "sort_order": img.sort_order, "variant_id": str(img.variant_id) if img.variant_id else None}
+            for img in product_images
+        ]
+        d["variants"] = [
+            {
+                "id": str(v.id),
+                "sku": v.sku,
+                "price": float(v.price),
+                "sale_price": float(v.sale_price) if v.sale_price else None,
+                "stock_qty": v.stock_qty,
+                "attributes": v.attributes or {},
+                "is_active": v.is_active,
+                "images": [
+                    {"id": str(img.id), "url": img.url, "is_main": img.is_main}
+                    for img in v.images
+                ],
+            }
+            for v in p.variants if v.is_active
+        ]
+    return d
 
 # Lấy ds sản phẩm, có filter và phân trang
 @router.get("/", response_model=dict)
 def read_products(
     db: SessionDep,
     q: Optional[str] = Query(None, description="Search keyword"),
-    category_slug: Optional[str] = None,
-    brand: Optional[str] = None,
+    category_slug: List[str] = Query(default=[]),
+    brand: List[str] = Query(default=[]),
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     sort: Optional[str] = "newest",
@@ -37,54 +82,36 @@ def read_products(
     size: int = Query(12, ge=1, le=100)
 ) -> Any:
     query = db.query(Product).filter(Product.is_active)
-    
+
     if q:
         query = query.filter(Product.name.ilike(f"%{q}%"))
     if category_slug:
-        query = query.join(Product.category).filter(Category.slug == category_slug)
+        query = query.join(Product.category).filter(Category.slug.in_(category_slug))
     if brand:
-        query = query.filter(Product.brand == brand)
+        query = query.filter(Product.brand.in_(brand))
     effective_price = func.coalesce(Product.sale_price, Product.price)
 
     if min_price is not None:
         query = query.filter(effective_price >= min_price)
     if max_price is not None:
         query = query.filter(effective_price <= max_price)
-        
+
     if sort == "newest":
         query = query.order_by(desc(Product.created_at))
     elif sort == "price_asc":
         query = query.order_by(asc(effective_price))
     elif sort == "price_desc":
         query = query.order_by(desc(effective_price))
-        
+
     total = query.count()
     products = query.offset((page - 1) * size).limit(size).all()
-    
-    items = []
-    for p in products:
-        items.append({
-            "id": str(p.id),
-            "name": p.name,
-            "slug": p.slug,
-            "description": p.description,
-            "price": float(p.price),
-            "sale_price": float(p.sale_price) if p.sale_price else None,
-            "stock_qty": p.stock_qty,
-            "brand": p.brand,
-            "images": p.images,
-            "is_active": p.is_active,
-            "category_name": p.category.name if p.category else None,
-            "target_species": p.target_species,
-            "attributes": p.attributes
-        })
-        
+
     return {
-        "items": items,
+        "items": [_product_dict(p) for p in products],
         "total": total,
         "page": page,
         "size": size,
-        "pages": (total + size - 1) // size
+        "pages": (total + size - 1) // size,
     }
 
 @router.get("/brands", response_model=List[str])
@@ -92,24 +119,63 @@ def read_brands(db: SessionDep) -> Any:
     brands = db.query(Product.brand).filter(Product.brand.isnot(None)).distinct().all()
     return [b[0] for b in brands if b[0]]
 
+@router.get("/best-sellers", response_model=dict)
+def read_best_sellers(db: SessionDep, limit: int = Query(8, ge=1, le=20)) -> Any:
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    rows = (
+        db.query(Product, func.sum(OrderItem.quantity).label("total_sold"))
+        .join(OrderItem, OrderItem.product_id == Product.id)
+        .join(Order, Order.id == OrderItem.order_id)
+        .filter(Product.is_active, Order.created_at >= week_ago)
+        .group_by(Product.id)
+        .order_by(desc("total_sold"))
+        .limit(limit)
+        .all()
+    )
+    if not rows:
+        fallback = db.query(Product).filter(Product.is_active).order_by(desc(Product.created_at)).limit(limit).all()
+        rows = [(p, 0) for p in fallback]
+    return {"items": [_product_dict(p) for p, _ in rows]}
+
+@router.get("/new-arrivals", response_model=dict)
+def read_new_arrivals(db: SessionDep, limit: int = Query(8, ge=1, le=20)) -> Any:
+    now = datetime.now(timezone.utc)
+    monday = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    products = (
+        db.query(Product)
+        .filter(Product.is_active, Product.created_at >= monday)
+        .order_by(desc(Product.created_at))
+        .limit(limit)
+        .all()
+    )
+    if not products:
+        products = db.query(Product).filter(Product.is_active).order_by(desc(Product.created_at)).limit(limit).all()
+    return {"items": [_product_dict(p) for p in products]}
+
+@router.get("/recommendations", response_model=dict)
+def read_recommendations(db: SessionDep, current_user: OptionalUser, limit: int = Query(8, ge=1, le=20)) -> Any:
+    if not current_user:
+        return {"items": []}
+    pets = db.query(Pet).filter(Pet.user_id == current_user.id).all()
+    if not pets:
+        return {"items": []}
+    species_list = list({p.species.value for p in pets})
+    species_col = func.cast(Product.target_species, String)
+    conditions = [species_col.ilike(f"%{sp}%") for sp in species_list]
+    products = (
+        db.query(Product)
+        .filter(Product.is_active, or_(*conditions))
+        .order_by(desc(Product.created_at))
+        .limit(limit)
+        .all()
+    )
+    if not products:
+        products = db.query(Product).filter(Product.is_active).order_by(desc(Product.created_at)).limit(limit).all()
+    return {"items": [_product_dict(p) for p in products]}
+
 @router.get("/{slug}", response_model=ProductResponse)
 def read_product(slug: str, db: SessionDep) -> Any:
     product = db.query(Product).filter(Product.slug == slug, Product.is_active).first()
     if not product:
         raise HTTPException(status_code=404, detail="Sản phẩm không tồn tại")
-    
-    return {
-        "id": str(product.id),
-        "name": product.name,
-        "slug": product.slug,
-        "description": product.description,
-        "price": float(product.price),
-        "sale_price": float(product.sale_price) if product.sale_price else None,
-        "stock_qty": product.stock_qty,
-        "brand": product.brand,
-        "images": product.images,
-        "is_active": product.is_active,
-        "category_name": product.category.name if product.category else None,
-        "target_species": product.target_species,
-        "attributes": product.attributes
-    }
+    return _product_dict(product, include_variants=True)
