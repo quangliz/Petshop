@@ -1,0 +1,112 @@
+"use client";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/lib/api";
+
+const ALL_STATUSES = ["all", "pending", "confirmed", "shipping", "completed", "cancelled"];
+
+const STATUS_LABELS: Record<string, string> = {
+  all: "Tất cả", pending: "Chờ xử lý", confirmed: "Đã xác nhận",
+  shipping: "Đang giao", completed: "Hoàn thành", cancelled: "Đã huỷ",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-700",
+  confirmed: "bg-blue-100 text-blue-700",
+  shipping: "bg-indigo-100 text-indigo-700",
+  completed: "bg-green-100 text-green-700",
+  cancelled: "bg-red-100 text-red-700",
+};
+
+export default function AdminOrdersPage() {
+  const queryClient = useQueryClient();
+  const [activeStatus, setActiveStatus] = useState("all");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-orders", activeStatus],
+    queryFn: async () => {
+      const url = activeStatus === "all" ? "/admin/orders?limit=100" : `/admin/orders?status=${activeStatus}&limit=100`;
+      const res = await api.get(url);
+      return res.data;
+    },
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      api.put(`/admin/orders/${id}/status`, { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-orders"] }),
+    onError: (e: any) => alert(e.response?.data?.detail ?? "Lỗi cập nhật"),
+  });
+
+  return (
+    <div>
+      {/* Status Filter Tabs */}
+      <div className="flex gap-2 mb-5 flex-wrap">
+        {ALL_STATUSES.map((s) => (
+          <button key={s} onClick={() => setActiveStatus(s)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              activeStatus === s ? "bg-orange-600 text-white shadow" : "bg-white text-gray-600 border hover:bg-gray-50"
+            }`}>
+            {STATUS_LABELS[s]}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b text-gray-500 uppercase text-xs">
+            <tr>
+              <th className="text-left px-4 py-3">Mã đơn</th>
+              <th className="text-left px-4 py-3">Khách hàng</th>
+              <th className="text-right px-4 py-3">Tổng tiền</th>
+              <th className="text-center px-4 py-3">PTTT</th>
+              <th className="text-center px-4 py-3">Trạng thái</th>
+              <th className="text-center px-4 py-3">Ngày đặt</th>
+              <th className="text-center px-4 py-3">Cập nhật</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {isLoading && (
+              <tr><td colSpan={7} className="text-center py-10 text-gray-400">Đang tải...</td></tr>
+            )}
+            {data?.items?.map((o: any) => (
+              <tr key={o.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-3 font-mono font-semibold text-xs">{o.order_code}</td>
+                <td className="px-4 py-3">
+                  <div className="font-medium">{o.customer_name}</div>
+                  <div className="text-xs text-gray-400">{o.customer_email}</div>
+                </td>
+                <td className="px-4 py-3 text-right font-semibold">{o.total.toLocaleString()}đ</td>
+                <td className="px-4 py-3 text-center uppercase text-xs font-medium">{o.payment_method}</td>
+                <td className="px-4 py-3 text-center">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[o.status] ?? "bg-gray-100 text-gray-600"}`}>
+                    {STATUS_LABELS[o.status] ?? o.status}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-center text-xs text-gray-500">
+                  {new Date(o.created_at).toLocaleDateString("vi-VN")}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <select
+                    value={o.status}
+                    className="text-xs border rounded px-2 py-1 bg-white focus:outline-none focus:border-orange-500"
+                    onChange={(e) => updateStatusMutation.mutate({ id: o.id, status: e.target.value })}
+                    disabled={o.status === "cancelled" || o.status === "completed"}
+                  >
+                    {["pending", "confirmed", "shipping", "completed", "cancelled"].map((s) => (
+                      <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            ))}
+            {!isLoading && data?.items?.length === 0 && (
+              <tr><td colSpan={7} className="text-center py-10 text-gray-400">Không có đơn hàng nào</td></tr>
+            )}
+          </tbody>
+        </table>
+        {data && <div className="px-4 py-3 text-xs text-gray-400 border-t">Tổng: {data.total} đơn hàng</div>}
+      </div>
+    </div>
+  );
+}
