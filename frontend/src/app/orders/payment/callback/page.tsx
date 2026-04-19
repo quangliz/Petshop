@@ -1,11 +1,11 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import Link from 'next/link';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
-export default function VNPayCallbackPage() {
+function VNPayCallbackContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
 
@@ -14,7 +14,7 @@ export default function VNPayCallbackPage() {
       try {
         const queryStr = searchParams.toString();
         await api.get(`/payments/vnpay/ipn?${queryStr}`);
-        
+
         const responseCode = searchParams.get('vnp_ResponseCode');
         if (responseCode === '00') {
            setStatus("success");
@@ -25,15 +25,15 @@ export default function VNPayCallbackPage() {
         setStatus("error");
       }
     };
-    
+
     if (searchParams.toString()) {
         notifyIPN();
     }
   }, [searchParams]);
 
   return (
-    <div style={{ 
-      minHeight: 'calc(100vh - 300px)', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+    <div style={{
+      minHeight: 'calc(100vh - 300px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '60px 24px'
     }}>
       <div className="card" style={{ maxWidth: 480, width: '100%', padding: '48px 40px', textAlign: 'center' }}>
@@ -45,7 +45,7 @@ export default function VNPayCallbackPage() {
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </>
         )}
-        
+
         {status === 'success' && (
           <>
             <div style={{ width: 80, height: 80, borderRadius: 40, background: 'var(--success-bg)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
@@ -72,5 +72,13 @@ export default function VNPayCallbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function VNPayCallbackPage() {
+  return (
+    <Suspense>
+      <VNPayCallbackContent />
+    </Suspense>
   );
 }

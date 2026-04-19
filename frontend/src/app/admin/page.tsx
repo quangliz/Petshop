@@ -59,7 +59,7 @@ export default function AdminDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d) => d.slice(5)} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
-              <Tooltip formatter={(v: number) => [`${v.toLocaleString()} đ`, "Doanh thu"]} labelFormatter={(l) => `Ngày ${l}`} />
+              <Tooltip formatter={(v) => [`${Number(v).toLocaleString()} đ`, "Doanh thu"]} labelFormatter={(l) => `Ngày ${l}`} />
               <Line type="monotone" dataKey="revenue" stroke="#ea580c" strokeWidth={2} dot={false} activeDot={{ r: 5 }} />
             </LineChart>
           </ResponsiveContainer>

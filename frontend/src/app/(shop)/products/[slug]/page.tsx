@@ -305,7 +305,10 @@ export default function ProductDetailPage() {
               padding: '16px 24px', fontSize: 15, fontWeight: 600,
               color: activeTab === tab.id ? 'var(--neutral-900)' : 'var(--neutral-500)',
               borderBottom: activeTab === tab.id ? '2px solid var(--primary-500)' : '2px solid transparent',
-              marginBottom: -1, background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.2s ease',
+              borderTop: 'none',
+              borderLeft: 'none',
+              borderRight: 'none',
+              marginBottom: -1, background: 'none', cursor: 'pointer', transition: 'all 0.2s ease',
             }}
           >
             {tab.label} {tab.count && <span style={{ color: 'var(--neutral-400)', fontWeight: 500, fontSize: 13 }}>({tab.count})</span>}

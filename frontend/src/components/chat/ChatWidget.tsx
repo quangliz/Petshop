@@ -186,7 +186,7 @@ export default function ChatWidget() {
                   borderBottomLeftRadius: m.role === 'user' ? 16 : 4,
                 }}>
                   <ReactMarkdown components={{
-                    p: ({children}) => <p style={{margin: '0 0 8px 0', lastChild: {margin: 0}}}>{children}</p>,
+                    p: ({children}) => <p style={{margin: '0 0 8px 0'}}>{children}</p>,
                     ul: ({children}) => <ul style={{margin: '8px 0', paddingLeft: '20px'}}>{children}</ul>,
                     li: ({children}) => <li style={{marginBottom: '4px'}}>{children}</li>
                   }}>
