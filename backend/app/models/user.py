@@ -2,7 +2,7 @@ from sqlalchemy import Boolean, String, Text, Numeric, DateTime, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import uuid
-from typing import List, Optional
+from typing import Optional
 import enum
 
 from app.database import Base

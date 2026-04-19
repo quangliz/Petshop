@@ -1,6 +1,5 @@
 from typing import Any, List
 from fastapi import APIRouter
-from sqlalchemy.orm import Session
 from app.api.deps import SessionDep
 from app.models.catalog import Category
 from pydantic import BaseModel, ConfigDict

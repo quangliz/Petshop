@@ -1,6 +1,5 @@
-from typing import Any, List, Optional
+from typing import Any, List
 from fastapi import APIRouter, HTTPException
-from sqlalchemy.orm import Session
 import uuid
 import datetime
 from pydantic import BaseModel

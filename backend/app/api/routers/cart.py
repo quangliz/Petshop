@@ -1,6 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import uuid
 

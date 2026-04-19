@@ -1,10 +1,9 @@
 from typing import Any, List, Optional
-from fastapi import APIRouter, Depends, Query, HTTPException
-from pydantic import BaseModel, ConfigDict
-from sqlalchemy.orm import Session
-from sqlalchemy import or_, desc, asc, func
+from fastapi import APIRouter, Query, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import desc, asc, func
 
-from app.api.deps import SessionDep, CurrentUser
+from app.api.deps import SessionDep
 from app.models.catalog import Product, Category
 
 router = APIRouter()
@@ -37,7 +36,7 @@ def read_products(
     page: int = Query(1, ge=1),
     size: int = Query(12, ge=1, le=100)
 ) -> Any:
-    query = db.query(Product).filter(Product.is_active == True)
+    query = db.query(Product).filter(Product.is_active)
     
     if q:
         query = query.filter(Product.name.ilike(f"%{q}%"))
@@ -95,7 +94,7 @@ def read_brands(db: SessionDep) -> Any:
 
 @router.get("/{slug}", response_model=ProductResponse)
 def read_product(slug: str, db: SessionDep) -> Any:
-    product = db.query(Product).filter(Product.slug == slug, Product.is_active == True).first()
+    product = db.query(Product).filter(Product.slug == slug, Product.is_active).first()
     if not product:
         raise HTTPException(status_code=404, detail="Sản phẩm không tồn tại")
     

@@ -1,6 +1,5 @@
-from typing import Any, Dict
+from typing import Any
 from fastapi import APIRouter, HTTPException, Request
-from sqlalchemy.orm import Session
 import uuid
 
 from app.api.deps import SessionDep, CurrentUser

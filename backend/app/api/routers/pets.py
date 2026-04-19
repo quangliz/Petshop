@@ -1,8 +1,7 @@
 import cloudinary
 import cloudinary.uploader
 from typing import Any, List, Optional
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 import uuid
 

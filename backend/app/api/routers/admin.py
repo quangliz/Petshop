@@ -1,5 +1,5 @@
-from typing import Any, List, Optional
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from typing import Any, Optional
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from sqlalchemy import func, desc, cast, Date
 from pydantic import BaseModel
 import uuid
@@ -9,8 +9,8 @@ import cloudinary.uploader
 
 from app.api.deps import SessionDep, CurrentUser
 from app.models.user import User, RoleEnum
-from app.models.catalog import Product, Category
-from app.models.commerce import Order, OrderItem, OrderStatusEnum, PaymentMethodEnum, PaymentStatusEnum
+from app.models.catalog import Product
+from app.models.commerce import Order, OrderItem, OrderStatusEnum
 
 router = APIRouter()
 

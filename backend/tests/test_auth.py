@@ -1,5 +1,4 @@
 """Tests for Auth API."""
-import pytest
 
 
 class TestRegister:
