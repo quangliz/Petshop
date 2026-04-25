@@ -39,6 +39,7 @@ def _product_dict(p: Product, include_variants: bool = False) -> dict:
         "stock_qty": p.stock_qty,
         "brand": p.brand,
         "images": p.images,
+        "thumbnail_url": p.images.get("main") if p.images else None,
         "is_active": p.is_active,
         "category_name": p.category.name if p.category else None,
         "target_species": p.target_species,
@@ -48,7 +49,11 @@ def _product_dict(p: Product, include_variants: bool = False) -> dict:
         product_images = sorted(p.product_images, key=lambda i: i.sort_order)
         d["product_images"] = [
             {"id": str(img.id), "url": img.url, "is_main": img.is_main, "sort_order": img.sort_order, "variant_id": str(img.variant_id) if img.variant_id else None}
-            for img in product_images
+            for img in product_images if img.attr_key is None
+        ]
+        d["attr_images"] = [
+            {"attr_key": img.attr_key, "attr_value": img.attr_value, "url": img.url}
+            for img in product_images if img.attr_key is not None
         ]
         d["variants"] = [
             {
@@ -59,10 +64,6 @@ def _product_dict(p: Product, include_variants: bool = False) -> dict:
                 "stock_qty": v.stock_qty,
                 "attributes": v.attributes or {},
                 "is_active": v.is_active,
-                "images": [
-                    {"id": str(img.id), "url": img.url, "is_main": img.is_main}
-                    for img in v.images
-                ],
             }
             for v in p.variants if v.is_active
         ]
@@ -83,8 +84,16 @@ def read_products(
 ) -> Any:
     query = db.query(Product).filter(Product.is_active)
 
-    if q:
-        query = query.filter(Product.name.ilike(f"%{q}%"))
+    if q and q.strip():
+        tokens = q.strip().split()
+        for tok in tokens:
+            like = f"%{tok}%"
+            query = query.filter(or_(
+                Product.name.ilike(like),
+                Product.brand.ilike(like),
+                Product.description.ilike(like),
+                Product.category.has(Category.name.ilike(like)),
+            ))
     if category_slug:
         query = query.join(Product.category).filter(Category.slug.in_(category_slug))
     if brand:

@@ -9,11 +9,11 @@ import Link from 'next/link';
 import { useAuthStore } from '@/lib/store';
 import { Minus, Plus, ShoppingCart, ChevronRight, Star, ShieldCheck, RefreshCw, Truck } from 'lucide-react';
 
-type VariantImage = { id: string; url: string; is_main: boolean };
 type Variant = {
   id: string; sku: string | null; price: number; sale_price: number | null;
-  stock_qty: number; attributes: Record<string, string>; is_active: boolean; images: VariantImage[];
+  stock_qty: number; attributes: Record<string, string>; is_active: boolean;
 };
+type AttrImage = { attr_key: string; attr_value: string; url: string };
 type ProductImage = { id: string; url: string; is_main: boolean; sort_order: number; variant_id: string | null };
 
 const Rating = ({ value, count }: { value: number; count?: number }) => (
@@ -77,15 +77,15 @@ export default function ProductDetailPage() {
   const originalPrice = selectedVariant ? selectedVariant.price : product?.price ?? 0;
   const effectiveStock = selectedVariant ? selectedVariant.stock_qty : (product?.stock_qty ?? 0);
 
-  // Image logic: variant image > product main image > product.images.main
+  // Image: find attr_image matching any selected attribute, else product main image
   const mainImage = useMemo(() => {
-    if (selectedVariant) {
-      const vi = selectedVariant.images.find((i) => i.is_main) ?? selectedVariant.images[0];
-      if (vi) return vi.url;
+    const attrImages: AttrImage[] = product?.attr_images ?? [];
+    if (attrImages.length > 0 && selectedVariant) {
+      for (const [key, val] of Object.entries(selectedVariant.attributes)) {
+        const match = attrImages.find((i) => i.attr_key === key && i.attr_value === val);
+        if (match) return match.url;
+      }
     }
-    const productImages: ProductImage[] = product?.product_images ?? [];
-    const main = productImages.find((i) => i.is_main && !i.variant_id) ?? productImages.find((i) => !i.variant_id);
-    if (main) return main.url;
     return product?.images?.main ?? null;
   }, [selectedVariant, product]);
 
@@ -219,8 +219,8 @@ export default function ProductDetailPage() {
               {[
                 { l: 'Phân loại', v: product.category_name || 'Chưa phân loại' },
                 { l: 'Dành cho', v: product.target_species?.label || (product.target_species?.species?.join(', ') ?? 'Tất cả') },
-                { l: 'Khối lượng', v: product.attributes?.weight || 'N/A' },
-                { l: 'Xuất xứ', v: product.attributes?.origin || 'N/A' },
+                // { l: 'Khối lượng', v: product.attributes?.weight || 'N/A' },
+                // { l: 'Xuất xứ', v: product.attributes?.origin || 'N/A' },
               ].map((a, i) => (
                 <div key={i} style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid var(--neutral-100)', display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <span style={{ fontSize: 11, color: 'var(--neutral-400)', fontWeight: 600, textTransform: 'uppercase' }}>{a.l}</span>
@@ -248,18 +248,18 @@ export default function ProductDetailPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{
                 display: 'flex', alignItems: 'center', background: 'white', borderRadius: 14, border: '1.5px solid var(--neutral-200)',
-                padding: '4px 6px', height: 52,
+                padding: '0 4px', height: 52,
               }}>
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  style={{ width: 40, height: 40, borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--neutral-600)' }}
+                  style={{ width: 44, height: 44, borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--neutral-600)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   <Minus size={18} />
                 </button>
-                <span style={{ width: 44, textAlign: 'center', fontSize: 18, fontWeight: 700 }}>{quantity}</span>
+                <span style={{ width: 40, textAlign: 'center', fontSize: 18, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-900)' }}>{quantity}</span>
                 <button
                   onClick={() => setQuantity(Math.min(effectiveStock || 99, quantity + 1))}
-                  style={{ width: 40, height: 40, borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--neutral-600)' }}
+                  style={{ width: 44, height: 44, borderRadius: 10, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--neutral-600)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   <Plus size={18} />
                 </button>

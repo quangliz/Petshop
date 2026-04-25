@@ -7,18 +7,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Edit, Trash2, X, ChevronDown, ChevronUp, Plus } from "lucide-react";
 
-type ProductImage = { id: string; url: string; is_main: boolean; sort_order: number; variant_id: string | null };
-type VariantImage = { id: string; url: string; is_main: boolean };
 type Variant = {
   id: string; sku: string | null; price: number; sale_price: number | null;
-  stock_qty: number; attributes: Record<string, string>; is_active: boolean; images: VariantImage[];
+  stock_qty: number; attributes: Record<string, string>; is_active: boolean;
 };
+type AttrImageRow = { attr_key: string; attr_value: string; url?: string; file?: File | null };
 type Product = {
   id: string; name: string; slug: string; price: number; sale_price?: number;
   stock_qty: number; brand?: string; description?: string; category_id?: number;
-  category_name?: string; is_active: boolean; images?: Record<string, string>;
+  category_name?: string; is_active: boolean; images?: Record<string, string>; thumbnail_url?: string;
 };
-type ProductDetail = Product & { variants: Variant[]; product_images: ProductImage[] };
+type ProductDetail = Product & { variants: Variant[]; attr_images: { attr_key: string; attr_value: string; url: string }[] };
 
 const emptyForm = {
   name: "", slug: "", price: "", sale_price: "", stock_qty: "0",
@@ -28,12 +27,12 @@ const emptyForm = {
 type AttrRow = { key: string; value: string };
 type VariantRow = {
   id?: string; sku: string; price: string; sale_price: string;
-  stock_qty: string; attrs: AttrRow[]; is_active: boolean; imageFile?: File | null; existingImage?: string;
+  stock_qty: string; attrs: AttrRow[]; is_active: boolean;
 };
 
 const emptyVariantRow = (): VariantRow => ({
   sku: "", price: "", sale_price: "", stock_qty: "0",
-  attrs: [{ key: "", value: "" }], is_active: true, imageFile: null,
+  attrs: [{ key: "", value: "" }], is_active: true,
 });
 
 export default function AdminProductsPage() {
@@ -44,6 +43,7 @@ export default function AdminProductsPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [variantSectionOpen, setVariantSectionOpen] = useState(false);
+  const [attrImages, setAttrImages] = useState<AttrImageRow[]>([]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-products", search],
@@ -61,6 +61,7 @@ export default function AdminProductsPage() {
   const openCreate = () => {
     setForm(emptyForm);
     setVariants([]);
+    setAttrImages([]);
     setVariantSectionOpen(false);
     setImageFile(null);
     setModal({ open: true });
@@ -75,6 +76,7 @@ export default function AdminProductsPage() {
       is_active: p.is_active,
     });
     setImageFile(null);
+    setAttrImages([]);
     setModal({ open: true, product: p });
 
     try {
@@ -88,11 +90,10 @@ export default function AdminProductsPage() {
         stock_qty: String(v.stock_qty),
         attrs: Object.entries(v.attributes || {}).map(([k, val]) => ({ key: k, value: val as string })),
         is_active: v.is_active,
-        imageFile: null,
-        existingImage: v.images.find((i) => i.is_main)?.url,
       }));
       setVariants(rows);
       setVariantSectionOpen(rows.length > 0);
+      setAttrImages((detail.attr_images ?? []).map((ai) => ({ attr_key: ai.attr_key, attr_value: ai.attr_value, url: ai.url, file: null })));
     } catch {
       setVariants([]);
     }
@@ -135,18 +136,25 @@ export default function AdminProductsPage() {
           attributes: attrs,
           is_active: v.is_active,
         };
-        let vid = v.id;
-        if (vid) {
-          await api.put(`/admin/products/${savedId}/variants/${vid}`, vPayload);
+        if (v.id) {
+          await api.put(`/admin/products/${savedId}/variants/${v.id}`, vPayload);
         } else {
-          const vRes = await api.post(`/admin/products/${savedId}/variants`, vPayload);
-          vid = vRes.data.id;
+          await api.post(`/admin/products/${savedId}/variants`, vPayload);
         }
-        if (v.imageFile && vid) {
+      }
+
+      for (const ai of attrImages) {
+        if (ai.file && ai.attr_key.trim() && ai.attr_value.trim()) {
           const fd = new FormData();
-          fd.append("file", v.imageFile);
-          await api.post(`/admin/products/${savedId}/variants/${vid}/image`, fd);
+          fd.append("file", ai.file);
+          fd.append("attr_key", ai.attr_key.trim());
+          fd.append("attr_value", ai.attr_value.trim());
+          await api.post(`/admin/products/${savedId}/attr-images`, fd);
         }
+      }
+
+      if (!imageFile) {
+        await api.post(`/admin/products/${savedId}/sync-thumbnail`);
       }
     },
     onSuccess: () => {
@@ -219,8 +227,8 @@ export default function AdminProductsPage() {
               <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3">
                   <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden">
-                    {p.images?.main ? (
-                      <img src={p.images.main} alt={p.name} className="w-full h-full object-cover" />
+                    {(p.thumbnail_url || p.images?.main) ? (
+                      <img src={p.thumbnail_url || p.images!.main} alt={p.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">N/A</div>
                     )}
@@ -345,7 +353,18 @@ export default function AdminProductsPage() {
                           <X className="w-4 h-4" />
                         </button>
 
-                        <div className="text-xs font-semibold text-gray-600 mb-1">Biến thể #{vIdx + 1}</div>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="text-xs font-semibold text-gray-600">Biến thể #{vIdx + 1}</div>
+                          {vIdx > 0 && (
+                            <button
+                              type="button"
+                              className="text-xs text-blue-600 hover:underline"
+                              onClick={() => updateVariant(vIdx, { attrs: variants[vIdx - 1].attrs.map((a) => ({ ...a })) })}
+                            >
+                              Sao chép thuộc tính từ #{vIdx}
+                            </button>
+                          )}
+                        </div>
 
                         {/* Attributes */}
                         <div>
@@ -404,16 +423,6 @@ export default function AdminProductsPage() {
                           </div>
                         </div>
 
-                        {/* Variant image */}
-                        <div>
-                          <Label className="text-xs">Ảnh biến thể</Label>
-                          {v.existingImage && (
-                            <img src={v.existingImage} alt="" className="w-16 h-16 object-cover rounded mb-1 border" />
-                          )}
-                          <Input type="file" accept="image/*" className="h-8 text-xs"
-                            onChange={(e) => updateVariant(vIdx, { imageFile: e.target.files?.[0] ?? null })} />
-                        </div>
-
                         <div className="flex items-center gap-2">
                           <input type="checkbox" checked={v.is_active} onChange={(e) => updateVariant(vIdx, { is_active: e.target.checked })} />
                           <Label className="text-xs">Kích hoạt biến thể</Label>
@@ -432,6 +441,55 @@ export default function AdminProductsPage() {
                   </div>
                 )}
               </div>
+
+              {/* Attr Images Section */}
+              {variants.length > 0 && (
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="px-4 py-3 bg-gray-50 text-sm font-semibold text-gray-700">
+                    Hình ảnh theo thuộc tính
+                    <p className="text-xs font-normal text-gray-400 mt-0.5">
+                      Mỗi dòng = một giá trị thuộc tính (VD: Màu=Đỏ). Nhiều biến thể cùng giá trị sẽ dùng chung ảnh.
+                    </p>
+                  </div>
+                  <div className="p-4 space-y-2">
+                    {attrImages.map((ai, idx) => (
+                      <div key={idx} className="flex gap-2 items-center">
+                        <Input
+                          placeholder="Thuộc tính (VD: Màu)"
+                          value={ai.attr_key}
+                          onChange={(e) => setAttrImages((prev) => prev.map((r, i) => i === idx ? { ...r, attr_key: e.target.value } : r))}
+                          className="h-8 text-xs w-32"
+                        />
+                        <Input
+                          placeholder="Giá trị (VD: Đỏ)"
+                          value={ai.attr_value}
+                          onChange={(e) => setAttrImages((prev) => prev.map((r, i) => i === idx ? { ...r, attr_value: e.target.value } : r))}
+                          className="h-8 text-xs w-32"
+                        />
+                        {ai.url && <img src={ai.url} alt="" className="w-8 h-8 object-cover rounded border shrink-0" />}
+                        <Input
+                          type="file" accept="image/*" className="h-8 text-xs flex-1"
+                          onChange={(e) => setAttrImages((prev) => prev.map((r, i) => i === idx ? { ...r, file: e.target.files?.[0] ?? null } : r))}
+                        />
+                        <button
+                          type="button"
+                          className="text-gray-400 hover:text-red-500 shrink-0"
+                          onClick={() => setAttrImages((prev) => prev.filter((_, i) => i !== idx))}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="text-xs text-orange-600 hover:underline flex items-center gap-1"
+                      onClick={() => setAttrImages((prev) => [...prev, { attr_key: "", attr_value: "", file: null }])}
+                    >
+                      <Plus className="w-3 h-3" /> Thêm ảnh theo thuộc tính
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="px-6 pb-6 flex justify-end gap-2">

@@ -80,6 +80,8 @@ class ProductImage(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"))
     variant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("product_variants.id", ondelete="SET NULL"), nullable=True)
+    attr_key: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    attr_value: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     url: Mapped[str] = mapped_column(String)
     alt_text: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     is_main: Mapped[bool] = mapped_column(Boolean, default=False)

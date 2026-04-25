@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
 import { ShoppingCart, Search } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -31,7 +32,42 @@ const Logo = ({ size = 28 }) => (
 
 export default function Header() {
   const { user, logout } = useAuthStore();
-  
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedTerm, setDebouncedTerm] = useState("");
+  const [suggestOpen, setSuggestOpen] = useState(false);
+
+  useEffect(() => {
+    if (pathname === "/shop") {
+      setSearchTerm(searchParams.get("q") || "");
+    }
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedTerm(searchTerm.trim()), 200);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  const suggestQ = debouncedTerm.length >= 2 ? debouncedTerm : "";
+  const { data: suggestions, isFetching: suggestLoading } = useQuery({
+    queryKey: ['product-suggest', suggestQ],
+    queryFn: async () => {
+      const res = await api.get(`/products/?q=${encodeURIComponent(suggestQ)}&size=5&page=1`);
+      return res.data;
+    },
+    enabled: !!suggestQ,
+    staleTime: 30_000,
+  });
+
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchTerm.trim();
+    setSuggestOpen(false);
+    router.push(q ? `/shop?q=${encodeURIComponent(q)}` : "/shop");
+  };
+
   const { data: cart } = useQuery({
     queryKey: ['cart'],
     queryFn: async () => {
@@ -69,24 +105,83 @@ export default function Header() {
         </Link>
       </nav>
 
-      <div style={{ flex: 1, maxWidth: 440, position: 'relative' }}>
+      <form onSubmit={submitSearch} style={{ flex: 1, maxWidth: 440, position: 'relative' }}>
         <div style={{
           height: 42, borderRadius: 12, background: 'var(--neutral-50)',
           border: '1px solid var(--neutral-100)', display: 'flex', alignItems: 'center',
           padding: '0 14px', gap: 10, color: 'var(--neutral-500)',
         }}>
           <Search size={16} />
-          <input placeholder="Tìm hạt, đồ chơi, cát vệ sinh..." style={{
-            flex: 1, border: 'none', outline: 'none', background: 'transparent',
-            fontSize: 13, color: 'var(--neutral-800)',
-          }} />
+          <input
+            value={searchTerm}
+            onChange={(e) => { setSearchTerm(e.target.value); setSuggestOpen(true); }}
+            onFocus={() => setSuggestOpen(true)}
+            onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
+            placeholder="Tìm hạt, đồ chơi, cát vệ sinh..."
+            style={{
+              flex: 1, border: 'none', outline: 'none', background: 'transparent',
+              fontSize: 13, color: 'var(--neutral-800)',
+            }}
+          />
           <kbd style={{
             fontFamily: 'var(--font-mono)', fontSize: 10, padding: '2px 6px',
             background: 'white', borderRadius: 4, border: '1px solid var(--neutral-200)',
             color: 'var(--neutral-500)',
-          }}>⌘K</kbd>
+          }}>⏎</kbd>
         </div>
-      </div>
+
+        {suggestOpen && suggestQ && (
+          <div style={{
+            position: 'absolute', top: 48, left: 0, right: 0, zIndex: 30,
+            background: 'white', border: '1px solid var(--neutral-100)', borderRadius: 12,
+            boxShadow: 'var(--shadow-md)', overflow: 'hidden',
+          }}>
+            {suggestLoading && !suggestions ? (
+              <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--neutral-500)' }}>Đang tìm...</div>
+            ) : suggestions?.items?.length ? (
+              <>
+                {suggestions.items.map((p: any) => (
+                  <Link
+                    key={p.id}
+                    href={`/products/${p.slug}`}
+                    onClick={() => setSuggestOpen(false)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                      textDecoration: 'none', color: 'var(--neutral-800)',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--neutral-50)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--neutral-100)', flexShrink: 0, overflow: 'hidden' }}>
+                      {(p.thumbnail_url || p.images?.main) && (
+                        <img src={p.thumbnail_url || p.images.main} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--neutral-500)' }}>{p.brand || p.category_name}</div>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary-600)' }}>
+                      {(p.sale_price || p.price).toLocaleString()}đ
+                    </div>
+                  </Link>
+                ))}
+                <div
+                  onMouseDown={(e) => { e.preventDefault(); submitSearch(e as any); }}
+                  style={{
+                    padding: '10px 14px', fontSize: 12, fontWeight: 600, color: 'var(--primary-600)',
+                    borderTop: '1px solid var(--neutral-100)', cursor: 'pointer', textAlign: 'center',
+                  }}
+                >
+                  Xem tất cả kết quả cho “{suggestQ}” →
+                </div>
+              </>
+            ) : (
+              <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--neutral-500)' }}>Không tìm thấy sản phẩm</div>
+            )}
+          </div>
+        )}
+      </form>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
         <Link href="/cart" style={{ padding: 10, color: 'var(--neutral-700)', position: 'relative', display: 'flex', alignItems: 'center' }}>

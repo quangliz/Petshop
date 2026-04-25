@@ -1,9 +1,10 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { addToGuestCart } from '@/lib/guestCart';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { ChevronRight, Star, ShoppingCart, Filter as FilterIcon, Check } from 'lucide-react';
 
@@ -145,8 +146,8 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: any, onAddT
     onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
     >
       <div style={{ position: 'relative', aspectRatio: '1 / 1', background: 'var(--neutral-50)' }}>
-        {product.images?.main ? (
-          <img src={product.images.main} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {(product.thumbnail_url || product.images?.main) ? (
+          <img src={product.thumbnail_url || product.images.main} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <div style={{ width: '100%', height: '100%', background: 'var(--neutral-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)', fontSize: 10 }}>NO IMAGE</div>
         )}
@@ -183,12 +184,15 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: any, onAddT
 );
 
 export default function ShopListing() {
+  const searchParams = useSearchParams();
+  const search = searchParams.get('q') || '';
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState('newest');
-  const [search] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [brandFilter, setBrandFilter] = useState<string[]>([]);
   const [priceRangeFilter, setPriceRangeFilter] = useState<[number | '', number | '']>(['', '']);
+
+  useEffect(() => { setPage(1); }, [search]);
 
   const size = 12;
   const queryClient = useQueryClient();
@@ -261,7 +265,9 @@ export default function ShopListing() {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
         <div>
-          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Tất cả sản phẩm</h1>
+          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>
+            {search ? `Kết quả cho “${search}”` : 'Tất cả sản phẩm'}
+          </h1>
           <p style={{ fontSize: 14, color: 'var(--neutral-500)', marginTop: 4 }}>Hiển thị {data.items.length} trong số {data.total} sản phẩm</p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>

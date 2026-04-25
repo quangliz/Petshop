@@ -85,6 +85,8 @@ def _product_image_dict(img: ProductImage) -> dict:
         "is_main": img.is_main,
         "sort_order": img.sort_order,
         "variant_id": str(img.variant_id) if img.variant_id else None,
+        "attr_key": img.attr_key,
+        "attr_value": img.attr_value,
     }
 
 # ─── Stats ────────────────────────────────────────────────────────────────────
@@ -268,6 +270,7 @@ def admin_get_product_detail(product_id: str, db: SessionDep, current_user: Curr
         "is_active": product.is_active,
         "images": product.images,
         "product_images": [_product_image_dict(img) for img in product_images if img.variant_id is None],
+        "attr_images": [_product_image_dict(img) for img in product_images if img.attr_key is not None],
         "variants": [_variant_dict(v) for v in product.variants],
     }
 
@@ -385,6 +388,55 @@ def admin_upload_variant_image(product_id: str, variant_id: str, db: SessionDep,
         return {"id": str(img.id), "url": url}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/products/{product_id}/attr-images")
+def admin_upload_attr_image(
+    product_id: str, db: SessionDep, current_user: CurrentUser,
+    attr_key: str = "", attr_value: str = "", file: UploadFile = File(...),
+) -> Any:
+    require_admin(current_user)
+    if not attr_key or not attr_value:
+        raise HTTPException(status_code=400, detail="attr_key và attr_value là bắt buộc")
+    product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+    try:
+        result = cloudinary.uploader.upload(file.file, folder="petshop/products/attrs")
+        url = result.get("secure_url")
+        existing = db.query(ProductImage).filter(
+            ProductImage.product_id == product.id,
+            ProductImage.attr_key == attr_key,
+            ProductImage.attr_value == attr_value,
+        ).first()
+        if existing:
+            existing.url = url
+            db.commit()
+            return _product_image_dict(existing)
+        img = ProductImage(product_id=product.id, attr_key=attr_key, attr_value=attr_value, url=url, is_main=False)
+        db.add(img)
+        db.commit()
+        db.refresh(img)
+        return _product_image_dict(img)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/products/{product_id}/sync-thumbnail")
+def admin_sync_thumbnail(product_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+    require_admin(current_user)
+    product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+    if product.images and product.images.get("main"):
+        return {"thumbnail_url": product.images["main"], "synced": False}
+    for variant in product.variants:
+        if not variant.is_active:
+            continue
+        img = next((i for i in variant.images if i.is_main), None) or (variant.images[0] if variant.images else None)
+        if img:
+            product.images = {"main": img.url}
+            db.commit()
+            return {"thumbnail_url": img.url, "synced": True}
+    return {"thumbnail_url": None, "synced": False}
 
 # ─── Orders ───────────────────────────────────────────────────────────────────
 @router.get("/orders")
