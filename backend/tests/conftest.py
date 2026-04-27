@@ -1,5 +1,5 @@
 """
-Shared fixtures for PetShop AI Backend tests.
+Shared fixtures for ThePawsome Backend tests.
 Uses the live database (test against real data).
 """
 import pytest
