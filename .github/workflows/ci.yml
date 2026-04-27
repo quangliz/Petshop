@@ -146,8 +146,19 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_KEY }}
-          source: "docker-compose.prod.yml,nginx/nginx.conf,.env"
+          source: "docker-compose.prod.yml,nginx/nginx.conf"
           target: "~/petshop"
+
+      - name: Write .env to server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cat > ~/petshop/.env << 'ENVEOF'
+            ${{ secrets.PROD_ENV }}
+            ENVEOF
 
       - name: Deploy to AWS
         uses: appleboy/ssh-action@v1
