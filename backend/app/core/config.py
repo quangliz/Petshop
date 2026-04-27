@@ -2,13 +2,27 @@ import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "PetShop AI"
+    PROJECT_NAME: str = "ThePawsome"
     API_V1_STR: str = "/api/v1"
     
     # Ở production, bạn nên override biến này trong file .env
     SECRET_KEY: str = os.getenv("SECRET_KEY", "b3a565ec1d87f9d8a3a9a14a34b22c74d32a45a3")
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 7 ngày
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # Email (Gmail SMTP)
+    MAIL_USERNAME: str = ""
+    MAIL_PASSWORD: str = ""
+    MAIL_FROM: str = ""
+    MAIL_PORT: int = 587
+    MAIL_SERVER: str = "smtp.gmail.com"
+
+    FRONTEND_URL: str = "http://localhost:3000"
+
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
     
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -21,10 +35,18 @@ class Settings(BaseSettings):
     
     # AI & Cloudinary
     OPENAI_API_KEY: str = ""
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    CHAT_MODEL: str = "gpt-4o-mini"
     CLOUDINARY_CLOUD_NAME: str = ""
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
-    
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    # LangSmith tracing — toggled by LANGSMITH_TRACING=true
+    LANGSMITH_TRACING: bool = False
+    LANGSMITH_API_KEY: str = ""
+    LANGSMITH_PROJECT: str = "petshop-ai"
+    LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
+
+    model_config = SettingsConfigDict(env_file="../.env", extra="ignore")
 
 settings = Settings()

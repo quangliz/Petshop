@@ -1,37 +1,121 @@
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage
-from langgraph.graph import StateGraph, START, END
-from typing import TypedDict, Annotated, List
+from typing import List, Optional, Annotated, TypedDict
 import operator
 
+from langchain_openai import ChatOpenAI
+from langchain_core.tools import tool
+from langchain_core.messages import BaseMessage
+from langgraph.graph import StateGraph, START
+from langgraph.prebuilt import ToolNode, tools_condition
+from sqlalchemy.orm import Session
+
 from app.core.config import settings
+from app.services.retrieval import search_products, search_knowledge
+
+
+SYSTEM_PROMPT_BASE = (
+    "Bạn là Catbot 🐱 — trợ lý AI chuyên gia dinh dưỡng và y tế của ThePawsome. "
+    "Bạn rất am hiểu cách chăm sóc thú cưng và luôn trả lời bằng tiếng Việt.\n\n"
+    "Quy tắc sử dụng công cụ:\n"
+    "- Khi người dùng hỏi về sản phẩm, gợi ý mua hàng, hoặc cần tìm thức ăn/đồ dùng cụ thể: "
+    "GỌI tool `search_products` để tìm sản phẩm trong cửa hàng.\n"
+    "- Khi người dùng hỏi về dinh dưỡng, sức khỏe, huấn luyện, grooming, đặc điểm giống loài: "
+    "GỌI tool `search_knowledge` để tra cứu kho kiến thức trước khi trả lời.\n"
+    "- Có thể gọi cả hai tool nếu câu hỏi vừa cần kiến thức vừa cần gợi ý sản phẩm.\n"
+    "- Sau khi có kết quả tool, trả lời ngắn gọn, có dẫn chứng. Khi muốn giới thiệu sản phẩm, "
+    "viết kèm thẻ định dạng `<product>slug-cua-san-pham</product>` ngay trong câu trả lời "
+    "(frontend sẽ render thành thẻ sản phẩm). KHÔNG bịa slug — chỉ dùng slug có trong kết quả tool.\n"
+    "- Nếu món ăn người dùng hỏi kỵ với dị ứng của thú cưng, hãy cảnh báo rõ ràng.\n"
+)
+
 
 class AgentState(TypedDict):
-    messages: Annotated[List, operator.add]
-    pet_context: str
-
-def get_llm():
-    return ChatOpenAI(model="gpt-4o-mini", api_key=settings.OPENAI_API_KEY, temperature=0.7)
-
-def chatbot_node(state: AgentState):
-    llm = get_llm()
-    messages = state["messages"]
-    pet_context = state.get("pet_context", "")
-    
-    sys_prompt = "Bạn là trợ lý AI chuyên gia dinh dưỡng và y tế của PetShop AI. Bạn rất am hiểu về cách chăm sóc thú cưng.\n"
-    if pet_context:
-        sys_prompt += f"Thông tin thú cưng đang thảo luận:\n{pet_context}\nHãy đưa ra lời khuyên 1 cách cá nhân hoá dựa vào thông tin này. Nếu thức ăn người dùng hỏi mà kỵ với dị ứng của chúng, hãy cản lại.\n"
-        
-    final_messages = [SystemMessage(content=sys_prompt)] + messages
-    response = llm.invoke(final_messages)
-    return {"messages": [response]}
+    messages: Annotated[List[BaseMessage], operator.add]
 
 
-def init_chat_graph():
+def _build_tools(db: Session):
+    @tool
+    def search_products_tool(query: str, species: Optional[List[str]] = None) -> str:
+        """Tìm sản phẩm trong cửa hàng ThePawsome bằng vector similarity.
+
+        Args:
+            query: Mô tả sản phẩm cần tìm (ví dụ: 'hạt cho mèo lông dài 5kg').
+            species: Lọc theo loài, ví dụ ['cat'] hoặc ['dog']. Bỏ qua nếu không chắc.
+
+        Returns: Danh sách top-5 sản phẩm dạng văn bản, kèm slug để dùng trong thẻ <product>.
+        """
+        results = search_products(db, query=query, limit=5, species=species)
+        if not results:
+            return "Không tìm thấy sản phẩm phù hợp."
+        lines = []
+        for r in results:
+            price = r["sale_price"] or r["price"]
+            lines.append(
+                f"- slug={r['slug']} | {r['name']} ({r['brand'] or 'không rõ thương hiệu'}) "
+                f"| giá: {price:,.0f}đ"
+            )
+        return "\n".join(lines)
+
+    @tool
+    def search_knowledge_tool(query: str) -> str:
+        """Tìm trong kho kiến thức chăm sóc thú cưng (dinh dưỡng, sức khỏe, huấn luyện, grooming, giống loài).
+
+        Args:
+            query: Câu hỏi hoặc chủ đề cần tra cứu.
+
+        Returns: Tối đa 4 đoạn kiến thức liên quan, kèm tiêu đề bài.
+        """
+        results = search_knowledge(query=query, limit=4)
+        if not results:
+            return "Không tìm thấy kiến thức liên quan."
+        return "\n\n".join(
+            f"[{r['title']} — {r['category']}]\n{r['content']}" for r in results
+        )
+
+    return [search_products_tool, search_knowledge_tool]
+
+
+def build_agent(db: Session):
+    """Build a per-request StateGraph agent: agent ⇄ tools.
+
+    Graph:
+        START → agent → tools_condition ─┬─ tools → agent
+                                         └─ END
+    """
+    llm = ChatOpenAI(
+        model=settings.CHAT_MODEL,
+        api_key=settings.OPENAI_API_KEY,
+        temperature=0.3,
+    )
+    tools = _build_tools(db)
+    llm_with_tools = llm.bind_tools(tools)
+
+    async def agent_node(state: AgentState):
+        response = await llm_with_tools.ainvoke(state["messages"])
+        return {"messages": [response]}
+
     workflow = StateGraph(AgentState)
-    workflow.add_node("chatbot", chatbot_node)
-    workflow.add_edge(START, "chatbot")
-    workflow.add_edge("chatbot", END)
+    workflow.add_node("agent", agent_node)
+    workflow.add_node("tools", ToolNode(tools))
+    workflow.add_edge(START, "agent")
+    # tools_condition routes to "tools" OR END — do NOT also add_edge to END
+    workflow.add_conditional_edges("agent", tools_condition)
+    workflow.add_edge("tools", "agent")
     return workflow.compile()
 
-agent_executor = init_chat_graph()
+
+def build_system_prompt(pet_context: str = "", product_context: str = "") -> str:
+    prompt = SYSTEM_PROMPT_BASE
+    if pet_context:
+        prompt += (
+            "\nThông tin thú cưng đang được tư vấn:\n"
+            f"{pet_context}\n"
+            "Hãy cá nhân hoá lời khuyên dựa vào hồ sơ trên.\n"
+        )
+    if product_context:
+        prompt += (
+            "\nNgười dùng đang xem sản phẩm:\n"
+            f"{product_context}\n"
+            "Nếu người dùng hỏi chung chung (\"sản phẩm này thế nào?\", \"có tốt không?\"), "
+            "hãy hiểu là họ đang hỏi về sản phẩm trên. Chủ động tư vấn nếu phù hợp.\n"
+        )
+    return prompt

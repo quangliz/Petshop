@@ -1,4 +1,5 @@
 from typing import Optional
+import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import uuid
@@ -9,16 +10,95 @@ from sse_starlette.sse import EventSourceResponse
 from app.api.deps import SessionDep, CurrentUser
 from app.models.chat import ChatSession, ChatMessage, ChatRoleEnum
 from app.models.user import Pet
-from app.services.chat_agent import agent_executor
+from app.models.catalog import Product
+from app.services.chat_agent import build_agent, build_system_prompt
 
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 router = APIRouter()
+
+PRODUCT_TAG_RE = re.compile(r"<product>\s*([a-z0-9\-_&.+%]+)\s*</product>", re.IGNORECASE)
+
+
+@router.get("/sessions")
+def list_sessions(db: SessionDep, current_user: CurrentUser):
+    sessions = (
+        db.query(ChatSession)
+        .filter(ChatSession.user_id == current_user.id)
+        .order_by(ChatSession.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [
+        {
+            "id": str(s.id),
+            "title": s.title,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+        }
+        for s in sessions
+    ]
+
+
+@router.get("/sessions/{session_id}/messages")
+def get_session_messages(session_id: str, db: SessionDep, current_user: CurrentUser):
+    session = db.query(ChatSession).filter(
+        ChatSession.id == uuid.UUID(session_id),
+        ChatSession.user_id == current_user.id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
+    msgs = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.session_id == session.id)
+        .order_by(ChatMessage.created_at.asc())
+        .all()
+    )
+    return {
+        "session": {"id": str(session.id), "title": session.title},
+        "messages": [
+            {
+                "role": m.role.value,
+                "content": m.content,
+                **({"products": _extract_products(db, m.content)} if m.role == ChatRoleEnum.assistant and PRODUCT_TAG_RE.search(m.content) else {}),
+            }
+            for m in msgs
+            if m.role in (ChatRoleEnum.user, ChatRoleEnum.assistant)
+        ],
+    }
+
 
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
     pet_id: Optional[str] = None
+    product_slug: Optional[str] = None
+
+
+def _extract_products(db, content: str) -> list[dict]:
+    slugs = list(dict.fromkeys(PRODUCT_TAG_RE.findall(content)))
+    if not slugs:
+        return []
+    products = (
+        db.query(Product)
+        .filter(Product.slug.in_(slugs), Product.is_active)
+        .all()
+    )
+    by_slug = {p.slug: p for p in products}
+    out = []
+    for slug in slugs:
+        p = by_slug.get(slug)
+        if not p:
+            continue
+        out.append({
+            "slug": p.slug,
+            "name": p.name,
+            "brand": p.brand,
+            "price": float(p.price),
+            "sale_price": float(p.sale_price) if p.sale_price else None,
+            "thumbnail_url": p.images.get("main") if p.images else None,
+        })
+    return out
+
 
 @router.post("/stream")
 def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUser):
@@ -29,7 +109,7 @@ def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUser):
         ).first()
         if not session:
             raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
-            
+
         pet_id = session.pet_id
     else:
         pet_id = uuid.UUID(req.pet_id) if req.pet_id else None
@@ -41,12 +121,35 @@ def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUser):
         db.add(session)
         db.commit()
         db.refresh(session)
-        
+
     pet_context = ""
     if pet_id:
         pet = db.query(Pet).filter(Pet.id == pet_id, Pet.user_id == current_user.id).first()
         if pet:
-            pet_context = f"- Tên: {pet.name}\n- Loài: {pet.species.value}\n- Giống: {pet.breed or 'Không rõ'}\n- Tuổi: {pet.age_months or '?' } tháng\n- Ghi chú: {pet.health_notes or 'Không có'}\n- Dị ứng: {pet.allergies or 'Không có'}"
+            pet_context = (
+                f"- Tên: {pet.name}\n"
+                f"- Loài: {pet.species.value}\n"
+                f"- Giống: {pet.breed or 'Không rõ'}\n"
+                f"- Tuổi: {pet.age_months or '?'} tháng\n"
+                f"- Cân nặng: {pet.weight_kg or '?'} kg\n"
+                f"- Ghi chú: {pet.health_notes or 'Không có'}\n"
+                f"- Dị ứng: {pet.allergies or 'Không có'}"
+            )
+
+    product_context = ""
+    if req.product_slug:
+        viewed = db.query(Product).filter(Product.slug == req.product_slug, Product.is_active).first()
+        if viewed:
+            price = float(viewed.sale_price) if viewed.sale_price else float(viewed.price)
+            species = ", ".join(viewed.target_species) if viewed.target_species else "tất cả"
+            product_context = (
+                f"- Tên: {viewed.name}\n"
+                f"- Slug: {viewed.slug}\n"
+                f"- Thương hiệu: {viewed.brand or 'Không rõ'}\n"
+                f"- Giá: {price:,.0f}đ\n"
+                f"- Dành cho: {species}\n"
+                f"- Mô tả: {(viewed.description or '')[:200]}"
+            )
 
     hm = ChatMessage(
         session_id=session.id,
@@ -55,32 +158,48 @@ def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUser):
     )
     db.add(hm)
     db.commit()
-    
+
     past_msgs = db.query(ChatMessage).filter(ChatMessage.session_id == session.id).order_by(ChatMessage.created_at.asc()).all()
-    history = []
+    history = [SystemMessage(content=build_system_prompt(pet_context, product_context))]
     for msg in past_msgs:
         if msg.role == ChatRoleEnum.user:
             history.append(HumanMessage(content=msg.content))
         elif msg.role == ChatRoleEnum.assistant:
             history.append(AIMessage(content=msg.content))
 
+    agent = build_agent(db)
+
     async def event_generator():
-        state = {"messages": history, "pet_context": pet_context}
+        state = {"messages": history}
         full_content = ""
         total_tokens = 0
+        run_config = {
+            "run_name": "thepawsome_chat",
+            "tags": ["chat", f"user:{current_user.id}"],
+            "metadata": {
+                "user_id": str(current_user.id),
+                "session_id": str(session.id),
+                "pet_id": str(pet_id) if pet_id else None,
+            },
+        }
         try:
-            async for chunk in agent_executor.astream(state, stream_mode="messages"):
-                msg_chunk, metadata = chunk
-                if msg_chunk.content:
-                    full_content += msg_chunk.content
-                    yield {
-                        "event": "message",
-                        "data": json.dumps({"content": msg_chunk.content})
-                    }
-                    
-                # Optionally track usage if needed from metadata or chunk
-                if hasattr(msg_chunk, "usage_metadata") and msg_chunk.usage_metadata is not None:
-                    total_tokens += msg_chunk.usage_metadata.get("total_tokens", 0)
+            async for event in agent.astream_events(state, version="v2", config=run_config):
+                kind = event["event"]
+                # Stream text tokens from the LLM
+                if kind == "on_chat_model_stream":
+                    chunk = event["data"]["chunk"]
+                    content = chunk.content if isinstance(chunk.content, str) else ""
+                    if content:
+                        full_content += content
+                        yield {
+                            "event": "message",
+                            "data": json.dumps({"content": content})
+                        }
+                # Capture token usage from the completed LLM call
+                elif kind == "on_chat_model_end":
+                    output = event["data"].get("output")
+                    if output and hasattr(output, "usage_metadata") and output.usage_metadata:
+                        total_tokens += output.usage_metadata.get("total_tokens", 0)
 
             am = ChatMessage(
                 session_id=session.id,
@@ -90,7 +209,14 @@ def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUser):
             )
             db.add(am)
             db.commit()
-            
+
+            products = _extract_products(db, full_content)
+            if products:
+                yield {
+                    "event": "products",
+                    "data": json.dumps({"items": products})
+                }
+
             yield {
                 "event": "done",
                 "data": json.dumps({"session_id": str(session.id)})
