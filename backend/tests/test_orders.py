@@ -41,8 +41,8 @@ class TestCheckout:
 
     def test_checkout_success(self, client, auth_headers):
         """Full checkout flow: add item → checkout → verify order."""
-        products = client.get("/api/v1/products/?size=1").json()
-        items = products.get("items", [])
+        products = client.get("/api/v1/products/?size=20").json()
+        items = [p for p in products.get("items", []) if p.get("stock_qty", 0) > 0]
         if not items:
             pytest.skip("No products available")
 

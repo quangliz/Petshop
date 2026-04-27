@@ -200,7 +200,7 @@ def admin_list_products(
 @router.post("/products")
 def admin_create_product(product_in: ProductCreate, db: SessionDep, current_user: CurrentUser) -> Any:
     require_admin(current_user)
-    product = Product(**product_in.dict())
+    product = Product(**product_in.model_dump())
     db.add(product)
     db.commit()
     db.refresh(product)
@@ -212,7 +212,7 @@ def admin_update_product(product_id: str, product_in: ProductUpdate, db: Session
     product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
-    for field, value in product_in.dict(exclude_unset=True).items():
+    for field, value in product_in.model_dump(exclude_unset=True).items():
         setattr(product, field, value)
     db.commit()
     db.refresh(product)

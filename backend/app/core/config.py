@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # Ở production, bạn nên override biến này trong file .env
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "b3a565ec1d87f9d8a3a9a14a34b22c74d32a45a3")
+    SECRET_KEY: str = os.getenv("SECRET_KEY")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
