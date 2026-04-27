@@ -1,13 +1,15 @@
 "use client";
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import api from '@/lib/api';
 import { addToGuestCart } from '@/lib/guestCart';
 import Link from 'next/link';
-import { useAuthStore } from '@/lib/store';
-import { Minus, Plus, ShoppingCart, ChevronRight, Star, ShieldCheck, RefreshCw, Truck } from 'lucide-react';
+import { useAuthStore, useViewingProductStore } from '@/lib/store';
+import { Minus, Plus, ShoppingCart, ChevronLeft, ChevronRight, Star, ShieldCheck, RefreshCw, Truck } from 'lucide-react';
+import ReviewSection from '@/components/reviews/ReviewSection';
+import StarRating from '@/components/reviews/StarRating';
 
 type Variant = {
   id: string; sku: string | null; price: number; sale_price: number | null;
@@ -16,23 +18,14 @@ type Variant = {
 type AttrImage = { attr_key: string; attr_value: string; url: string };
 type ProductImage = { id: string; url: string; is_main: boolean; sort_order: number; variant_id: string | null };
 
-const Rating = ({ value, count }: { value: number; count?: number }) => (
-  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'oklch(0.75 0.15 75)' }}>
-    <div style={{ display: 'inline-flex' }}>
-      {[0, 1, 2, 3, 4].map(i => (
-        <Star key={i} size={16} fill={i < Math.round(value) ? "currentColor" : "none"} />
-      ))}
-    </div>
-    {count != null && <span style={{ color: 'var(--neutral-500)', fontSize: 13, fontWeight: 500 }}>{count} đánh giá</span>}
-  </div>
-);
-
 export default function ProductDetailPage() {
   const params = useParams();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('desc');
+
+  const setViewingProduct = useViewingProductStore((s) => s.setViewingProduct);
 
   const { data: product, isLoading } = useQuery({
     queryKey: ['product', params.slug],
@@ -41,6 +34,13 @@ export default function ProductDetailPage() {
       return res.data;
     }
   });
+
+  useEffect(() => {
+    if (product) {
+      setViewingProduct({ id: product.id, slug: product.slug, name: product.name });
+    }
+    return () => setViewingProduct(null);
+  }, [product, setViewingProduct]);
 
   const variants: Variant[] = useMemo(() => product?.variants ?? [], [product]);
   const hasVariants = variants.length > 0;
@@ -109,6 +109,15 @@ export default function ProductDetailPage() {
     addToCartMutation.mutate();
   };
 
+  const { data: similarData } = useQuery({
+    queryKey: ['similar', params.slug],
+    queryFn: () => api.get(`/products/${params.slug}/similar`).then(r => r.data),
+    enabled: !!product,
+  });
+
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const scrollCarousel = (dir: number) => carouselRef.current?.scrollBy({ left: dir * 400, behavior: 'smooth' });
+
   if (isLoading) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--neutral-500)' }}>Đang tải...</div>;
   if (!product) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--danger)' }}>Không tìm thấy sản phẩm</div>;
 
@@ -117,19 +126,19 @@ export default function ProductDetailPage() {
     : (product.sale_price ? Math.round((1 - product.sale_price / product.price) * 100) : 0);
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 pb-28 md:pb-8">
       {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--neutral-500)', marginBottom: 32 }}>
-        <Link href="/" style={{ color: 'inherit', textDecoration: 'none' }}>Trang chủ</Link>
+      <div className="flex flex-wrap items-center gap-2 text-[13px] text-neutral-500 mb-6 md:mb-8">
+        <Link href="/" className="text-inherit no-underline hover:text-neutral-900 transition-colors">Trang chủ</Link>
         <ChevronRight size={14} />
-        <Link href="/shop" style={{ color: 'inherit', textDecoration: 'none' }}>Cửa hàng</Link>
+        <Link href="/shop" className="text-inherit no-underline hover:text-neutral-900 transition-colors">Cửa hàng</Link>
         <ChevronRight size={14} />
-        <span style={{ color: 'var(--neutral-900)', fontWeight: 600 }}>{product.name}</span>
+        <span className="text-neutral-900 font-semibold">{product.name}</span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 64, alignItems: 'start' }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-start">
         {/* Gallery */}
-        <div style={{ position: 'sticky', top: 100 }}>
+        <div className="relative md:sticky md:top-24">
           <div className="card" style={{ aspectRatio: '1/1', overflow: 'hidden', background: 'var(--neutral-50)', position: 'relative' }}>
             {mainImage ? (
               <img src={mainImage} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -155,7 +164,10 @@ export default function ProductDetailPage() {
             </div>
             <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, color: 'var(--neutral-900)', margin: '0 0 16px' }}>{product.name}</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-              <Rating value={4.8} count={42} />
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'oklch(0.75 0.15 75)' }}>
+                <StarRating value={Math.round(product.avg_rating ?? 0)} size={16} />
+                {product.review_count > 0 && <span style={{ color: 'var(--neutral-500)', fontSize: 13, fontWeight: 500 }}>{product.review_count} đánh giá</span>}
+              </div>
               <div style={{ width: 1, height: 16, background: 'var(--neutral-200)' }} />
               <span style={{ fontSize: 13, color: 'var(--neutral-600)', fontWeight: 500 }}>Đã bán 150+</span>
             </div>
@@ -241,11 +253,11 @@ export default function ProductDetailPage() {
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 16, borderTop: '1px solid var(--neutral-100)' }}>
+          <div className="fixed bottom-0 inset-x-0 p-4 bg-white border-t z-50 md:relative md:p-0 md:bg-transparent md:z-auto flex flex-col gap-3 md:gap-4 md:mt-4 md:pt-4 md:border-t md:border-neutral-100 shadow-[0_-8px_20px_rgba(0,0,0,0.08)] md:shadow-none">
             {effectiveStock === 0 && (
               <div style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>Hết hàng</div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div className="flex items-center gap-3 md:gap-4">
               <div style={{
                 display: 'flex', alignItems: 'center', background: 'white', borderRadius: 14, border: '1.5px solid var(--neutral-200)',
                 padding: '0 4px', height: 52,
@@ -273,7 +285,7 @@ export default function ProductDetailPage() {
                 <ShoppingCart size={20} /> {addToCartMutation.isPending ? "Đang xử lý..." : "Thêm vào giỏ hàng"}
               </button>
             </div>
-            <button className="btn btn-outline btn-lg" style={{ height: 52, borderRadius: 14, fontSize: 16, fontWeight: 700 }}>Mua ngay</button>
+            <button className="btn btn-outline btn-lg w-full md:w-auto" style={{ height: 52, borderRadius: 14, fontSize: 16, fontWeight: 700 }}>Mua ngay</button>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 8 }}>
@@ -291,11 +303,11 @@ export default function ProductDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ marginTop: 64, borderBottom: '1px solid var(--neutral-200)', display: 'flex', gap: 8 }}>
+      <div className="flex gap-2 md:gap-8 mt-12 md:mt-16 border-b border-neutral-200 overflow-x-auto scrollbar-hide">
         {[
           { id: 'desc', label: 'Mô tả' },
           { id: 'spec', label: 'Thông số' },
-          { id: 'review', label: 'Đánh giá', count: 42 },
+          { id: 'review', label: 'Đánh giá', count: product.review_count || undefined },
           { id: 'ship', label: 'Vận chuyển' },
         ].map(tab => (
           <button
@@ -355,10 +367,7 @@ export default function ProductDetailPage() {
           </div>
         )}
         {activeTab === 'review' && (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--neutral-500)' }}>
-            <Rating value={4.8} count={42} />
-            <p style={{ marginTop: 12 }}>Xem tất cả đánh giá từ khách hàng đã mua sản phẩm.</p>
-          </div>
+          <ReviewSection productId={product.id} />
         )}
         {activeTab === 'ship' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -368,6 +377,80 @@ export default function ProductDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Related Products Carousel */}
+      {similarData?.items?.length > 0 && (
+        <div style={{ marginTop: 48 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 20, color: 'var(--neutral-900)' }}>
+            Sản phẩm tương tự
+          </h2>
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => scrollCarousel(-1)} style={{
+              position: 'absolute', left: -16, top: '50%', transform: 'translateY(-50%)', zIndex: 2,
+              width: 36, height: 36, borderRadius: 18, background: 'white', border: '1px solid var(--neutral-200)',
+              boxShadow: 'var(--shadow-sm)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--neutral-700)',
+            }}>
+              <ChevronLeft size={18} />
+            </button>
+            <div ref={carouselRef} style={{
+              display: 'flex', gap: 16, overflowX: 'auto', scrollSnapType: 'x mandatory',
+              scrollbarWidth: 'none', padding: '4px 4px 8px',
+            }}>
+              {similarData.items.map((p: any) => (
+                <Link key={p.id} href={`/products/${p.slug}`} className="w-[150px] md:w-[180px] flex-shrink-0" style={{ textDecoration: 'none', color: 'inherit', scrollSnapAlign: 'start' }}>
+                  <div className="card" style={{
+                    cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%',
+                    transition: 'transform 160ms ease, box-shadow 160ms ease',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+                  >
+                    <div style={{ position: 'relative', aspectRatio: '1 / 1', background: 'var(--neutral-50)' }}>
+                      {p.thumbnail_url || p.images?.main ? (
+                        <img src={p.thumbnail_url || p.images?.main} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)', fontSize: 10 }}>NO IMAGE</div>
+                      )}
+                      {p.sale_price && (
+                        <span className="badge badge-sale" style={{ position: 'absolute', top: 8, left: 8, fontSize: 10 }}>
+                          -{Math.round((1 - p.sale_price / p.price) * 100)}%
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+                      <div style={{ fontSize: 10, color: 'var(--neutral-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{p.brand || "LOCAL BRAND"}</div>
+                      <div style={{
+                        fontSize: 13, fontWeight: 600, color: 'var(--neutral-800)', lineHeight: 1.35,
+                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                        minHeight: 35,
+                      }}>{p.name}</div>
+                      {p.avg_rating != null && p.review_count > 0 && (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <StarRating value={Math.round(p.avg_rating)} size={11} />
+                          <span style={{ fontSize: 10, color: 'var(--neutral-500)' }}>({p.review_count})</span>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 'auto', paddingTop: 4 }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--primary-600)' }}>{(p.sale_price || p.price).toLocaleString()}đ</span>
+                        {p.sale_price && <span style={{ fontSize: 11, color: 'var(--neutral-400)', textDecoration: 'line-through' }}>{p.price.toLocaleString()}đ</span>}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <button onClick={() => scrollCarousel(1)} style={{
+              position: 'absolute', right: -16, top: '50%', transform: 'translateY(-50%)', zIndex: 2,
+              width: 36, height: 36, borderRadius: 18, background: 'white', border: '1px solid var(--neutral-200)',
+              boxShadow: 'var(--shadow-sm)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--neutral-700)',
+            }}>
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,9 +7,33 @@ from sqlalchemy import desc, asc, func, String, or_
 from app.api.deps import SessionDep, OptionalUser
 from app.models.catalog import Product, Category
 from app.models.commerce import Order, OrderItem
+from app.models.review import Review
 from app.models.user import Pet
+from app.services.retrieval import search_products as vector_search_products, similar_products
 
 router = APIRouter()
+
+
+def _get_ratings_map(db, product_ids: list) -> dict:
+    if not product_ids:
+        return {}
+    rows = (
+        db.query(
+            Review.product_id,
+            func.avg(Review.rating).label("avg"),
+            func.count(Review.id).label("cnt"),
+        )
+        .filter(Review.product_id.in_(product_ids))
+        .group_by(Review.product_id)
+        .all()
+    )
+    return {str(r.product_id): (round(float(r.avg), 1), r.cnt) for r in rows}
+
+
+def _product_dict_with_rating(p: Product, ratings_map: dict, include_variants: bool = False) -> dict:
+    avg, cnt = ratings_map.get(str(p.id), (None, 0))
+    return _product_dict(p, include_variants=include_variants, avg_rating=avg, review_count=cnt)
+
 
 class ProductResponse(BaseModel):
     id: str
@@ -28,7 +52,10 @@ class ProductResponse(BaseModel):
     variants: Optional[List[Any]] = None
     product_images: Optional[List[Any]] = None
 
-def _product_dict(p: Product, include_variants: bool = False) -> dict:
+def _product_dict(p: Product, include_variants: bool = False, avg_rating: float | None = None, review_count: int | None = None) -> dict:
+    target_species = p.target_species
+    if isinstance(target_species, list):
+        target_species = {sp: True for sp in target_species}
     d = {
         "id": str(p.id),
         "name": p.name,
@@ -42,8 +69,10 @@ def _product_dict(p: Product, include_variants: bool = False) -> dict:
         "thumbnail_url": p.images.get("main") if p.images else None,
         "is_active": p.is_active,
         "category_name": p.category.name if p.category else None,
-        "target_species": p.target_species,
+        "target_species": target_species,
         "attributes": p.attributes,
+        "avg_rating": avg_rating,
+        "review_count": review_count or 0,
     }
     if include_variants:
         product_images = sorted(p.product_images, key=lambda i: i.sort_order)
@@ -115,8 +144,9 @@ def read_products(
     total = query.count()
     products = query.offset((page - 1) * size).limit(size).all()
 
+    ratings = _get_ratings_map(db, [p.id for p in products])
     return {
-        "items": [_product_dict(p) for p in products],
+        "items": [_product_dict_with_rating(p, ratings) for p in products],
         "total": total,
         "page": page,
         "size": size,
@@ -144,7 +174,8 @@ def read_best_sellers(db: SessionDep, limit: int = Query(8, ge=1, le=20)) -> Any
     if not rows:
         fallback = db.query(Product).filter(Product.is_active).order_by(desc(Product.created_at)).limit(limit).all()
         rows = [(p, 0) for p in fallback]
-    return {"items": [_product_dict(p) for p, _ in rows]}
+    ratings = _get_ratings_map(db, [p.id for p, _ in rows])
+    return {"items": [_product_dict_with_rating(p, ratings) for p, _ in rows]}
 
 @router.get("/new-arrivals", response_model=dict)
 def read_new_arrivals(db: SessionDep, limit: int = Query(8, ge=1, le=20)) -> Any:
@@ -159,7 +190,8 @@ def read_new_arrivals(db: SessionDep, limit: int = Query(8, ge=1, le=20)) -> Any
     )
     if not products:
         products = db.query(Product).filter(Product.is_active).order_by(desc(Product.created_at)).limit(limit).all()
-    return {"items": [_product_dict(p) for p in products]}
+    ratings = _get_ratings_map(db, [p.id for p in products])
+    return {"items": [_product_dict_with_rating(p, ratings) for p in products]}
 
 @router.get("/recommendations", response_model=dict)
 def read_recommendations(db: SessionDep, current_user: OptionalUser, limit: int = Query(8, ge=1, le=20)) -> Any:
@@ -169,6 +201,32 @@ def read_recommendations(db: SessionDep, current_user: OptionalUser, limit: int 
     if not pets:
         return {"items": []}
     species_list = list({p.species.value for p in pets})
+
+    # Try embedding-based personalized recommendations first.
+    profile_parts = []
+    for p in pets:
+        allergies = (p.allergies or "").strip() or "không có"
+        profile_parts.append(
+            f"Loài {p.species.value}, giống {p.breed or 'không rõ'}, "
+            f"{p.age_months or '?'} tháng, {p.weight_kg or '?'}kg, dị ứng: {allergies}"
+        )
+    profile_str = (
+        "Gợi ý sản phẩm phù hợp cho thú cưng có hồ sơ: " + " | ".join(profile_parts)
+    )
+    try:
+        results = vector_search_products(db, query=profile_str, limit=limit, species=species_list)
+    except Exception:
+        results = []
+    if results:
+        slugs = [r["slug"] for r in results]
+        products = db.query(Product).filter(Product.slug.in_(slugs)).all()
+        by_slug = {p.slug: p for p in products}
+        ordered = [by_slug[s] for s in slugs if s in by_slug]
+        if ordered:
+            r = _get_ratings_map(db, [p.id for p in ordered])
+            return {"items": [_product_dict_with_rating(p, r) for p in ordered], "method": "embedding"}
+
+    # Fallback: species ILIKE.
     species_col = func.cast(Product.target_species, String)
     conditions = [species_col.ilike(f"%{sp}%") for sp in species_list]
     products = (
@@ -180,11 +238,28 @@ def read_recommendations(db: SessionDep, current_user: OptionalUser, limit: int 
     )
     if not products:
         products = db.query(Product).filter(Product.is_active).order_by(desc(Product.created_at)).limit(limit).all()
-    return {"items": [_product_dict(p) for p in products]}
+    ratings = _get_ratings_map(db, [p.id for p in products])
+    return {"items": [_product_dict_with_rating(p, ratings) for p in products], "method": "ilike"}
+
+
+@router.get("/{slug}/similar", response_model=dict)
+def read_similar_products(slug: str, db: SessionDep, limit: int = Query(6, ge=1, le=20)) -> Any:
+    base = db.query(Product).filter(Product.slug == slug, Product.is_active).first()
+    if not base:
+        raise HTTPException(status_code=404, detail="Sản phẩm không tồn tại")
+    items = similar_products(db, product=base, limit=limit)
+    product_ids = [i["id"] for i in items]
+    ratings = _get_ratings_map(db, product_ids)
+    for item in items:
+        avg, cnt = ratings.get(item["id"], (None, 0))
+        item["avg_rating"] = avg
+        item["review_count"] = cnt
+    return {"items": items}
 
 @router.get("/{slug}", response_model=ProductResponse)
 def read_product(slug: str, db: SessionDep) -> Any:
     product = db.query(Product).filter(Product.slug == slug, Product.is_active).first()
     if not product:
         raise HTTPException(status_code=404, detail="Sản phẩm không tồn tại")
-    return _product_dict(product, include_variants=True)
+    ratings = _get_ratings_map(db, [product.id])
+    return _product_dict_with_rating(product, ratings, include_variants=True)

@@ -31,7 +31,7 @@ const Rating = ({ value, size = 12, count }: { value: number, size?: number, cou
 );
 
 const ProductCardSmall = ({ product }: { product: any }) => (
-  <Link href={`/products/${product.slug}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0, width: 180, scrollSnapAlign: 'start' }}>
+  <Link href={`/products/${product.slug}`} className="w-[130px] md:w-[150px] flex-shrink-0" style={{ textDecoration: 'none', color: 'inherit', scrollSnapAlign: 'start' }}>
     <div className="card" style={{
       cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%',
       transition: 'transform 160ms ease, box-shadow 160ms ease',
@@ -131,15 +131,15 @@ export default function Home() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', paddingBottom: 80 }}>
       {/* Hero Section */}
-      <section style={{
+      <section className="mx-4 md:mx-8 mt-6 px-6 py-10 md:p-14" style={{
         position: 'relative', overflow: 'hidden',
         background: 'linear-gradient(135deg, oklch(0.97 0.025 55) 0%, oklch(0.95 0.04 30) 60%, oklch(0.96 0.04 85) 100%)',
-        borderRadius: 28, margin: '24px 32px 0', padding: '56px 56px',
+        borderRadius: 28,
       }}>
         <div style={{ position: 'absolute', top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'oklch(0.93 0.08 50 / 0.5)', filter: 'blur(40px)' }} />
         <div style={{ position: 'absolute', bottom: -50, left: '40%', width: 220, height: 220, borderRadius: '50%', background: 'oklch(0.92 0.07 195 / 0.4)', filter: 'blur(50px)' }} />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: 40, alignItems: 'center', position: 'relative' }}>
+        <div className="grid grid-cols-1 md:grid-cols-[1.15fr_1fr] gap-8 md:gap-10 items-center relative">
           <div>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px 6px 8px',
@@ -149,8 +149,8 @@ export default function Home() {
               <span style={{ background: 'var(--teal-600)', color: 'white', padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>MỚI</span>
               Trợ lý AI hiểu từng bé pet của bạn
             </div>
-            <h1 style={{
-              fontSize: 60, fontWeight: 800, lineHeight: 1.02, letterSpacing: '-0.035em',
+            <h1 className="text-[40px] md:text-[60px]" style={{
+              fontWeight: 800, lineHeight: 1.02, letterSpacing: '-0.035em',
               color: 'var(--neutral-900)', margin: '0 0 20px',
             }}>
               Thú cưng của bạn,<br/>
@@ -183,9 +183,8 @@ export default function Home() {
             </div>
           </div>
 
-          <div style={{ position: 'relative', height: 440 }}>
-            <div style={{
-              position: 'absolute', top: 20, right: 20, width: 320, height: 400,
+          <div className="relative h-[320px] md:h-[440px] flex justify-center w-full mt-8 md:mt-0">
+            <div className="relative md:absolute top-0 md:top-5 right-0 md:right-5 w-[280px] md:w-[320px] h-[320px] md:h-[400px]" style={{
               borderRadius: 24, background: 'white', boxShadow: 'var(--shadow-lg)',
               overflow: 'hidden', transform: 'rotate(3deg)', border: '1px solid var(--neutral-100)'
             }}>
@@ -205,7 +204,7 @@ export default function Home() {
 
       {/* Pet Recommendations (logged-in users with pets) */}
       {user && recommendations?.items?.length > 0 && (
-        <section style={{ padding: '48px 48px 0' }}>
+        <section className="px-4 md:px-12 pt-12">
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
             <div>
               <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Gợi ý cho bé của bạn</h2>
@@ -218,7 +217,7 @@ export default function Home() {
       )}
 
       {/* Best Sellers */}
-      <section style={{ padding: '48px 48px 0' }}>
+      <section className="px-4 md:px-12 pt-12">
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
             <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Bán chạy tuần này</h2>
@@ -230,7 +229,7 @@ export default function Home() {
       </section>
 
       {/* New Arrivals */}
-      <section style={{ padding: '48px 48px 48px' }}>
+      <section className="px-4 md:px-12 py-12">
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
             <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Mới về tuần này</h2>

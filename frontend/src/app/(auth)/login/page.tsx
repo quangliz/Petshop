@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { getGuestCart, clearGuestCart } from '@/lib/guestCart';
 import { Mail, Lock, Sparkles, ArrowRight } from 'lucide-react';
+import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -50,11 +51,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ 
-      minHeight: 'calc(100vh - 200px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '40px 24px', background: 'radial-gradient(circle at top right, var(--primary-50), transparent), radial-gradient(circle at bottom left, var(--teal-50), transparent)'
+    <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-10" style={{ 
+      background: 'radial-gradient(circle at top right, var(--primary-50), transparent), radial-gradient(circle at bottom left, var(--teal-50), transparent)'
     }}>
-      <div className="card" style={{ width: '100%', maxWidth: 440, padding: 40 }}>
+      <div className="card w-full max-w-md mx-auto p-8 md:p-10">
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ width: 64, height: 64, borderRadius: 20, background: 'var(--primary-600)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 8px 16px var(--primary-100)' }}>
             <Sparkles size={32} />
@@ -104,7 +104,16 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: 32, fontSize: 14, color: 'var(--neutral-500)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '24px 0 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--neutral-200)' }} />
+          <span style={{ fontSize: 12, color: 'var(--neutral-400)', fontWeight: 600 }}>HOẶC</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--neutral-200)' }} />
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <GoogleAuthButton />
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: 28, fontSize: 14, color: 'var(--neutral-500)' }}>
           Chưa có tài khoản? <Link href="/register" style={{ fontWeight: 700, color: 'var(--primary-600)', textDecoration: 'none' }}>Đăng ký ngay</Link>
         </div>
       </div>

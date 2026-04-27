@@ -158,7 +158,7 @@ export default function GeneralProfilePage() {
   if (!user) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--neutral-500)' }}>Vui lòng đăng nhập để xem hồ sơ.</div>;
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px', display: 'grid', gridTemplateColumns: '260px 1fr', gap: 48 }}>
+    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8 md:gap-12">
       {/* Sidebar Nav */}
       <aside style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 8px' }}>
@@ -179,7 +179,7 @@ export default function GeneralProfilePage() {
         {/* Account Section */}
         <section style={{ padding: 32, borderRadius: 24, border: '1px solid var(--neutral-100)', background: 'white' }}>
           <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>Thông tin tài khoản</h2>
-          <form onSubmit={(e) => { e.preventDefault(); updateProfileMutation.mutate(profileForm); }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+          <form onSubmit={(e) => { e.preventDefault(); updateProfileMutation.mutate(profileForm); }} className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Họ và tên</label>
               <input style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={profileForm.full_name} onChange={e => setProfileForm({...profileForm, full_name: e.target.value})} />
@@ -188,12 +188,12 @@ export default function GeneralProfilePage() {
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Số điện thoại</label>
               <input style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={profileForm.phone} onChange={e => setProfileForm({...profileForm, phone: e.target.value})} />
             </div>
-            <div style={{ gridColumn: 'span 2' }}>
+            <div className="sm:col-span-2">
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Địa chỉ giao hàng</label>
               <input style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={profileForm.address} onChange={e => setProfileForm({...profileForm, address: e.target.value})} />
             </div>
-            <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-              <button type="submit" className="btn btn-primary" disabled={updateProfileMutation.isPending}>{updateProfileMutation.isPending ? "Đang lưu..." : "Cập nhật tài khoản"}</button>
+            <div className="sm:col-span-2 flex justify-end mt-2 md:mt-4">
+              <button type="submit" className="btn btn-primary w-full sm:w-auto" disabled={updateProfileMutation.isPending}>{updateProfileMutation.isPending ? "Đang lưu..." : "Cập nhật tài khoản"}</button>
             </div>
           </form>
         </section>
@@ -208,7 +208,7 @@ export default function GeneralProfilePage() {
             <button className="btn btn-primary" onClick={() => setPetFormVisible(true)}><Plus size={18}/> Thêm bé mới</button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
             {pets?.map((pet: any) => (
               <PetCard key={pet.id} pet={pet} onDelete={deletePet.mutate} onEdit={(p: any) => {
                 setEditingPet(p);
@@ -248,8 +248,8 @@ export default function GeneralProfilePage() {
                 } else {
                   createPet.mutate(petFormData);
                 }
-              }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                <div style={{ gridColumn: 'span 2' }}>
+              }} className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
+                <div className="sm:col-span-2">
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Tên thú cưng *</label>
                   <input required style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={petFormData.name} onChange={e => setPetFormData({...petFormData, name: e.target.value})} />
                 </div>
@@ -271,15 +271,15 @@ export default function GeneralProfilePage() {
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Cân nặng (kg)</label>
                   <input type="number" step="0.1" style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={petFormData.weight_kg} onChange={e => setPetFormData({...petFormData, weight_kg: e.target.value})} />
                 </div>
-                <div style={{ gridColumn: 'span 2' }}>
+                <div className="sm:col-span-2">
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Dị ứng (quan trọng)</label>
                   <input placeholder="VD: Dị ứng thịt gà, dị ứng sữa..." style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={petFormData.allergies} onChange={e => setPetFormData({...petFormData, allergies: e.target.value})} />
                 </div>
-                <div style={{ gridColumn: 'span 2' }}>
+                <div className="sm:col-span-2">
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Ảnh thú cưng</label>
                   <input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} style={{ width: '100%', padding: '8px 0', fontSize: 13 }} />
                 </div>
-                <div style={{ gridColumn: 'span 2', display: 'flex', gap: 12, marginTop: 12 }}>
+                <div className="sm:col-span-2 flex flex-col sm:flex-row gap-3 mt-3">
                   <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => { setPetFormVisible(false); setEditingPet(null); setFile(null); setPetFormData({ name: '', species: 'dog', breed: '', age_months: '', weight_kg: '', gender: 'unknown', health_notes: '', allergies: '' }); }}>Huỷ bỏ</button>
                   <button type="submit" className="btn btn-primary" style={{ flex: 2 }} disabled={createPet.isPending || updatePet.isPending}>{(createPet.isPending || updatePet.isPending) ? "Đang lưu..." : "Lưu hồ sơ"}</button>
                 </div>

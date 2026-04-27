@@ -1,4 +1,4 @@
-# Đồ án tốt nghiệp — PetShop tích hợp AI
+# Đồ án tốt nghiệp — Pet shop tích hợp AI
 
 > **Tên đề tài (đề xuất):** *Xây dựng hệ thống thương mại điện tử cho cửa hàng thú cưng tích hợp trợ lý AI tư vấn cá nhân hoá*
 > **Thời gian thực hiện:** 8 tuần (2 tháng)

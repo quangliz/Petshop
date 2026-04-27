@@ -201,14 +201,14 @@ export default function AdminProductsPage() {
 
   return (
     <div>
-      <div className="flex gap-3 mb-5">
-        <Input placeholder="Tìm kiếm sản phẩm..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
-        <Button onClick={openCreate} className="bg-orange-600 hover:bg-orange-700 ml-auto">
+      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        <Input placeholder="Tìm kiếm sản phẩm..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:max-w-xs" />
+        <Button onClick={openCreate} className="bg-orange-600 hover:bg-orange-700 sm:ml-auto w-full sm:w-auto">
           <PlusCircle className="w-4 h-4 mr-1" /> Thêm sản phẩm
         </Button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b text-gray-500 uppercase text-xs">
             <tr>
@@ -274,15 +274,15 @@ export default function AdminProductsPage() {
 
             <div className="p-6 space-y-4">
               {/* Basic Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
                   <Label>Tên sản phẩm *</Label>
                   <Input value={form.name} onChange={(e) => {
                     const slug = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-");
                     setForm({ ...form, name: e.target.value, slug });
                   }} />
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <Label>Slug</Label>
                   <Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
                 </div>
@@ -315,14 +315,14 @@ export default function AdminProductsPage() {
                     onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
                   <Label htmlFor="is_active">Kích hoạt bán</Label>
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <Label>Mô tả (hỗ trợ Markdown)</Label>
                   <textarea className="w-full border rounded p-2 text-sm font-mono" rows={5}
                     placeholder="Hỗ trợ **in đậm**, *nghiêng*, - danh sách, ## tiêu đề..."
                     value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                   <p className="text-xs text-gray-400 mt-1">Sử dụng cú pháp Markdown để định dạng.</p>
                 </div>
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <Label>Ảnh chính sản phẩm</Label>
                   <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] ?? null)} />
                 </div>
@@ -404,7 +404,7 @@ export default function AdminProductsPage() {
                         </div>
 
                         {/* Price / Stock / SKU */}
-                        <div className="grid grid-cols-4 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           <div>
                             <Label className="text-xs">Giá (đ) *</Label>
                             <Input type="number" value={v.price} onChange={(e) => updateVariant(vIdx, { price: e.target.value })} className="h-8 text-xs" />
@@ -453,7 +453,7 @@ export default function AdminProductsPage() {
                   </div>
                   <div className="p-4 space-y-2">
                     {attrImages.map((ai, idx) => (
-                      <div key={idx} className="flex gap-2 items-center">
+                      <div key={idx} className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
                         <Input
                           placeholder="Thuộc tính (VD: Màu)"
                           value={ai.attr_key}

@@ -1,5 +1,5 @@
 ---
-name: PetShop AI
+name: ThePawsome
 colors:
   primary: "oklch(0.68 0.19 50)"
   on-primary: "#ffffff"
@@ -109,7 +109,7 @@ components:
 
 ## Brand & Style
 
-**PetShop AI** balances the warm, playful energy of pet care with the high-tech reliability of artificial intelligence. The interface is clean, soft, and inviting, ensuring that the technology feels human-centric and accessible.
+**ThePawsome** balances the warm, playful energy of pet care with the high-tech reliability of artificial intelligence. The interface is clean, soft, and inviting, ensuring that the technology feels human-centric and accessible.
 
 The aesthetic leverages a **"Refined Warmth"** approach, characterized by a predominantly warm neutral background that evokes comfort, punctuated by vibrant accents. The use of pill-shaped buttons and generous border radii further reinforces the approachable nature of the brand.
 

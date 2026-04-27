@@ -29,6 +29,9 @@ def get_current_user(db: SessionDep, token: TokenDep) -> User:
     )
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        token_type = payload.get("type")
+        if token_type not in (None, "access"):
+            raise credentials_exception
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
