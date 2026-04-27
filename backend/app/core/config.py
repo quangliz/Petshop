@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     LANGSMITH_PROJECT: str = "petshop-ai"
     LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
 
-    model_config = SettingsConfigDict(env_file="../.env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file="../.env",
+        env_file_encoding="utf-8",
+        env_ignore_empty=True,
+        extra="ignore",
+    )
 
 settings = Settings()
