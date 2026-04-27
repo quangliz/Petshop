@@ -12,6 +12,7 @@ export default function CheckoutPage() {
   const [form, setForm] = useState({ name: '', phone: '', address: '', note: '' });
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [loading, setLoading] = useState(false);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -64,17 +65,17 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8">
       {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--neutral-500)', marginBottom: 32 }}>
-        <Link href="/cart" style={{ color: 'inherit', textDecoration: 'none' }}>Giỏ hàng</Link>
+      <div className="flex items-center gap-2 text-[13px] text-neutral-500 mb-6 md:mb-8">
+        <Link href="/cart" className="text-inherit no-underline hover:text-neutral-900 transition-colors">Giỏ hàng</Link>
         <ChevronRight size={14} />
-        <span style={{ color: 'var(--neutral-900)', fontWeight: 600 }}>Thanh toán</span>
+        <span className="text-neutral-900 font-semibold">Thanh toán</span>
       </div>
 
-      <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.025em', marginBottom: 40 }}>Xác nhận đơn hàng</h1>
+      <h1 className="text-2xl md:text-[32px] font-extrabold tracking-tight mb-6 md:mb-10">Xác nhận đơn hàng</h1>
 
-      <form onSubmit={handleCheckout} style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 48, alignItems: 'start' }}>
+      <form onSubmit={handleCheckout} className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8 lg:gap-12 items-start">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           {/* Shipping Info */}
           <div className="card" style={{ padding: 32 }}>
@@ -82,8 +83,8 @@ export default function CheckoutPage() {
               <div style={{ width: 36, height: 36, borderRadius: 18, background: 'var(--primary-50)', color: 'var(--primary-600)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Truck size={20}/></div>
               Thông tin nhận hàng
             </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-              <div style={{ gridColumn: 'span 2' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+              <div className="sm:col-span-2">
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Họ và tên người nhận</label>
                 <div style={{ position: 'relative' }}>
                   <UserIcon size={16} style={{ position: 'absolute', left: 14, top: 18, color: 'var(--neutral-400)' }} />
@@ -97,14 +98,14 @@ export default function CheckoutPage() {
                   <input required style={{ width: '100%', padding: '14px 16px 14px 40px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
                 </div>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="sm:col-span-2">
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Địa chỉ giao hàng</label>
                 <div style={{ position: 'relative' }}>
                   <MapPin size={16} style={{ position: 'absolute', left: 14, top: 18, color: 'var(--neutral-400)' }} />
                   <input required style={{ width: '100%', padding: '14px 16px 14px 40px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={form.address} onChange={e => setForm({...form, address: e.target.value})} />
                 </div>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
+              <div className="sm:col-span-2">
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Ghi chú cho đơn hàng (tuỳ chọn)</label>
                 <div style={{ position: 'relative' }}>
                   <MessageSquare size={16} style={{ position: 'absolute', left: 14, top: 18, color: 'var(--neutral-400)' }} />
@@ -148,10 +149,16 @@ export default function CheckoutPage() {
         </div>
 
         {/* Order Summary */}
-        <div style={{ position: 'sticky', top: 100 }}>
-          <div className="card" style={{ padding: 28 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 20 }}>Đơn hàng của bạn</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
+        <div className="relative lg:sticky lg:top-24 order-first lg:order-last">
+          <div className="card p-5 md:p-7">
+            <h3 
+              className="text-[18px] font-extrabold mb-5 flex justify-between items-center cursor-pointer lg:cursor-auto"
+              onClick={() => setIsSummaryOpen(!isSummaryOpen)}
+            >
+              Đơn hàng của bạn
+              <span className="lg:hidden text-primary-600 text-[14px] font-semibold bg-primary-50 px-3 py-1.5 rounded-lg">{isSummaryOpen ? 'Thu gọn' : 'Chi tiết'}</span>
+            </h3>
+            <div className={`${isSummaryOpen ? 'flex' : 'hidden'} lg:flex flex-col gap-4 mb-6`}>
               {cart.items.map((item: any) => (
                 <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
                   <span style={{ fontSize: 13, color: 'var(--neutral-600)', flex: 1 }}>{item.quantity}x {item.product_name}</span>

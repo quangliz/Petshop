@@ -1,22 +1,39 @@
+import uuid
 from typing import Any, Optional
-from fastapi import APIRouter, Depends, HTTPException
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
+from jose import jwt, JWTError
 from pydantic import BaseModel, EmailStr
 
 from app.api.deps import SessionDep, CurrentUser
-from app.core.security import verify_password, get_password_hash, create_access_token
+from app.core.config import settings
+from app.core.security import (
+    verify_password,
+    get_password_hash,
+    create_access_token,
+    create_refresh_token,
+    create_reset_token,
+)
+from app.core.email import send_reset_email
 from app.models.user import User
 
 router = APIRouter()
+
+REFRESH_COOKIE_MAX_AGE = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
+
 
 class UserRegister(BaseModel):
     email: EmailStr
     password: str
     full_name: str
 
+
 class Token(BaseModel):
     access_token: str
     token_type: str
+
 
 class UserResponse(BaseModel):
     id: str
@@ -26,19 +43,43 @@ class UserResponse(BaseModel):
     address: Optional[str] = None
     role: str
 
+
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
 
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+def _user_response(user: User) -> dict:
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "full_name": user.full_name,
+        "phone": user.phone,
+        "address": user.address,
+        "role": str(user.role.value),
+    }
+
+
 @router.post("/register", response_model=UserResponse)
 def register(user_in: UserRegister, db: SessionDep) -> Any:
     user = db.query(User).filter(User.email == user_in.email).first()
     if user:
-        raise HTTPException(
-            status_code=400,
-            detail="Email đã được đăng ký trong hệ thống.",
-        )
+        raise HTTPException(status_code=400, detail="Email đã được đăng ký trong hệ thống.")
     user = User(
         email=user_in.email,
         hashed_password=get_password_hash(user_in.password),
@@ -47,20 +88,168 @@ def register(user_in: UserRegister, db: SessionDep) -> Any:
     db.add(user)
     db.commit()
     db.refresh(user)
-    return {"id": str(user.id), "email": user.email, "full_name": user.full_name, "role": str(user.role.value)}
+    return _user_response(user)
+
 
 @router.post("/login", response_model=Token)
-def login(db: SessionDep, form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
+def login(response: Response, db: SessionDep, form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Email hoặc mật khẩu không chính xác")
-    
     access_token = create_access_token(subject=str(user.id))
+    refresh_token = create_refresh_token(subject=str(user.id))
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=REFRESH_COOKIE_MAX_AGE,
+        path="/api/v1/auth",
+    )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/refresh", response_model=Token)
+def refresh(request: Request, db: SessionDep) -> Any:
+    token = request.cookies.get("refresh_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Không có refresh token")
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Token không hợp lệ")
+        user_id = payload.get("sub")
+        user = db.query(User).filter(User.id == uuid.UUID(user_id)).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="Người dùng không tồn tại")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token không hợp lệ")
+    new_access = create_access_token(subject=str(user.id))
+    return {"access_token": new_access, "token_type": "bearer"}
+
+
+@router.post("/forgot-password")
+async def forgot_password(body: ForgotPasswordRequest, db: SessionDep) -> Any:
+    msg = "Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu."
+    user = db.query(User).filter(User.email == body.email).first()
+    if not user:
+        return {"message": msg}
+    token = create_reset_token(subject=str(user.id))
+    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+    try:
+        await send_reset_email(user.email, reset_link)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Không thể gửi email. Vui lòng thử lại sau.")
+    return {"message": msg}
+
+
+@router.post("/reset-password")
+def reset_password(body: ResetPasswordRequest, db: SessionDep) -> Any:
+    try:
+        payload = jwt.decode(body.token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != "reset":
+            raise HTTPException(status_code=400, detail="Token không hợp lệ")
+        user = db.query(User).filter(User.id == uuid.UUID(payload["sub"])).first()
+        if not user:
+            raise HTTPException(status_code=400, detail="Token không hợp lệ")
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Token không hợp lệ hoặc đã hết hạn")
+    user.hashed_password = get_password_hash(body.new_password)
+    db.commit()
+    return {"message": "Mật khẩu đã được cập nhật."}
+
+
+@router.post("/change-password")
+def change_password(body: ChangePasswordRequest, db: SessionDep, current_user: CurrentUser) -> Any:
+    if not verify_password(body.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng")
+    current_user.hashed_password = get_password_hash(body.new_password)
+    db.commit()
+    return {"message": "Đã đổi mật khẩu thành công."}
+
+
+@router.post("/logout")
+def logout(response: Response) -> Any:
+    response.delete_cookie("refresh_token", path="/api/v1/auth")
+    return {"message": "Đã đăng xuất."}
+
+
+class GoogleAuthRequest(BaseModel):
+    code: str
+    redirect_uri: str
+
+
+@router.post("/google", response_model=Token)
+async def google_login(body: GoogleAuthRequest, response: Response, db: SessionDep) -> Any:
+    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        raise HTTPException(status_code=503, detail="Google OAuth chưa được cấu hình")
+
+    async with httpx.AsyncClient() as client:
+        token_res = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": body.code,
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "redirect_uri": body.redirect_uri,
+                "grant_type": "authorization_code",
+            },
+        )
+    if token_res.status_code != 200:
+        raise HTTPException(status_code=400, detail="Không thể xác thực với Google")
+
+    id_token = token_res.json().get("id_token")
+    if not id_token:
+        raise HTTPException(status_code=400, detail="Google không trả về ID token")
+
+    # Verify and decode the ID token via Google's tokeninfo endpoint
+    async with httpx.AsyncClient() as client:
+        info_res = await client.get(
+            f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}"
+        )
+    if info_res.status_code != 200:
+        raise HTTPException(status_code=400, detail="ID token không hợp lệ")
+
+    info = info_res.json()
+    if info.get("aud") != settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=400, detail="ID token không hợp lệ")
+
+    email: str = info.get("email", "")
+    full_name: str = info.get("name") or email.split("@")[0]
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Không lấy được email từ Google")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        user = User(
+            email=email,
+            hashed_password=get_password_hash(uuid.uuid4().hex),
+            full_name=full_name,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    access_token = create_access_token(subject=str(user.id))
+    refresh_token = create_refresh_token(subject=str(user.id))
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=REFRESH_COOKIE_MAX_AGE,
+        path="/api/v1/auth",
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
 
 @router.get("/me", response_model=UserResponse)
 def read_users_me(current_user: CurrentUser) -> Any:
-    return {"id": str(current_user.id), "email": current_user.email, "full_name": current_user.full_name, "phone": current_user.phone, "address": current_user.address, "role": str(current_user.role.value)}
+    return _user_response(current_user)
+
 
 @router.put("/me", response_model=UserResponse)
 def update_user_me(user_in: UserUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
@@ -70,7 +259,6 @@ def update_user_me(user_in: UserUpdate, db: SessionDep, current_user: CurrentUse
         current_user.phone = user_in.phone
     if user_in.address is not None:
         current_user.address = user_in.address
-        
     db.commit()
     db.refresh(current_user)
-    return {"id": str(current_user.id), "email": current_user.email, "full_name": current_user.full_name, "phone": current_user.phone, "address": current_user.address, "role": str(current_user.role.value)}
+    return _user_response(current_user)

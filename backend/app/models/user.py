@@ -42,6 +42,7 @@ class User(Base):
     carts = relationship("Cart", back_populates="user", uselist=False, cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user")
     chat_sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
+    reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
 
 class Pet(Base):
     __tablename__ = "pets"

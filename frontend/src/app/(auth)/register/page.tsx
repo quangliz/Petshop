@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { Mail, Lock, Sparkles, User, ArrowRight } from 'lucide-react';
+import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -26,24 +27,24 @@ export default function RegisterPage() {
       alert("Đăng ký thành công! Vui lòng đăng nhập.");
       router.push('/login');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Đăng ký thất bại');
+      const detail = err.response?.data?.detail;
+      setError(Array.isArray(detail) ? detail.map((d: any) => d.msg).join(', ') : (detail || 'Đăng ký thất bại'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ 
-      minHeight: 'calc(100vh - 200px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '40px 24px', background: 'radial-gradient(circle at top right, var(--primary-50), transparent), radial-gradient(circle at bottom left, var(--teal-50), transparent)'
+    <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-10" style={{ 
+      background: 'radial-gradient(circle at top right, var(--primary-50), transparent), radial-gradient(circle at bottom left, var(--teal-50), transparent)'
     }}>
-      <div className="card" style={{ width: '100%', maxWidth: 440, padding: 40 }}>
+      <div className="card w-full max-w-md mx-auto p-8 md:p-10">
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ width: 64, height: 64, borderRadius: 20, background: 'var(--teal-600)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 8px 16px var(--teal-100)' }}>
             <Sparkles size={32} />
           </div>
           <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.025em', margin: '0 0 8px' }}>Tạo tài khoản</h1>
-          <p style={{ fontSize: 14, color: 'var(--neutral-500)' }}>Gia nhập cộng đồng PetShop AI ngay hôm nay</p>
+          <p style={{ fontSize: 14, color: 'var(--neutral-500)' }}>Gia nhập cộng đồng ThePawsome ngay hôm nay</p>
         </div>
 
         <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -96,7 +97,16 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: 32, fontSize: 14, color: 'var(--neutral-500)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '24px 0 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--neutral-200)' }} />
+          <span style={{ fontSize: 12, color: 'var(--neutral-400)', fontWeight: 600 }}>HOẶC</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--neutral-200)' }} />
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <GoogleAuthButton label="Đăng ký với Google" />
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: 28, fontSize: 14, color: 'var(--neutral-500)' }}>
           Đã có tài khoản? <Link href="/login" style={{ fontWeight: 700, color: 'var(--primary-600)', textDecoration: 'none' }}>Đăng nhập ngay</Link>
         </div>
       </div>

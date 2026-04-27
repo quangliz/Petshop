@@ -58,23 +58,23 @@ export default function CartPage() {
   const total = cart?.total_amount || 0;
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 pb-[280px] md:pb-8 md:py-8">
       {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--neutral-500)', marginBottom: 32 }}>
-        <Link href="/" style={{ color: 'inherit', textDecoration: 'none' }}>Trang chủ</Link>
+      <div className="flex items-center gap-2 text-[13px] text-neutral-500 mb-6 md:mb-8">
+        <Link href="/" className="text-inherit no-underline hover:text-neutral-900 transition-colors">Trang chủ</Link>
         <ChevronRight size={14} />
-        <span style={{ color: 'var(--neutral-900)', fontWeight: 600 }}>Giỏ hàng</span>
+        <span className="text-neutral-900 font-semibold">Giỏ hàng</span>
       </div>
 
-      <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.025em', marginBottom: 32 }}>Giỏ hàng của bạn</h1>
+      <h1 className="text-2xl md:text-[32px] font-extrabold tracking-tight mb-6 md:mb-8">Giỏ hàng của bạn</h1>
       
       {items.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '80px 24px', background: 'white', borderRadius: 24, border: '1px dashed var(--neutral-200)' }}>
+        <div className="text-center py-20 px-6 bg-white rounded-3xl border border-dashed border-neutral-200">
           <p style={{ color: 'var(--neutral-500)', marginBottom: 24 }}>Giỏ hàng của bạn đang trống.</p>
           <Link href="/shop" className="btn btn-outline">Tiếp tục mua sắm</Link>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 40, alignItems: 'start' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10 items-start">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {items.map((item: any) => (
               <div key={item.id} className="card" style={{ padding: 20, display: 'flex', gap: 20, alignItems: 'center' }}>
@@ -124,28 +124,28 @@ export default function CartPage() {
             ))}
           </div>
           
-          <div className="card" style={{ padding: 28, position: 'sticky', top: 100 }}>
-            <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 24, color: 'var(--neutral-900)' }}>Tổng quan đơn hàng</h3>
+          <div className="card p-6 md:p-7 fixed bottom-0 left-0 right-0 z-40 md:relative lg:sticky lg:top-24 rounded-t-[32px] md:rounded-3xl shadow-[0_-12px_40px_rgba(0,0,0,0.08)] md:shadow-none">
+            <h3 className="hidden md:block" style={{ fontSize: 20, fontWeight: 800, marginBottom: 24, color: 'var(--neutral-900)' }}>Tổng quan đơn hàng</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: 'var(--neutral-600)' }}>
+              <div className="hidden md:flex" style={{ justifyContent: 'space-between', fontSize: 14, color: 'var(--neutral-600)' }}>
                 <span>Tạm tính ({items.length} sản phẩm)</span>
                 <span style={{ fontWeight: 600, color: 'var(--neutral-900)' }}>{total.toLocaleString()}đ</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: 'var(--neutral-600)' }}>
+              <div className="hidden md:flex" style={{ justifyContent: 'space-between', fontSize: 14, color: 'var(--neutral-600)' }}>
                 <span>Phí vận chuyển</span>
                 <span style={{ fontWeight: 600, color: 'var(--success)' }}>Miễn phí</span>
               </div>
-              <div style={{ height: 1, background: 'var(--neutral-100)', margin: '8px 0' }} />
+              <div className="hidden md:block" style={{ height: 1, background: 'var(--neutral-100)', margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={{ fontSize: 16, fontWeight: 700 }}>Tổng cộng</span>
                 <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--primary-600)' }}>{total.toLocaleString()}đ</span>
               </div>
             </div>
             <Link href="/checkout" style={{ textDecoration: 'none' }}>
-              <button className="btn btn-primary btn-lg" style={{ width: '100%', marginTop: 32, height: 56, borderRadius: 16, fontSize: 16 }}>Tiến hành thanh toán</button>
+              <button className="btn btn-primary btn-lg mt-5 md:mt-8 w-full h-14 rounded-2xl text-base">Tiến hành thanh toán</button>
             </Link>
-            <p style={{ fontSize: 12, color: 'var(--neutral-400)', textAlign: 'center', marginTop: 20, lineHeight: 1.5 }}>
-              Bằng cách nhấn nút, bạn đồng ý với các Điều khoản & Chính sách bảo mật của PetShop AI.
+            <p className="hidden md:block" style={{ fontSize: 12, color: 'var(--neutral-400)', textAlign: 'center', marginTop: 20, lineHeight: 1.5 }}>
+              Bằng cách nhấn nút, bạn đồng ý với các Điều khoản & Chính sách bảo mật của ThePawsome.
             </p>
           </div>
         </div>

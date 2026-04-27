@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { addToGuestCart } from '@/lib/guestCart';
@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { ChevronRight, Star, ShoppingCart, Filter as FilterIcon, Check } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 
 const FilterGroup = ({ title, children }: { title: string, children: React.ReactNode }) => (
   <div style={{ padding: '16px 0', borderBottom: '1px solid var(--neutral-100)' }}>
@@ -68,8 +69,7 @@ const FilterSidebar = ({
   };
 
   return (
-    <aside style={{ width: 260, flexShrink: 0 }}>
-      <div className="card" style={{ padding: '4px 20px 20px', position: 'sticky', top: 84 }}>
+    <div className="card" style={{ padding: '4px 20px 20px', position: 'sticky', top: 84 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 18 }}>
           <div style={{ fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
             <FilterIcon size={14} /> Bộ lọc
@@ -121,7 +121,6 @@ const FilterSidebar = ({
           </div>
         </FilterGroup>
       </div>
-    </aside>
   );
 };
 
@@ -183,7 +182,15 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: any, onAddT
   </Link>
 );
 
-export default function ShopListing() {
+export default function ShopPage() {
+  return (
+    <Suspense fallback={<div className="p-20 text-center text-neutral-500">Đang tải cửa hàng...</div>}>
+      <ShopListing />
+    </Suspense>
+  );
+}
+
+function ShopListing() {
   const searchParams = useSearchParams();
   const search = searchParams.get('q') || '';
   const [page, setPage] = useState(1);
@@ -255,7 +262,7 @@ export default function ShopListing() {
   if (error) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--danger)' }}>Có lỗi khi tải sản phẩm</div>;
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+    <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--neutral-500)', marginBottom: 24 }}>
         <Link href="/" style={{ color: 'inherit', textDecoration: 'none' }}>Trang chủ</Link>
@@ -263,19 +270,47 @@ export default function ShopListing() {
         <span style={{ color: 'var(--neutral-900)', fontWeight: 600 }}>Cửa hàng</span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>
+          <h1 className="text-[28px] md:text-[32px]" style={{ fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>
             {search ? `Kết quả cho “${search}”` : 'Tất cả sản phẩm'}
           </h1>
           <p style={{ fontSize: 14, color: 'var(--neutral-500)', marginTop: 4 }}>Hiển thị {data.items.length} trong số {data.total} sản phẩm</p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div className="lg:hidden">
+            <Sheet>
+              <SheetTrigger render={
+                <button className="btn btn-outline flex items-center justify-center gap-2 w-full py-3 md:hidden">
+                  <FilterIcon size={16} /> Lọc
+                </button>
+              } />
+              <SheetContent side="right" className="p-0 overflow-y-auto w-[300px]">
+                <SheetTitle className="sr-only">Bộ lọc</SheetTitle>
+                <div className="p-4 border-b border-neutral-100 font-bold flex items-center gap-2">
+                  <FilterIcon size={16} /> Bộ lọc sản phẩm
+                </div>
+                <div className="p-4">
+                  <FilterSidebar 
+                    categories={categories || []}
+                    brands={brands || []}
+                    categoryFilter={categoryFilter} 
+                    setCategoryFilter={setCategoryFilter} 
+                    brandFilter={brandFilter}
+                    setBrandFilter={setBrandFilter}
+                    priceRangeFilter={priceRangeFilter}
+                    setPriceRangeFilter={setPriceRangeFilter}
+                    setPage={setPage} 
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
           <select 
             value={sort}
             onChange={e => { setSort(e.target.value); setPage(1); }}
             style={{ 
-              padding: '8px 16px', borderRadius: 10, border: '1px solid var(--neutral-100)', 
+              height: 38, padding: '0 16px', borderRadius: 10, border: '1px solid var(--neutral-100)', 
               background: 'white', fontSize: 13, fontWeight: 600, color: 'var(--neutral-700)',
               outline: 'none', cursor: 'pointer'
             }}
@@ -287,21 +322,23 @@ export default function ShopListing() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start' }}>
-        <FilterSidebar 
-          categories={categories || []}
-          brands={brands || []}
-          categoryFilter={categoryFilter} 
-          setCategoryFilter={setCategoryFilter} 
-          brandFilter={brandFilter}
-          setBrandFilter={setBrandFilter}
-          priceRangeFilter={priceRangeFilter}
-          setPriceRangeFilter={setPriceRangeFilter}
-          setPage={setPage} 
-        />
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-8 items-start">
+        <aside className="hidden lg:block w-[260px] shrink-0">
+          <FilterSidebar 
+            categories={categories || []}
+            brands={brands || []}
+            categoryFilter={categoryFilter} 
+            setCategoryFilter={setCategoryFilter} 
+            brandFilter={brandFilter}
+            setBrandFilter={setBrandFilter}
+            priceRangeFilter={priceRangeFilter}
+            setPriceRangeFilter={setPriceRangeFilter}
+            setPage={setPage} 
+          />
+        </aside>
 
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
             {data.items.map((prod: any) => (
               <ProductCard 
                 key={prod.id} 
