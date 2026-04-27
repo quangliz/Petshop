@@ -3,7 +3,6 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import uuid
 from typing import Optional
-from pgvector.sqlalchemy import Vector
 
 from app.database import Base
 
@@ -40,21 +39,11 @@ class Product(Base):
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     category = relationship("Category", back_populates="products")
-    embedding = relationship("ProductEmbedding", back_populates="product", uselist=False, cascade="all, delete-orphan")
     cart_items = relationship("CartItem", back_populates="product", cascade="all, delete-orphan", passive_deletes=True)
     order_items = relationship("OrderItem", back_populates="product")
     variants = relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan")
     product_images = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan")
-
-class ProductEmbedding(Base):
-    __tablename__ = "product_embeddings"
-
-    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), primary_key=True)
-    embedding = mapped_column(Vector(1536))
-    source_text: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
-
-    product = relationship("Product", back_populates="embedding")
+    reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan")
 
 
 class ProductVariant(Base):

@@ -14,7 +14,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 def get_url():
-    return os.getenv("DATABASE_URL", "postgresql://petshop_user:petshop_password@localhost:5432/petshop")
+    return os.getenv("DATABASE_URL")
 
 def run_migrations_offline() -> None:
     url = get_url()
