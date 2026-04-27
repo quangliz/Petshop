@@ -42,7 +42,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="Doanh thu hôm nay" value={fmt(stats.today_revenue)} icon={TrendingUp} color="border-orange-500" />
         <KPICard title="Tổng doanh thu" value={fmt(stats.total_revenue)} icon={DollarSign} color="border-green-500" />
         <KPICard title="Đơn mới hôm nay" value={`${stats.new_orders_today}`} icon={ShoppingCart} color="border-blue-500" />
@@ -50,7 +50,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Charts row */}
-      <div className="grid xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         {/* Revenue Line Chart */}
         <div className="xl:col-span-3 bg-white rounded-xl p-5 shadow-sm">
           <h3 className="font-semibold text-gray-700 mb-4">Doanh thu 30 ngày gần nhất</h3>

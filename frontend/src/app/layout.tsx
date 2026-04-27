@@ -9,7 +9,7 @@ const beVietnamPro = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
-  title: "PetShop AI",
+  title: "ThePawsome",
   description: "Thú cưng của bạn, AI hiểu từng chi tiết",
 };
 
