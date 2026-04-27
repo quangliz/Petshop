@@ -10,6 +10,9 @@ load_dotenv()
 if "DATABASE_URL" not in os.environ and "POSTGRES_USER" not in os.environ:
     os.environ["DATABASE_URL"] = "postgresql://postgres:postgres@localhost:5432/postgres"
 
+if "SECRET_KEY" not in os.environ:
+    os.environ["SECRET_KEY"] = "dummy_secret_key_for_testing_purposes_only_1234567890"
+
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from app.main import app  # noqa: E402
