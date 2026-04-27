@@ -102,7 +102,7 @@ def update_pet(pet_id: str, pet_in: PetUpdate, db: SessionDep, current_user: Cur
     if not pet:
         raise HTTPException(status_code=404, detail="Không tìm thấy Pet")
         
-    update_data = pet_in.dict(exclude_unset=True)
+    update_data = pet_in.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(pet, field, value)
         

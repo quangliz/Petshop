@@ -20,8 +20,8 @@ class TestCartGet:
 class TestCartAddItem:
     def test_add_item_to_cart(self, client, auth_headers):
         """Add a product to cart; skip if no products exist."""
-        products = client.get("/api/v1/products/?size=1").json()
-        items = products.get("items", [])
+        products = client.get("/api/v1/products/?size=20").json()
+        items = [p for p in products.get("items", []) if p.get("stock_qty", 0) > 0]
         if not items:
             pytest.skip("No products to add")
         
@@ -49,8 +49,8 @@ class TestCartItemFields:
     def test_cart_items_have_product_image_field(self, client, auth_headers):
         """The frontend expects `product_image`, not `image_url`."""
         # Ensure at least one item in cart
-        products = client.get("/api/v1/products/?size=1").json()
-        items = products.get("items", [])
+        products = client.get("/api/v1/products/?size=20").json()
+        items = [p for p in products.get("items", []) if p.get("stock_qty", 0) > 0]
         if not items:
             pytest.skip("No products available")
 
@@ -80,8 +80,8 @@ class TestCartItemFields:
 class TestCartUpdateDelete:
     def test_update_and_delete_item(self, client, auth_headers):
         """Add, update, then delete a cart item."""
-        products = client.get("/api/v1/products/?size=1").json()
-        items = products.get("items", [])
+        products = client.get("/api/v1/products/?size=20").json()
+        items = [p for p in products.get("items", []) if p.get("stock_qty", 0) > 0]
         if not items:
             pytest.skip("No products available")
 
