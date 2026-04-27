@@ -1,11 +1,23 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 import { getGuestCart, clearGuestCart } from "@/lib/guestCart";
 
 export default function GoogleCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Đang tải...</p>
+      </div>
+    }>
+      <GoogleCallbackContent />
+    </Suspense>
+  );
+}
+
+function GoogleCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setAuth } = useAuthStore();
