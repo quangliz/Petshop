@@ -1,4 +1,4 @@
-// Mock data for PetShop AI
+// Mock data for ThePawsome
 
 const CATEGORIES = [
   { id: 'food', name: 'Thức ăn', emoji: '🍖', count: 184 },

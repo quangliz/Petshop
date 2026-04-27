@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
-  title: PetShop AI API
+  title: ThePawsome API
   description: |
-    API specification cho hệ thống PetShop tích hợp AI.
+    API specification cho hệ thống Pet shop tích hợp AI.
     Sản phẩm Ngày 5 – Tuần 1. Sẽ được implement dần qua Tuần 2–5.
 
     **Phiên bản base URL:** `/api/v1`
@@ -12,7 +12,7 @@ info:
     **Streaming:** Endpoint chat dùng `text/event-stream` (SSE) khi query param `stream=true`.
   version: "0.1.0"
   contact:
-    name: PetShop AI — DATN
+    name: ThePawsome — DATN
 servers:
   - url: http://localhost:8000/api/v1
     description: Dev local

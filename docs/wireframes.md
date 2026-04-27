@@ -1,4 +1,4 @@
-# Wireframes — PetShop AI
+# Wireframes — ThePawsome
 
 > Tài liệu **Ngày 5 – Tuần 1**. Mô tả 5 màn hình chủ lực theo format **low-fidelity wireframe spec** (layout + components + data + actions + API map). Đây là định dạng mà developer thực sự cần để code.
 >
@@ -36,7 +36,7 @@
 ## 1. Layout chung (Shell)
 
 ### 1.1 Header (user-facing, sticky top)
-- Logo PetShop (text + icon chó/mèo) — click về `/`
+- Logo ThePawsome (text + icon chó/mèo) — click về `/`
 - Search bar (md+) — giữa header
 - Nav: Shop · Blog (tuần 8, optional) · About
 - Actions bên phải:

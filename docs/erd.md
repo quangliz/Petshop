@@ -1,4 +1,4 @@
-# Entity Relationship Diagram — PetShop AI
+# Entity Relationship Diagram — ThePawsome
 
 > Tài liệu này là sản phẩm của **Ngày 4 – Tuần 1** trong lộ trình đồ án. Mục đích:
 > - Thống nhất cấu trúc dữ liệu trước khi viết code

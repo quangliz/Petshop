@@ -19,14 +19,14 @@ const Logo = ({ size = 28 }) => (
       display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white',
       boxShadow: '0 4px 12px oklch(0.68 0.19 50 / 0.35)',
     }}>
-      <svg width={size*0.6} height={size*0.6} viewBox="0 0 24 24" fill="currentColor">
-        <circle cx="6" cy="10" r="2"/><circle cx="10" cy="6" r="2"/>
-        <circle cx="14" cy="6" r="2"/><circle cx="18" cy="10" r="2"/>
-        <path d="M7 19c0-3 2.2-5 5-5s5 2 5 5c0 1.5-1 2-2.5 2h-5C8 21 7 20.5 7 19z"/>
+      <svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="6" cy="10" r="2" /><circle cx="10" cy="6" r="2" />
+        <circle cx="14" cy="6" r="2" /><circle cx="18" cy="10" r="2" />
+        <path d="M7 19c0-3 2.2-5 5-5s5 2 5 5c0 1.5-1 2-2.5 2h-5C8 21 7 20.5 7 19z" />
       </svg>
     </div>
     <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
-      <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--neutral-900)' }}>PetShop</span>
+      <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--neutral-900)' }}>ThePawsome</span>
       <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--teal-600)', letterSpacing: '0.15em', marginTop: 2 }}>AI · BETA</span>
     </div>
   </div>
@@ -48,13 +48,13 @@ const PrototypeSidebar = ({ currentScreen, setCurrentScreen, device, setDevice, 
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-              <circle cx="6" cy="10" r="2"/><circle cx="10" cy="6" r="2"/>
-              <circle cx="14" cy="6" r="2"/><circle cx="18" cy="10" r="2"/>
-              <path d="M7 19c0-3 2.2-5 5-5s5 2 5 5c0 1.5-1 2-2.5 2h-5C8 21 7 20.5 7 19z"/>
+              <circle cx="6" cy="10" r="2" /><circle cx="10" cy="6" r="2" />
+              <circle cx="14" cy="6" r="2" /><circle cx="18" cy="10" r="2" />
+              <path d="M7 19c0-3 2.2-5 5-5s5 2 5 5c0 1.5-1 2-2.5 2h-5C8 21 7 20.5 7 19z" />
             </svg>
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>PetShop AI</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>ThePawsome</div>
             <div style={{ fontSize: 10, color: 'var(--neutral-500)', fontFamily: 'var(--font-mono)' }}>Hi-fi Prototype v1</div>
           </div>
         </div>
@@ -77,7 +77,7 @@ const PrototypeSidebar = ({ currentScreen, setCurrentScreen, device, setDevice, 
               <span style={{ color: active ? (item.star ? 'var(--teal-500)' : 'var(--primary-400)') : 'var(--neutral-500)' }}>
                 <Icon name={item.icon} size={16} />
               </span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--neutral-600)', width: 18 }}>0{i+1}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--neutral-600)', width: 18 }}>0{i + 1}</span>
               <span style={{ flex: 1 }}>{item.label}</span>
               {item.star && <span style={{ color: 'var(--teal-500)', fontSize: 10 }}>★</span>}
             </button>
@@ -254,7 +254,7 @@ const Footer = () => (
       </div>
     </div>
     <div style={{ borderTop: '1px solid var(--neutral-800)', marginTop: 32, paddingTop: 20, fontSize: 12, textAlign: 'center', color: 'var(--neutral-500)' }}>
-      © 2026 PetShop AI · Đồ án tốt nghiệp · Built with love for pets
+      © 2026 ThePawsome · Đồ án tốt nghiệp · Built with love for pets
     </div>
   </footer>
 );
@@ -269,8 +269,8 @@ const ChatFAB = ({ onClick }) => (
     boxShadow: '0 10px 30px oklch(0.54 0.12 192 / 0.4), 0 4px 10px rgba(0,0,0,0.1)',
     transition: 'transform 160ms ease',
   }}
-  onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
-  onMouseLeave={(e) => e.currentTarget.style.transform = ''}
+    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.08)'}
+    onMouseLeave={(e) => e.currentTarget.style.transform = ''}
   >
     <Icon name="sparkles" size={24} />
     <div style={{

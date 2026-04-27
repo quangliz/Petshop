@@ -1,0 +1,27 @@
+
+> frontend@0.1.0 build /home/quang/Documents/DATN/frontend
+> next build
+
+▲ Next.js 16.2.4 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 6.7s
+  Running TypeScript ...
+  Finished TypeScript in 5.9s ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (0/16) ...
+⨯ useSearchParams() should be wrapped in a suspense boundary at page "/cart". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+    at S (/home/quang/Documents/DATN/frontend/.next/server/chunks/ssr/node_modules_next_0w2y7fz._.js:2:2692)
+    at r (/home/quang/Documents/DATN/frontend/.next/server/chunks/ssr/node_modules_next_0w2y7fz._.js:4:6760)
+    at /home/quang/Documents/DATN/frontend/.next/server/chunks/ssr/_0eg873i._.js:1:99196
+    at an (/home/quang/Documents/DATN/frontend/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:84267)
+    at ai (/home/quang/Documents/DATN/frontend/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:86086)
+    at ai (/home/quang/Documents/DATN/frontend/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:104615)
+    at al (/home/quang/Documents/DATN/frontend/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:107860)
+    at ao (/home/quang/Documents/DATN/frontend/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:105275)
+    at am (/home/quang/Documents/DATN/frontend/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:112789)
+    at au (/home/quang/Documents/DATN/frontend/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js:2:109892)
+Error occurred prerendering page "/cart". Read more: https://nextjs.org/docs/messages/prerender-error
+Export encountered an error on /(shop)/cart/page: /cart, exiting the build.
+⨯ Next.js build worker exited with code: 1 and signal: null
+ ELIFECYCLE  Command failed with exit code 1.

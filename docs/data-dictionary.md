@@ -1,4 +1,4 @@
-# Data Dictionary — PetShop AI
+# Data Dictionary — ThePawsome
 
 > Từ điển dữ liệu chi tiết cho từng bảng. Đây là **source of truth** — khi schema thay đổi, update file này TRƯỚC, sau đó mới code.
 >

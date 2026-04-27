@@ -1,4 +1,4 @@
-# Quyết định thiết kế Database — PetShop AI
+# Quyết định thiết kế Database — ThePawsome
 
 > Tài liệu này giải thích **"tại sao lại làm như vậy"** cho từng quyết định thiết kế DB quan trọng. Dùng để:
 > - Viết **Chương 4 – Thiết kế hệ thống** của báo cáo (copy gần như nguyên văn)

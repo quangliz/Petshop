@@ -44,14 +44,14 @@ const App = () => {
           // Mobile showcase: centered phone frame
           <div style={{ minHeight: '100%', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '28px 24px' }}>
             <MobileFrame>
-              <div data-screen-label={`0${['home','shop','product','chat','pets'].indexOf(currentScreen)+1} ${currentScreen}`} style={{ height: '100%', overflow: 'auto' }}>
+              <div data-screen-label={`0${['home', 'shop', 'product', 'chat', 'pets'].indexOf(currentScreen) + 1} ${currentScreen}`} style={{ height: '100%', overflow: 'auto' }}>
                 <MobileShell currentScreen={currentScreen} loginState={loginState} setCurrentScreen={setCurrentScreen} onChatClick={handleChatClick} />
               </div>
             </MobileFrame>
           </div>
         ) : (
-          <div data-screen-label={`0${['home','shop','product','chat','pets'].indexOf(currentScreen)+1} ${currentScreen}`} style={{ minHeight: '100%', position: 'relative' }}>
-            <AppHeader loginState={loginState} onCartClick={() => {}} onChatClick={handleChatClick} setCurrentScreen={setCurrentScreen} />
+          <div data-screen-label={`0${['home', 'shop', 'product', 'chat', 'pets'].indexOf(currentScreen) + 1} ${currentScreen}`} style={{ minHeight: '100%', position: 'relative' }}>
+            <AppHeader loginState={loginState} onCartClick={() => { }} onChatClick={handleChatClick} setCurrentScreen={setCurrentScreen} />
             <main>{screen}</main>
             {currentScreen !== 'chat' && <ChatFAB onClick={handleChatClick} />}
           </div>
@@ -151,12 +151,12 @@ const MobileShell = ({ currentScreen, loginState, setCurrentScreen, onChatClick 
     </div>
   );
 
-  const titles = { home: 'PetShop AI', shop: 'Cửa hàng', product: 'Royal Canin Kitten', chat: `Bé ${pet.name}`, pets: 'Thú cưng của tôi' };
+  const titles = { home: 'ThePawsome', shop: 'Cửa hàng', product: 'Royal Canin Kitten', chat: `Bé ${pet.name}`, pets: 'Thú cưng của tôi' };
 
   if (currentScreen === 'home') {
     return (
       <div style={{ paddingBottom: 80, background: 'var(--neutral-25)', minHeight: '100%' }}>
-        <MHeader title="PetShop AI" />
+        <MHeader title="ThePawsome" />
         <div style={{ padding: 16 }}>
           <div style={{ borderRadius: 18, padding: 20, background: 'linear-gradient(135deg, oklch(0.96 0.04 55), oklch(0.93 0.07 30))', position: 'relative', overflow: 'hidden' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: 'white', borderRadius: 999, fontSize: 10, fontWeight: 600, marginBottom: 10 }}>

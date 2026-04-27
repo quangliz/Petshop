@@ -1,4 +1,4 @@
-# Requirements Specification — PetShop AI
+# Requirements Specification — ThePawsome
 
 > Tài liệu **Ngày 5 – Tuần 1**. Là input cho Chương 3 (Phân tích yêu cầu) của báo cáo.
 > Đọc kèm: [`erd.md`](./erd.md) · [`api-spec.yaml`](./api-spec.yaml) · [`wireframes.md`](./wireframes.md)
@@ -15,7 +15,7 @@
   - Tìm kiếm Google ra cả tá bài viết mâu thuẫn
   - Không có thời gian đọc forum dài dòng
   - Shop offline xa, nhân viên gợi ý kiểu "bán được hàng" chứ không tư vấn
-- **Kỳ vọng từ PetShop AI:**
+- **Kỳ vọng từ ThePawsome:**
   - Nhập thông tin Miu 1 lần, được gợi ý đúng sản phẩm cho mèo con 3 tháng
   - Hỏi được "Miu con ăn loại nào tốt?" và nhận câu trả lời + link mua ngay
 
