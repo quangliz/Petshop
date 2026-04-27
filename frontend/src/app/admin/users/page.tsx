@@ -4,6 +4,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { ShieldCheck, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { User } from "@/lib/types";
+
+type AdminUser = User & { is_active: boolean; created_at: string };
 
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
@@ -19,7 +22,7 @@ export default function AdminUsersPage() {
   const toggleMutation = useMutation({
     mutationFn: (id: string) => api.put(`/admin/users/${id}/toggle-active`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
-    onError: (e: any) => alert(e.response?.data?.detail ?? "Lỗi"),
+    onError: (e: { response?: { data?: { detail?: string } } }) => alert(e.response?.data?.detail ?? "Lỗi"),
   });
 
   return (
@@ -39,7 +42,7 @@ export default function AdminUsersPage() {
             {isLoading && (
               <tr><td colSpan={5} className="text-center py-10 text-gray-400">Đang tải...</td></tr>
             )}
-            {data?.items?.map((u: any) => (
+            {data?.items?.map((u: AdminUser) => (
               <tr key={u.id} className={`transition-colors hover:bg-gray-50 ${!u.is_active ? "opacity-50" : ""}`}>
                 <td className="px-4 py-3">
                   <div className="font-medium">{u.full_name}</div>

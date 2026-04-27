@@ -22,6 +22,7 @@ function VNPayCallbackContent() {
            setStatus("error");
         }
       } catch (err) {
+        console.error("Payment verify error:", err);
         setStatus("error");
       }
     };

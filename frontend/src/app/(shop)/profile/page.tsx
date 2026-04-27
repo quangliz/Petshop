@@ -1,36 +1,34 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import {
-  User as UserIcon, Plus, Trash2, Heart, Sparkles, ShieldCheck, Pencil
-} from 'lucide-react';
+import { Plus, Trash2, Sparkles, ShieldCheck, Pencil } from 'lucide-react';
+import Image from 'next/image';
+import { User, Pet } from '@/lib/types';
+import { VietnamAddressPicker } from '@/components/VietnamAddressPicker';
 
-const NavItem = ({ icon, label, active = false }: { icon: any, label: string, active?: boolean }) => (
-  <div style={{
-    display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 12,
-    background: active ? 'var(--primary-50)' : 'transparent',
-    color: active ? 'var(--primary-700)' : 'var(--neutral-600)',
-    fontWeight: active ? 700 : 500, fontSize: 14, cursor: 'pointer', transition: 'all 120ms ease'
-  }}>
-    {icon} {label}
-  </div>
-);
-
-const PetCard = ({ pet, onDelete, onEdit }: { pet: any, onDelete: any, onEdit: any }) => {
-  const speciesColors: any = {
+const PetCard = ({ pet, onDelete, onEdit }: { pet: Pet, onDelete: (id: string) => void, onEdit: (pet: Pet) => void }) => {
+  const speciesColors: Record<string, string> = {
     dog: 'oklch(0.95 0.05 55)',
     cat: 'oklch(0.93 0.06 195)',
     bird: 'oklch(0.96 0.04 85)',
     other: 'var(--neutral-100)'
   };
-  const emoji: any = { dog: '🐶', cat: '🐱', bird: '🦜', other: '🐾' };
+  const emoji: Record<string, string> = { dog: '🐶', cat: '🐱', bird: '🦜', other: '🐾' };
 
   return (
     <div className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div style={{ height: 120, background: speciesColors[pet.species] || speciesColors.other, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56 }}>
-        {pet.avatar_url ? <img src={pet.avatar_url} alt={pet.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : emoji[pet.species] || emoji.other}
+        {pet.avatar_url ? (
+          <Image 
+            src={pet.avatar_url} 
+            alt={pet.name} 
+            fill 
+            sizes="120px"
+            className="object-cover"
+          />
+        ) : emoji[pet.species] || emoji.other}
         <button
           onClick={() => onEdit(pet)}
           style={{ position: 'absolute', top: 12, right: 48, width: 32, height: 32, borderRadius: 16, background: 'rgba(255,255,255,0.8)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-700)' }}
@@ -76,21 +74,19 @@ export default function GeneralProfilePage() {
   const { user, setAuth } = useAuthStore();
   const queryClient = useQueryClient();
   
-  const [profileForm, setProfileForm] = useState({ full_name: '', phone: '', address: '' });
+  const [profileForm, setProfileForm] = useState(() => ({
+    full_name: user?.full_name || '',
+    phone: user?.phone || '',
+    address: user?.address || ''
+  }));
   const [petFormVisible, setPetFormVisible] = useState(false);
-  const [editingPet, setEditingPet] = useState<any>(null);
+  const [editingPet, setEditingPet] = useState<Pet | null>(null);
   const [petFormData, setPetFormData] = useState({ name: '', species: 'dog', breed: '', age_months: '', weight_kg: '', gender: 'unknown', health_notes: '', allergies: '' });
   const [file, setFile] = useState<File | null>(null);
-  
-  useEffect(() => {
-     if (user) {
-        setProfileForm({ full_name: user.full_name || '', phone: user.phone || '', address: user.address || '' });
-     }
-  }, [user]);
 
   const updateProfileMutation = useMutation({
-     mutationFn: async (data: any) => {
-         const res = await api.put('/auth/me', data);
+      mutationFn: async (data: Partial<User>) => {
+          const res = await api.put('/auth/me', data);
          return res.data;
      },
      onSuccess: (updatedUser) => {
@@ -110,7 +106,7 @@ export default function GeneralProfilePage() {
   });
 
   const createPet = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Partial<Pet>) => {
       const res = await api.post('/pets', data);
       return res.data;
     },
@@ -130,7 +126,7 @@ export default function GeneralProfilePage() {
   });
 
   const updatePet = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Pet> }) => {
       const res = await api.put(`/pets/${id}`, data);
       return res.data;
     },
@@ -158,22 +154,7 @@ export default function GeneralProfilePage() {
   if (!user) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--neutral-500)' }}>Vui lòng đăng nhập để xem hồ sơ.</div>;
 
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8 md:gap-12">
-      {/* Sidebar Nav */}
-      <aside style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0 8px' }}>
-          <div style={{ width: 44, height: 44, borderRadius: 22, background: 'var(--primary-100)', color: 'var(--primary-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800 }}>{user.full_name.charAt(0)}</div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 15, fontWeight: 700 }}>{user.full_name}</span>
-            <span style={{ fontSize: 12, color: 'var(--neutral-500)' }}>{user.email}</span>
-          </div>
-        </div>
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <NavItem icon={<UserIcon size={18}/>} label="Thông tin tài khoản" active />
-          <NavItem icon={<Heart size={18}/>} label="Thú cưng của tôi" />
-        </nav>
-      </aside>
-
+    <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8">
       {/* Main Content */}
       <main style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
         {/* Account Section */}
@@ -190,7 +171,7 @@ export default function GeneralProfilePage() {
             </div>
             <div className="sm:col-span-2">
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Địa chỉ giao hàng</label>
-              <input style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={profileForm.address} onChange={e => setProfileForm({...profileForm, address: e.target.value})} />
+              <VietnamAddressPicker value={profileForm.address} onChange={v => setProfileForm({...profileForm, address: v})} />
             </div>
             <div className="sm:col-span-2 flex justify-end mt-2 md:mt-4">
               <button type="submit" className="btn btn-primary w-full sm:w-auto" disabled={updateProfileMutation.isPending}>{updateProfileMutation.isPending ? "Đang lưu..." : "Cập nhật tài khoản"}</button>
@@ -209,10 +190,10 @@ export default function GeneralProfilePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-            {pets?.map((pet: any) => (
-              <PetCard key={pet.id} pet={pet} onDelete={deletePet.mutate} onEdit={(p: any) => {
+            {pets?.map((pet: Pet) => (
+              <PetCard key={pet.id} pet={pet} onDelete={(id) => deletePet.mutate(id)} onEdit={(p: Pet) => {
                 setEditingPet(p);
-                setPetFormData({ name: p.name, species: p.species, breed: p.breed || '', age_months: p.age_months ? String(p.age_months) : '', weight_kg: p.weight_kg ? String(p.weight_kg) : '', gender: p.gender, health_notes: p.health_notes || '', allergies: p.allergies || '' });
+                setPetFormData({ name: p.name, species: p.species, breed: p.breed || '', age_months: p.age_months ? String(p.age_months) : '', weight_kg: p.weight_kg ? String(p.weight_kg) : '', gender: p.gender || 'unknown', health_notes: p.health_notes || '', allergies: p.allergies || '' });
                 setPetFormVisible(true);
               }} />
             ))}
@@ -243,10 +224,15 @@ export default function GeneralProfilePage() {
 
               <form onSubmit={(e) => {
                 e.preventDefault();
+                const payload = {
+                  ...petFormData,
+                  age_months: petFormData.age_months ? Number(petFormData.age_months) : undefined,
+                  weight_kg: petFormData.weight_kg ? Number(petFormData.weight_kg) : undefined,
+                };
                 if (editingPet) {
-                  updatePet.mutate({ id: editingPet.id, data: petFormData });
+                  updatePet.mutate({ id: editingPet.id, data: payload });
                 } else {
-                  createPet.mutate(petFormData);
+                  createPet.mutate(payload);
                 }
               }} className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
                 <div className="sm:col-span-2">
@@ -292,3 +278,4 @@ export default function GeneralProfilePage() {
     </div>
   );
 }
+

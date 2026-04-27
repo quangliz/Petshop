@@ -58,9 +58,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [user, router]);
 
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [pathname]);
+  // Close mobile menu on route change without calling setState in an effect
+  const [prevPath, setPrevPath] = useState(pathname);
+  if (prevPath !== pathname) {
+    setPrevPath(pathname);
+    if (mobileMenuOpen) setMobileMenuOpen(false);
+  }
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100">

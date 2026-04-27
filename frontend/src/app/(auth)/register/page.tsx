@@ -26,9 +26,10 @@ export default function RegisterPage() {
       });
       alert("Đăng ký thành công! Vui lòng đăng nhập.");
       router.push('/login');
-    } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      setError(Array.isArray(detail) ? detail.map((d: any) => d.msg).join(', ') : (detail || 'Đăng ký thất bại'));
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { detail?: string | { msg: string }[] } } };
+      const detail = axiosErr.response?.data?.detail;
+      setError(Array.isArray(detail) ? detail.map((d) => d.msg).join(', ') : (typeof detail === 'string' ? detail : 'Đăng ký thất bại'));
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
@@ -22,19 +22,23 @@ function GoogleCallbackContent() {
   const searchParams = useSearchParams();
   const { setAuth } = useAuthStore();
   const [error, setError] = useState("");
+  const hasHandled = React.useRef(false);
 
   useEffect(() => {
+    if (hasHandled.current) return;
+    hasHandled.current = true;
+
     const code = searchParams.get("code");
     const errorParam = searchParams.get("error");
 
     if (errorParam) {
-      setError("Đăng nhập Google bị huỷ.");
+      setTimeout(() => setError("Đăng nhập Google bị huỷ."), 0);
       setTimeout(() => router.push("/login"), 2000);
       return;
     }
 
     if (!code) {
-      setError("Không nhận được mã xác thực từ Google.");
+      setTimeout(() => setError("Không nhận được mã xác thực từ Google."), 0);
       setTimeout(() => router.push("/login"), 2000);
       return;
     }
@@ -64,12 +68,13 @@ function GoogleCallbackContent() {
 
         router.push("/");
       })
-      .catch((err) => {
-        const detail = err?.response?.data?.detail;
+      .catch((err: unknown) => {
+        const axiosErr = err as { response?: { data?: { detail?: string } } };
+        const detail = axiosErr?.response?.data?.detail;
         setError(detail || "Đăng nhập thất bại. Vui lòng thử lại.");
         setTimeout(() => router.push("/login"), 3000);
       });
-  }, []);
+  }, [searchParams, router, setAuth]);
 
   return (
     <div

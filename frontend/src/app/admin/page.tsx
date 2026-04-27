@@ -5,9 +5,9 @@ import api from "@/lib/api";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
-import { TrendingUp, ShoppingCart, Users, DollarSign } from "lucide-react";
+import { TrendingUp, ShoppingCart, Users, DollarSign, LucideIcon } from "lucide-react";
 
-function KPICard({ title, value, icon: Icon, color }: { title: string; value: string; icon: any; color: string }) {
+function KPICard({ title, value, icon: Icon, color }: { title: string; value: string; icon: LucideIcon; color: string }) {
   return (
     <div className={`bg-white rounded-xl p-5 shadow-sm border-l-4 ${color} flex items-center gap-4`}>
       <div className={`p-3 rounded-full bg-opacity-10 ${color.replace("border-", "bg-")}`}>
@@ -37,7 +37,7 @@ export default function AdminDashboard() {
       ? `${(n / 1_000_000).toFixed(1)}M đ`
       : n >= 1_000
       ? `${(n / 1_000).toFixed(0)}K đ`
-      : `${n.toLocaleString()} đ`;
+      : `${(n || 0).toLocaleString()} đ`;
 
   return (
     <div className="space-y-6">

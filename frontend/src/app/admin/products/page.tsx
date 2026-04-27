@@ -6,18 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Edit, Trash2, X, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import Image from 'next/image';
+import { Product, Variant, AttrImage } from '@/lib/types';
 
-type Variant = {
-  id: string; sku: string | null; price: number; sale_price: number | null;
-  stock_qty: number; attributes: Record<string, string>; is_active: boolean;
-};
+// Types imported from @/lib/types or defined locally for admin
+type AdminVariant = Variant;
 type AttrImageRow = { attr_key: string; attr_value: string; url?: string; file?: File | null };
-type Product = {
-  id: string; name: string; slug: string; price: number; sale_price?: number;
-  stock_qty: number; brand?: string; description?: string; category_id?: number;
-  category_name?: string; is_active: boolean; images?: Record<string, string>; thumbnail_url?: string;
-};
-type ProductDetail = Product & { variants: Variant[]; attr_images: { attr_key: string; attr_value: string; url: string }[] };
+type AdminProduct = Product;
+type ProductDetail = AdminProduct & { variants: AdminVariant[]; attr_images: AttrImage[] };
 
 const emptyForm = {
   name: "", slug: "", price: "", sale_price: "", stock_qty: "0",
@@ -73,7 +69,7 @@ export default function AdminProductsPage() {
       price: String(p.price), sale_price: p.sale_price ? String(p.sale_price) : "",
       stock_qty: String(p.stock_qty), brand: p.brand ?? "",
       description: p.description ?? "", category_id: p.category_id ? String(p.category_id) : "",
-      is_active: p.is_active,
+      is_active: p.is_active ?? true,
     });
     setImageFile(null);
     setAttrImages([]);
@@ -223,12 +219,18 @@ export default function AdminProductsPage() {
           </thead>
           <tbody className="divide-y">
             {isLoading && <tr><td colSpan={7} className="text-center py-10 text-gray-400">Đang tải...</td></tr>}
-            {data?.items?.map((p: Product) => (
+            {data?.items?.map((p: AdminProduct) => (
               <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3">
                   <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden">
                     {(p.thumbnail_url || p.images?.main) ? (
-                      <img src={p.thumbnail_url || p.images!.main} alt={p.name} className="w-full h-full object-cover" />
+                      <Image 
+                        src={p.thumbnail_url || p.images?.main || ''} 
+                        alt={p.name} 
+                        width={48} 
+                        height={48} 
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">N/A</div>
                     )}
@@ -241,7 +243,7 @@ export default function AdminProductsPage() {
                   {p.sale_price && <div className="text-orange-500 text-xs">{p.sale_price.toLocaleString()}đ</div>}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <span className={p.stock_qty < 10 ? "text-red-500 font-bold" : ""}>{p.stock_qty}</span>
+                  <span className={(p.stock_qty ?? 0) < 10 ? "text-red-500 font-bold" : ""}>{p.stock_qty ?? 0}</span>
                 </td>
                 <td className="px-4 py-3 text-center">
                   <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${p.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
@@ -466,7 +468,16 @@ export default function AdminProductsPage() {
                           onChange={(e) => setAttrImages((prev) => prev.map((r, i) => i === idx ? { ...r, attr_value: e.target.value } : r))}
                           className="h-8 text-xs w-32"
                         />
-                        {ai.url && <img src={ai.url} alt="" className="w-8 h-8 object-cover rounded border shrink-0" />}
+                        {ai.url && (
+                          <div className="relative w-8 h-8 rounded border overflow-hidden shrink-0">
+                            <Image 
+                              src={ai.url} 
+                              alt="" 
+                              fill 
+                              className="object-cover"
+                            />
+                          </div>
+                        )}
                         <Input
                           type="file" accept="image/*" className="h-8 text-xs flex-1"
                           onChange={(e) => setAttrImages((prev) => prev.map((r, i) => i === idx ? { ...r, file: e.target.files?.[0] ?? null } : r))}

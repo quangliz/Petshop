@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { addToGuestCart } from '@/lib/guestCart';
@@ -8,6 +8,8 @@ import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { ChevronRight, Star, ShoppingCart, Filter as FilterIcon, Check } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
+import Image from 'next/image';
+import { Product, Category } from '@/lib/types';
 
 const FilterGroup = ({ title, children }: { title: string, children: React.ReactNode }) => (
   <div style={{ padding: '16px 0', borderBottom: '1px solid var(--neutral-100)' }}>
@@ -40,7 +42,7 @@ const FilterSidebar = ({
   priceRangeFilter, setPriceRangeFilter,
   setPage
 }: {
-  categories: { id: number, name: string, slug: string }[];
+  categories: Category[];
   brands: string[];
   categoryFilter: string[];
   setCategoryFilter: (c: string[]) => void;
@@ -135,7 +137,7 @@ const Rating = ({ value, size = 12, count }: { value: number, size?: number, cou
   </div>
 );
 
-const ProductCard = ({ product, onAddToCart, isPending }: { product: any, onAddToCart: any, isPending: boolean }) => (
+const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, onAddToCart: (e: React.MouseEvent, id: string) => void, isPending: boolean }) => (
   <Link href={`/products/${product.slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
     <div className="card" style={{
       cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column',
@@ -146,7 +148,13 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: any, onAddT
     >
       <div style={{ position: 'relative', aspectRatio: '1 / 1', background: 'var(--neutral-50)' }}>
         {(product.thumbnail_url || product.images?.main) ? (
-          <img src={product.thumbnail_url || product.images.main} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <Image 
+            src={product.thumbnail_url || product.images?.main || ''} 
+            alt={product.name} 
+            fill 
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover"
+          />
         ) : (
           <div style={{ width: '100%', height: '100%', background: 'var(--neutral-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)', fontSize: 10 }}>NO IMAGE</div>
         )}
@@ -199,7 +207,12 @@ function ShopListing() {
   const [brandFilter, setBrandFilter] = useState<string[]>([]);
   const [priceRangeFilter, setPriceRangeFilter] = useState<[number | '', number | '']>(['', '']);
 
-  useEffect(() => { setPage(1); }, [search]);
+  // Reset page to 1 when search query changes (without useEffect)
+  const [prevSearch, setPrevSearch] = useState(search);
+  if (prevSearch !== search) {
+    setPrevSearch(search);
+    if (page !== 1) setPage(1);
+  }
 
   const size = 12;
   const queryClient = useQueryClient();
@@ -243,7 +256,7 @@ function ShopListing() {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
       alert("Đã thêm vào giỏ hàng!");
     },
-    onError: (err: any) => {
+    onError: (err: { response?: { data?: { detail?: string } } }) => {
       alert(err.response?.data?.detail || "Lỗi khi thêm giỏ hàng");
     }
   });
@@ -339,7 +352,7 @@ function ShopListing() {
 
         <div style={{ flex: 1 }}>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-            {data.items.map((prod: any) => (
+            {data.items.map((prod: Product) => (
               <ProductCard 
                 key={prod.id} 
                 product={prod} 

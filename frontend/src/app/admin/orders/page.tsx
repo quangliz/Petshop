@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
+import { Order } from "@/lib/types";
 
 const ALL_STATUSES = ["all", "pending", "confirmed", "shipping", "completed", "cancelled"];
 
@@ -35,7 +36,7 @@ export default function AdminOrdersPage() {
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.put(`/admin/orders/${id}/status`, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-orders"] }),
-    onError: (e: any) => alert(e.response?.data?.detail ?? "Lỗi cập nhật"),
+    onError: (e: { response?: { data?: { detail?: string } } }) => alert(e.response?.data?.detail ?? "Lỗi cập nhật"),
   });
 
   return (
@@ -69,7 +70,7 @@ export default function AdminOrdersPage() {
             {isLoading && (
               <tr><td colSpan={7} className="text-center py-10 text-gray-400">Đang tải...</td></tr>
             )}
-            {data?.items?.map((o: any) => (
+            {data?.items?.map((o: Order) => (
               <tr key={o.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3 font-mono font-semibold text-xs">{o.order_code}</td>
                 <td className="px-4 py-3">

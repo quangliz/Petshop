@@ -7,16 +7,13 @@ import api from '@/lib/api';
 import { addToGuestCart } from '@/lib/guestCart';
 import Link from 'next/link';
 import { useAuthStore, useViewingProductStore } from '@/lib/store';
-import { Minus, Plus, ShoppingCart, ChevronLeft, ChevronRight, Star, ShieldCheck, RefreshCw, Truck } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, ChevronLeft, ChevronRight, ShieldCheck, RefreshCw, Truck } from 'lucide-react';
 import ReviewSection from '@/components/reviews/ReviewSection';
 import StarRating from '@/components/reviews/StarRating';
+import Image from 'next/image';
+import { Product, Variant, AttrImage } from '@/lib/types';
 
-type Variant = {
-  id: string; sku: string | null; price: number; sale_price: number | null;
-  stock_qty: number; attributes: Record<string, string>; is_active: boolean;
-};
-type AttrImage = { attr_key: string; attr_value: string; url: string };
-type ProductImage = { id: string; url: string; is_main: boolean; sort_order: number; variant_id: string | null };
+// Types imported from @/lib/types
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -27,7 +24,7 @@ export default function ProductDetailPage() {
 
   const setViewingProduct = useViewingProductStore((s) => s.setViewingProduct);
 
-  const { data: product, isLoading } = useQuery({
+  const { data: product, isLoading } = useQuery<Product>({
     queryKey: ['product', params.slug],
     queryFn: async () => {
       const res = await api.get(`/products/${params.slug}`);
@@ -91,7 +88,7 @@ export default function ProductDetailPage() {
 
   const addToCartMutation = useMutation({
     mutationFn: async () => {
-      await api.post('/cart/items', { product_id: product.id, quantity });
+      await api.post('/cart/items', { product_id: product!.id, quantity });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
@@ -102,7 +99,7 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!user) {
-      addToGuestCart(product.id, quantity);
+      addToGuestCart(product!.id, quantity);
       alert("Đã thêm vào giỏ hàng tạm thời. Đăng nhập để thanh toán.");
       return;
     }
@@ -141,7 +138,14 @@ export default function ProductDetailPage() {
         <div className="relative md:sticky md:top-24">
           <div className="card" style={{ aspectRatio: '1/1', overflow: 'hidden', background: 'var(--neutral-50)', position: 'relative' }}>
             {mainImage ? (
-              <img src={mainImage} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <Image
+                src={mainImage}
+                alt={product.name}
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                loading="eager"
+                className="object-cover"
+              />
             ) : (
               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)' }}>KHÔNG CÓ HÌNH ẢNH</div>
             )}
@@ -166,7 +170,7 @@ export default function ProductDetailPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'oklch(0.75 0.15 75)' }}>
                 <StarRating value={Math.round(product.avg_rating ?? 0)} size={16} />
-                {product.review_count > 0 && <span style={{ color: 'var(--neutral-500)', fontSize: 13, fontWeight: 500 }}>{product.review_count} đánh giá</span>}
+                {(product.review_count ?? 0) > 0 && <span style={{ color: 'var(--neutral-500)', fontSize: 13, fontWeight: 500 }}>{product.review_count} đánh giá</span>}
               </div>
               <div style={{ width: 1, height: 16, background: 'var(--neutral-200)' }} />
               <span style={{ fontSize: 13, color: 'var(--neutral-600)', fontWeight: 500 }}>Đã bán 150+</span>
@@ -397,7 +401,7 @@ export default function ProductDetailPage() {
               display: 'flex', gap: 16, overflowX: 'auto', scrollSnapType: 'x mandatory',
               scrollbarWidth: 'none', padding: '4px 4px 8px',
             }}>
-              {similarData.items.map((p: any) => (
+              {similarData.items.map((p: Product) => (
                 <Link key={p.id} href={`/products/${p.slug}`} className="w-[150px] md:w-[180px] flex-shrink-0" style={{ textDecoration: 'none', color: 'inherit', scrollSnapAlign: 'start' }}>
                   <div className="card" style={{
                     cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%',
@@ -408,7 +412,13 @@ export default function ProductDetailPage() {
                   >
                     <div style={{ position: 'relative', aspectRatio: '1 / 1', background: 'var(--neutral-50)' }}>
                       {p.thumbnail_url || p.images?.main ? (
-                        <img src={p.thumbnail_url || p.images?.main} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <Image 
+                          src={p.thumbnail_url || p.images?.main || ''} 
+                          alt={p.name} 
+                          fill 
+                          sizes="(max-width: 768px) 50vw, 33vw"
+                          className="object-cover"
+                        />
                       ) : (
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)', fontSize: 10 }}>NO IMAGE</div>
                       )}
@@ -425,7 +435,7 @@ export default function ProductDetailPage() {
                         display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                         minHeight: 35,
                       }}>{p.name}</div>
-                      {p.avg_rating != null && p.review_count > 0 && (
+                      {p.avg_rating != null && (p.review_count ?? 0) > 0 && (
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                           <StarRating value={Math.round(p.avg_rating)} size={11} />
                           <span style={{ fontSize: 10, color: 'var(--neutral-500)' }}>({p.review_count})</span>

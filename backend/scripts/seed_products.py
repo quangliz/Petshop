@@ -54,7 +54,7 @@ PRODUCTS = [
         "price": Decimal("980000"),
         "stock_qty": 6,
         "target_species": ["dog"],
-        "images": {"main": "https://images.unsplash.com/photo-1623521543033-4e206a763eff?w=500&h=500&fit=crop"},
+        "images": {"main": "https://images.unsplash.com/photo-1618826411640-d6df44dd3f7a?w=500&h=500&fit=crop"},
     },
     {
         "name": "AAFCO Premium Beef 10kg",
@@ -86,7 +86,7 @@ PRODUCTS = [
         "price": Decimal("15000"),
         "stock_qty": 100,
         "target_species": ["dog"],
-        "images": {"main": "https://images.unsplash.com/photo-1610915260071-e87984e6f3cf?w=500&h=500&fit=crop"},
+        "images": {"main": "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=500&h=500&fit=crop"},
     },
 
     # Cat Food - Dry
@@ -128,7 +128,7 @@ PRODUCTS = [
         "price": Decimal("280000"),
         "stock_qty": 14,
         "target_species": ["cat"],
-        "images": {"main": "https://images.unsplash.com/photo-1610915260071-e87984e6f3cf?w=500&h=500&fit=crop"},
+        "images": {"main": "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=500&h=500&fit=crop"},
     },
     {
         "name": "Bio Premium Cat 1.5kg",
@@ -150,7 +150,7 @@ PRODUCTS = [
         "price": Decimal("12000"),
         "stock_qty": 150,
         "target_species": ["cat"],
-        "images": {"main": "https://images.unsplash.com/photo-1610915260071-e87984e6f3cf?w=500&h=500&fit=crop"},
+        "images": {"main": "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=500&h=500&fit=crop"},
     },
     {
         "name": "Fancy Feast Wet Cat Seafood Mix 85g",
@@ -204,7 +204,7 @@ PRODUCTS = [
         "price": Decimal("45000"),
         "stock_qty": 40,
         "target_species": ["cat"],
-        "images": {"main": "https://images.unsplash.com/photo-1610915260071-e87984e6f3cf?w=500&h=500&fit=crop"},
+        "images": {"main": "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=500&h=500&fit=crop"},
     },
     {
         "name": "Greenies Feline Dental Treats 60g",
@@ -236,7 +236,7 @@ PRODUCTS = [
         "price": Decimal("180000"),
         "stock_qty": 18,
         "target_species": ["cat"],
-        "images": {"main": "https://images.unsplash.com/photo-1610915260071-e87984e6f3cf?w=500&h=500&fit=crop"},
+        "images": {"main": "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=500&h=500&fit=crop"},
     },
     {
         "name": "Cát Vệ Sinh Cỏ Lúa Mạch 6kg",
@@ -268,7 +268,7 @@ PRODUCTS = [
         "price": Decimal("55000"),
         "stock_qty": 30,
         "target_species": ["cat"],
-        "images": {"main": "https://images.unsplash.com/photo-1610915260071-e87984e6f3cf?w=500&h=500&fit=crop"},
+        "images": {"main": "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=500&h=500&fit=crop"},
     },
     {
         "name": "Ball Toy for Cat 5cm",
@@ -300,7 +300,7 @@ PRODUCTS = [
         "price": Decimal("65000"),
         "stock_qty": 25,
         "target_species": ["dog"],
-        "images": {"main": "https://images.unsplash.com/photo-1610915260071-e87984e6f3cf?w=500&h=500&fit=crop"},
+        "images": {"main": "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=500&h=500&fit=crop"},
     },
     {
         "name": "Cat Harness Adjustable Soft",
@@ -332,7 +332,7 @@ PRODUCTS = [
         "price": Decimal("280000"),
         "stock_qty": 10,
         "target_species": ["cat"],
-        "images": {"main": "https://images.unsplash.com/photo-1610915260071-e87984e6f3cf?w=500&h=500&fit=crop"},
+        "images": {"main": "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=500&h=500&fit=crop"},
     },
     {
         "name": "Pet Wet Wipes Unscented 100 pcs",
@@ -362,7 +362,7 @@ PRODUCTS = [
         "price": Decimal("65000"),
         "stock_qty": 18,
         "target_species": ["cat"],
-        "images": {"main": "https://images.unsplash.com/photo-1610915260071-e87984e6f3cf?w=500&h=500&fit=crop"},
+        "images": {"main": "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=500&h=500&fit=crop"},
     },
 ]
 

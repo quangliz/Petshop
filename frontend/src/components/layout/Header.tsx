@@ -9,6 +9,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { getGuestCartCount } from "@/lib/guestCart";
+import Image from 'next/image';
+import { Product } from '@/lib/types';
 
 import BrandLogo from "./BrandLogo";
 
@@ -34,10 +36,12 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (pathname === "/shop") {
-      setSearchTerm(searchParams.get("q") || "");
+    const q = searchParams.get("q") || "";
+    if (pathname === "/shop" && searchTerm !== q) {
+      const timer = setTimeout(() => setSearchTerm(q), 0);
+      return () => clearTimeout(timer);
     }
-  }, [pathname, searchParams]);
+  }, [pathname, searchParams, searchTerm]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedTerm(searchTerm.trim()), 200);
@@ -73,7 +77,13 @@ export default function Header() {
 
   const serverCartCount = cart?.items?.reduce((acc: number, item: { quantity: number }) => acc + item.quantity, 0) || 0;
   const [guestCartCount, setGuestCartCount] = useState(0);
-  useEffect(() => { setGuestCartCount(getGuestCartCount()); }, []);
+  useEffect(() => { 
+    const count = getGuestCartCount();
+    if (guestCartCount !== count) {
+      const timer = setTimeout(() => setGuestCartCount(count), 0);
+      return () => clearTimeout(timer);
+    }
+  }, [guestCartCount]);
   const cartItemCount = user ? serverCartCount : guestCartCount;
 
   return (
@@ -132,7 +142,7 @@ export default function Header() {
               <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--neutral-500)' }}>Đang tìm...</div>
             ) : suggestions?.items?.length ? (
               <>
-                {suggestions.items.map((p: any) => (
+                {suggestions.items.map((p: Product) => (
                   <Link
                     key={p.id}
                     href={`/products/${p.slug}`}
@@ -144,9 +154,15 @@ export default function Header() {
                     onMouseEnter={(e) => e.currentTarget.style.background = 'var(--neutral-50)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--neutral-100)', flexShrink: 0, overflow: 'hidden' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--neutral-100)', flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
                       {(p.thumbnail_url || p.images?.main) && (
-                        <img src={p.thumbnail_url || p.images.main} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <Image
+                          src={p.thumbnail_url || p.images?.main || ''}
+                          alt={p.name}
+                          fill
+                          sizes="40px"
+                          className="object-cover"
+                        />
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -159,7 +175,7 @@ export default function Header() {
                   </Link>
                 ))}
                 <div
-                  onMouseDown={(e) => { e.preventDefault(); submitSearch(e as any); }}
+                  onMouseDown={(e) => { e.preventDefault(); submitSearch(e as unknown as React.FormEvent); }}
                   style={{
                     padding: '10px 14px', fontSize: 12, fontWeight: 600, color: 'var(--primary-600)',
                     borderTop: '1px solid var(--neutral-100)', cursor: 'pointer', textAlign: 'center',
@@ -284,51 +300,57 @@ export default function Header() {
                />
              </div>
              {suggestOpen && suggestQ && (
-               <div style={{
-                 position: 'absolute', top: 48, left: 0, right: 0, zIndex: 30,
-                 background: 'white', border: '1px solid var(--neutral-100)', borderRadius: 12,
-                 boxShadow: 'var(--shadow-md)', overflow: 'hidden',
-               }}>
-                 {suggestLoading && !suggestions ? (
-                   <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--neutral-500)' }}>Đang tìm...</div>
-                 ) : suggestions?.items?.length ? (
-                   <>
-                     {suggestions.items.slice(0, 3).map((p: any) => (
-                       <Link
-                         key={p.id}
-                         href={`/products/${p.slug}`}
-                         onClick={() => { setSuggestOpen(false); setMobileSearchOpen(false); }}
-                         style={{
-                           display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                           textDecoration: 'none', color: 'var(--neutral-800)',
-                         }}
-                       >
-                         <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--neutral-100)', flexShrink: 0, overflow: 'hidden' }}>
-                           {(p.thumbnail_url || p.images?.main) && (
-                             <img src={p.thumbnail_url || p.images.main} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                           )}
-                         </div>
-                         <div style={{ flex: 1, minWidth: 0 }}>
-                           <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                           <div style={{ fontSize: 11, color: 'var(--neutral-500)' }}>{p.brand || p.category_name}</div>
-                         </div>
-                       </Link>
-                     ))}
-                     <div
-                       onMouseDown={(e) => { e.preventDefault(); submitSearch(e as any); setMobileSearchOpen(false); }}
-                       style={{
-                         padding: '10px 14px', fontSize: 12, fontWeight: 600, color: 'var(--primary-600)',
-                         borderTop: '1px solid var(--neutral-100)', cursor: 'pointer', textAlign: 'center',
-                       }}
-                     >
-                       Xem tất cả →
-                     </div>
-                   </>
-                 ) : (
-                   <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--neutral-500)' }}>Không tìm thấy sản phẩm</div>
-                 )}
-               </div>
-             )}
+                <div style={{
+                  position: 'absolute', top: 48, left: 0, right: 0, zIndex: 30,
+                  background: 'white', border: '1px solid var(--neutral-100)', borderRadius: 12,
+                  boxShadow: 'var(--shadow-md)', overflow: 'hidden',
+                }}>
+                  {suggestLoading && !suggestions ? (
+                    <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--neutral-500)' }}>Đang tìm...</div>
+                  ) : suggestions?.items?.length ? (
+                    <>
+                      {suggestions.items.slice(0, 3).map((p: Product) => (
+                        <Link
+                          key={p.id}
+                          href={`/products/${p.slug}`}
+                          onClick={() => { setSuggestOpen(false); setMobileSearchOpen(false); }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                            textDecoration: 'none', color: 'var(--neutral-800)',
+                          }}
+                        >
+                          <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--neutral-100)', flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
+                            {(p.thumbnail_url || p.images?.main) && (
+                              <Image
+                                src={p.thumbnail_url || p.images?.main || ''}
+                                alt={p.name}
+                                fill
+                                sizes="40px"
+                                className="object-cover"
+                              />
+                            )}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--neutral-500)' }}>{p.brand || p.category_name}</div>
+                          </div>
+                        </Link>
+                      ))}
+                      <div
+                        onMouseDown={(e) => { e.preventDefault(); submitSearch(e as unknown as React.FormEvent); setMobileSearchOpen(false); }}
+                        style={{
+                          padding: '10px 14px', fontSize: 12, fontWeight: 600, color: 'var(--primary-600)',
+                          borderTop: '1px solid var(--neutral-100)', cursor: 'pointer', textAlign: 'center',
+                        }}
+                      >
+                        Xem tất cả →
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--neutral-500)' }}>Không tìm thấy sản phẩm</div>
+                  )}
+                </div>
+              )}
           </form>
         </div>
       )}

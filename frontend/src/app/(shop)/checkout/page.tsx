@@ -1,29 +1,27 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { ChevronRight, CreditCard, Truck, ShieldCheck, MapPin, Phone, User as UserIcon, MessageSquare } from 'lucide-react';
+import { ChevronRight, CreditCard, Truck, ShieldCheck, Phone, User as UserIcon, MessageSquare } from 'lucide-react';
+import Link from 'next/link';
+import { VietnamAddressPicker } from '@/components/VietnamAddressPicker';
 
-export default function CheckoutPage() {
+function CheckoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuthStore();
-  const [form, setForm] = useState({ name: '', phone: '', address: '', note: '' });
+  const selectedItemIds = useMemo(() => searchParams.getAll('items'), [searchParams]);
+  const [form, setForm] = useState(() => ({
+    name: user?.full_name || '',
+    phone: user?.phone || '',
+    address: user?.address || '',
+    note: ''
+  }));
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [loading, setLoading] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      setForm(prev => ({
-        ...prev,
-        name: user.full_name || prev.name,
-        phone: user.phone || prev.phone,
-        address: user.address || prev.address
-      }));
-    }
-  }, [user]);
 
   const { data: cart } = useQuery({
     queryKey: ['cart'],
@@ -33,7 +31,18 @@ export default function CheckoutPage() {
     }
   });
 
-  const total = (cart?.total_amount || 0) + 30000;
+  const displayItems = useMemo(() => {
+    const all: { id: string; quantity: number; product_name: string; sale_price?: number; price: number }[] = cart?.items || [];
+    if (selectedItemIds.length === 0) return all;
+    const idSet = new Set(selectedItemIds);
+    return all.filter(i => idSet.has(i.id));
+  }, [cart, selectedItemIds]);
+
+  const subtotal = useMemo(
+    () => displayItems.reduce((sum, i) => sum + (i.sale_price || i.price) * i.quantity, 0),
+    [displayItems]
+  );
+  const total = subtotal + 30000;
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +53,8 @@ export default function CheckoutPage() {
         ship_phone: form.phone,
         ship_address: form.address,
         note: form.note,
-        payment_method: paymentMethod
+        payment_method: paymentMethod,
+        ...(selectedItemIds.length > 0 ? { item_ids: selectedItemIds } : {})
       });
       const order = res.data;
 
@@ -54,13 +64,14 @@ export default function CheckoutPage() {
       } else {
         router.push(`/orders/${order.id}`);
       }
-    } catch (err: any) {
-      alert(err.response?.data?.detail || "Lỗi đặt hàng");
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
+      alert(axiosErr.response?.data?.detail || "Lỗi đặt hàng");
       setLoading(false);
     }
   };
 
-  if (!cart || cart.items.length === 0) {
+  if (!cart || displayItems.length === 0) {
     return <div style={{ padding: 100, textAlign: 'center', color: 'var(--neutral-500)' }}>Giỏ hàng của bạn đang trống.</div>;
   }
 
@@ -100,10 +111,7 @@ export default function CheckoutPage() {
               </div>
               <div className="sm:col-span-2">
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Địa chỉ giao hàng</label>
-                <div style={{ position: 'relative' }}>
-                  <MapPin size={16} style={{ position: 'absolute', left: 14, top: 18, color: 'var(--neutral-400)' }} />
-                  <input required style={{ width: '100%', padding: '14px 16px 14px 40px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={form.address} onChange={e => setForm({...form, address: e.target.value})} />
-                </div>
+                <VietnamAddressPicker value={form.address} onChange={v => setForm({...form, address: v})} />
               </div>
               <div className="sm:col-span-2">
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Ghi chú cho đơn hàng (tuỳ chọn)</label>
@@ -159,7 +167,7 @@ export default function CheckoutPage() {
               <span className="lg:hidden text-primary-600 text-[14px] font-semibold bg-primary-50 px-3 py-1.5 rounded-lg">{isSummaryOpen ? 'Thu gọn' : 'Chi tiết'}</span>
             </h3>
             <div className={`${isSummaryOpen ? 'flex' : 'hidden'} lg:flex flex-col gap-4 mb-6`}>
-              {cart.items.map((item: any) => (
+              {displayItems.map((item) => (
                 <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
                   <span style={{ fontSize: 13, color: 'var(--neutral-600)', flex: 1 }}>{item.quantity}x {item.product_name}</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--neutral-900)' }}>{((item.sale_price || item.price) * item.quantity).toLocaleString()}đ</span>
@@ -169,7 +177,7 @@ export default function CheckoutPage() {
             <div style={{ borderTop: '1px solid var(--neutral-100)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
                 <span style={{ color: 'var(--neutral-500)' }}>Tạm tính</span>
-                <span style={{ fontWeight: 600 }}>{cart.total_amount.toLocaleString()}đ</span>
+                <span style={{ fontWeight: 600 }}>{subtotal.toLocaleString()}đ</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
                 <span style={{ color: 'var(--neutral-500)' }}>Phí vận chuyển</span>
@@ -193,4 +201,10 @@ export default function CheckoutPage() {
   );
 }
 
-import Link from 'next/link';
+export default function CheckoutPageWrapper() {
+  return (
+    <Suspense>
+      <CheckoutPage />
+    </Suspense>
+  );
+}

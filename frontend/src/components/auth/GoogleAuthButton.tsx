@@ -1,9 +1,5 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import api from "@/lib/api";
-import { useAuthStore } from "@/lib/store";
-import { getGuestCart, clearGuestCart } from "@/lib/guestCart";
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 const REDIRECT_URI =
@@ -25,8 +21,6 @@ function buildGoogleUrl(): string {
 
 export default function GoogleAuthButton({ label = "Tiếp tục với Google" }: { label?: string }) {
   const [loading, setLoading] = useState(false);
-  const { setAuth } = useAuthStore();
-  const router = useRouter();
 
   const handleClick = () => {
     if (!GOOGLE_CLIENT_ID) {

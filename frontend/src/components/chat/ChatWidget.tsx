@@ -10,9 +10,87 @@ import ReactMarkdown from "react-markdown";
 type ChatProduct = { slug: string; name: string; brand?: string | null; price: number; sale_price?: number | null; thumbnail_url?: string | null };
 type ChatMsg = { role: string; content: string; products?: ChatProduct[] };
 type ChatSessionMeta = { id: string; title: string; created_at: string | null };
+import Image from 'next/image';
 
-const STRIP_PRODUCT_TAGS = (s: string) =>
-  s.replace(/<product>\s*[a-z0-9\-_&.+%]+\s*<\/product>/gi, "").replace(/[ \t]+\n/g, "\n");
+const PRODUCT_TAG_RE = /<product>\s*([a-z0-9\-_&.+%]+)\s*<\/product>/gi;
+
+function ProductCard({ pr }: { pr: ChatProduct }) {
+  const effectivePrice = pr.sale_price ?? pr.price;
+  return (
+    <a href={`/products/${pr.slug}`} target="_blank" rel="noreferrer"
+      style={{
+        display: "inline-flex", gap: 8, alignItems: "center", padding: 8, borderRadius: 10,
+        background: "var(--neutral-50)", border: "1px solid var(--neutral-100)",
+        width: "calc(50% - 4px)", textDecoration: "none", color: "inherit", verticalAlign: "top",
+      }}>
+      {pr.thumbnail_url ? (
+        <div style={{ position: "relative", width: 40, height: 40, flexShrink: 0 }}>
+          <Image src={pr.thumbnail_url} alt={pr.name} fill sizes="40px" style={{ borderRadius: 8, objectFit: "cover" }} />
+        </div>
+      ) : (
+        <div style={{ width: 40, height: 40, borderRadius: 8, background: "var(--neutral-100)", flexShrink: 0 }} />
+      )}
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--neutral-800)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {pr.name}
+        </div>
+        <div style={{ fontSize: 11, color: "var(--teal-700)", fontWeight: 700 }}>
+          {effectivePrice.toLocaleString("vi-VN")}đ
+        </div>
+      </div>
+    </a>
+  );
+}
+
+function renderInlineContent(content: string, products: ChatProduct[] | undefined) {
+  if (!products || products.length === 0) {
+    return <ReactMarkdown components={{
+      p: ({ children }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p>,
+      ul: ({ children }) => <ul style={{ margin: "6px 0", paddingLeft: "18px" }}>{children}</ul>,
+      li: ({ children }) => <li style={{ marginBottom: "3px" }}>{children}</li>,
+    }}>{content}</ReactMarkdown>;
+  }
+
+  const bySlug = Object.fromEntries(products.map((p) => [p.slug, p]));
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  const re = new RegExp(PRODUCT_TAG_RE.source, "gi");
+  let idx = 0;
+
+  while ((match = re.exec(content)) !== null) {
+    const textBefore = content.slice(last, match.index);
+    if (textBefore) {
+      parts.push(
+        <ReactMarkdown key={`t${idx}`} components={{
+          p: ({ children }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p>,
+          ul: ({ children }) => <ul style={{ margin: "6px 0", paddingLeft: "18px" }}>{children}</ul>,
+          li: ({ children }) => <li style={{ marginBottom: "3px" }}>{children}</li>,
+        }}>{textBefore}</ReactMarkdown>
+      );
+    }
+    const slug = match[1];
+    const pr = bySlug[slug];
+    if (pr) {
+      parts.push(<div key={`p${idx}`} style={{ display: "flex", gap: 8, margin: "6px 0" }}><ProductCard pr={pr} /></div>);
+    }
+    last = match.index + match[0].length;
+    idx++;
+  }
+
+  const remaining = content.slice(last);
+  if (remaining) {
+    parts.push(
+      <ReactMarkdown key={`t${idx}`} components={{
+        p: ({ children }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p>,
+        ul: ({ children }) => <ul style={{ margin: "6px 0", paddingLeft: "18px" }}>{children}</ul>,
+        li: ({ children }) => <li style={{ marginBottom: "3px" }}>{children}</li>,
+      }}>{remaining}</ReactMarkdown>
+    );
+  }
+
+  return <>{parts}</>;
+}
 
 export default function ChatWidget() {
   const { user } = useAuthStore();
@@ -125,7 +203,7 @@ export default function ChatWidget() {
         }
         if (dataLines.length === 0) return;
         const dataRaw = dataLines.join("\n");
-        let data: any;
+        let data: { content?: string; items?: ChatProduct[]; session_id?: string };
         try {
           data = JSON.parse(dataRaw);
         } catch (e) {
@@ -262,7 +340,7 @@ export default function ChatWidget() {
                   disabled={!!sessionId}
                 >
                   <option value="">Tư vấn chung</option>
-                  {pets?.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  {pets?.map((p: { id: string, name: string }) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
 
@@ -294,43 +372,12 @@ export default function ChatWidget() {
                       borderBottomRightRadius: m.role === "user" ? 4 : 14,
                       borderBottomLeftRadius: m.role === "user" ? 14 : 4,
                     }}>
-                      <ReactMarkdown components={{
-                        p: ({ children }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p>,
-                        ul: ({ children }) => <ul style={{ margin: "6px 0", paddingLeft: "18px" }}>{children}</ul>,
-                        li: ({ children }) => <li style={{ marginBottom: "3px" }}>{children}</li>,
-                      }}>
-                        {m.role === "assistant" ? STRIP_PRODUCT_TAGS(m.content) : m.content}
-                      </ReactMarkdown>
-                      {m.role === "assistant" && m.products && m.products.length > 0 && (
-                        <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          {m.products.map((pr) => {
-                            const effectivePrice = pr.sale_price ?? pr.price;
-                            return (
-                              <a key={pr.slug} href={`/products/${pr.slug}`} target="_blank" rel="noreferrer"
-                                style={{
-                                  display: "flex", gap: 8, alignItems: "center", padding: 8, borderRadius: 10,
-                                  background: "var(--neutral-50)", border: "1px solid var(--neutral-100)",
-                                  width: "calc(50% - 4px)", textDecoration: "none", color: "inherit",
-                                }}>
-                                {pr.thumbnail_url ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={pr.thumbnail_url} alt={pr.name} style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover" }} />
-                                ) : (
-                                  <div style={{ width: 40, height: 40, borderRadius: 8, background: "var(--neutral-100)", flexShrink: 0 }} />
-                                )}
-                                <div style={{ minWidth: 0, flex: 1 }}>
-                                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--neutral-800)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                    {pr.name}
-                                  </div>
-                                  <div style={{ fontSize: 11, color: "var(--teal-700)", fontWeight: 700 }}>
-                                    {effectivePrice.toLocaleString("vi-VN")}đ
-                                  </div>
-                                </div>
-                              </a>
-                            );
-                          })}
-                        </div>
-                      )}
+                      {m.role === "assistant"
+                        ? renderInlineContent(m.content, m.products)
+                        : <ReactMarkdown components={{
+                            p: ({ children }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p>,
+                          }}>{m.content}</ReactMarkdown>
+                      }
                     </div>
                   </div>
                 ))}

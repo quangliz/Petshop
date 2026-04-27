@@ -16,6 +16,7 @@ class CheckoutRequest(BaseModel):
     ship_address: str
     payment_method: str
     note: str | None = None
+    item_ids: list[str] | None = None  # if None, checkout all cart items
 
 class OrderResponseLocal(BaseModel):
     id: str
@@ -34,17 +35,24 @@ def checkout(req: CheckoutRequest, db: SessionDep, current_user: CurrentUser) ->
     cart = db.query(Cart).filter(Cart.user_id == current_user.id).first()
     if not cart or not cart.cart_items:
         raise HTTPException(status_code=400, detail="Giỏ hàng trống")
-        
+
+    selected_items = cart.cart_items
+    if req.item_ids is not None:
+        id_set = set(req.item_ids)
+        selected_items = [i for i in cart.cart_items if str(i.id) in id_set]
+    if not selected_items:
+        raise HTTPException(status_code=400, detail="Không có sản phẩm nào được chọn")
+
     pm = PaymentMethodEnum.vnpay if req.payment_method == 'vnpay' else PaymentMethodEnum.cod
 
     subtotal = 0.0
     order_items_to_create = []
-    
-    product_ids = [item.product_id for item in cart.cart_items]
+
+    product_ids = [item.product_id for item in selected_items]
     products = db.query(Product).filter(Product.id.in_(product_ids)).with_for_update().all()
     product_map = {p.id: p for p in products}
 
-    for item in cart.cart_items:
+    for item in selected_items:
         prod = product_map.get(item.product_id)
         if not prod or not prod.is_active:
              raise HTTPException(status_code=400, detail=f"Sản phẩm {item.product.name} không còn bán.")
@@ -86,7 +94,8 @@ def checkout(req: CheckoutRequest, db: SessionDep, current_user: CurrentUser) ->
         oi.order_id = new_order.id
         db.add(oi)
         
-    db.query(CartItem).filter(CartItem.cart_id == cart.id).delete()
+    selected_item_ids = [i.id for i in selected_items]
+    db.query(CartItem).filter(CartItem.id.in_(selected_item_ids)).delete(synchronize_session=False)
     db.commit()
     db.refresh(new_order)
     

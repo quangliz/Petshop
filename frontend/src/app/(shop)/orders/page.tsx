@@ -3,9 +3,10 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import Link from 'next/link';
-import { ChevronRight, Package, Clock, Truck, CheckCircle, XCircle } from 'lucide-react';
+import { LucideIcon, ChevronRight, Package, Clock, Truck, CheckCircle, XCircle } from 'lucide-react';
+import { Order } from '@/lib/types';
 
-const statusConfig: Record<string, { label: string, color: string, bg: string, icon: any }> = {
+const statusConfig: Record<string, { label: string, color: string, bg: string, icon: LucideIcon }> = {
   pending: { label: 'Chờ xử lý', color: 'var(--primary-600)', bg: 'var(--primary-50)', icon: Clock },
   confirmed: { label: 'Đã xác nhận', color: 'var(--teal-600)', bg: 'var(--teal-50)', icon: CheckCircle },
   shipping: { label: 'Đang giao', color: '#2563eb', bg: '#eff6ff', icon: Truck },
@@ -45,7 +46,7 @@ export default function OrdersPage() {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {orders?.map((order: any) => {
+        {orders?.map((order: Order) => {
           const st = statusConfig[order.status] || statusConfig.pending;
           const Icon = st.icon;
           return (

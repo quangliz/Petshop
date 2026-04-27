@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRight, Clock, Truck, CheckCircle, XCircle, Package, CreditCard, MapPin, Phone, User } from 'lucide-react';
 
-const statusConfig: Record<string, { label: string, color: string, bg: string, icon: any }> = {
+const statusConfig: Record<string, { label: string, color: string, bg: string, icon: typeof Clock }> = {
   pending: { label: 'Chờ xử lý', color: 'var(--primary-600)', bg: 'var(--primary-50)', icon: Clock },
   confirmed: { label: 'Đã xác nhận', color: 'var(--teal-600)', bg: 'var(--teal-50)', icon: CheckCircle },
   shipping: { label: 'Đang giao', color: '#2563eb', bg: '#eff6ff', icon: Truck },
@@ -35,8 +35,9 @@ export default function OrderDetailPage() {
       alert("Đã huỷ đơn hàng thành công");
       queryClient.invalidateQueries({ queryKey: ['order', params.id] });
     },
-    onError: (err: any) => {
-      alert(err.response?.data?.detail || "Lỗi huỷ đơn");
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { detail?: string } } };
+      alert(axiosErr.response?.data?.detail || "Lỗi huỷ đơn");
     }
   });
 
@@ -140,7 +141,7 @@ export default function OrderDetailPage() {
           Sản phẩm ({order.items.length})
         </h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {order.items.map((item: any, idx: number) => (
+          {order.items.map((item: { product_name: string; quantity: number; price: number }, idx: number) => (
             <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: idx < order.items.length - 1 ? '1px solid var(--neutral-100)' : 'none' }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--neutral-800)' }}>{item.product_name}</div>

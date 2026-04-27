@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { PawPrint, Sparkles, ArrowRight, MessageSquare, Star, Search, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import Image from 'next/image';
+import { Product } from '@/lib/types';
 
 const Icon = ({ name, size = 18 }: { name: string, size?: number }) => {
   switch (name) {
@@ -30,7 +32,7 @@ const Rating = ({ value, size = 12, count }: { value: number, size?: number, cou
   </div>
 );
 
-const ProductCardSmall = ({ product }: { product: any }) => (
+const ProductCardSmall = ({ product }: { product: Product }) => (
   <Link href={`/products/${product.slug}`} className="w-[130px] md:w-[150px] flex-shrink-0" style={{ textDecoration: 'none', color: 'inherit', scrollSnapAlign: 'start' }}>
     <div className="card" style={{
       cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%',
@@ -39,9 +41,15 @@ const ProductCardSmall = ({ product }: { product: any }) => (
     onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
     onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
     >
-      <div style={{ position: 'relative', aspectRatio: '1 / 1', background: 'var(--neutral-50)' }}>
+      <div style={{ position: 'relative', aspectRatio: '1 / 1', background: 'var(--neutral-50)', overflow: 'hidden' }}>
         {product.images?.main ? (
-          <img src={product.images.main} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <Image 
+            src={product.images.main} 
+            alt={product.name} 
+            fill 
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover"
+          />
         ) : (
           <div style={{ width: '100%', height: '100%', background: 'repeating-linear-gradient(45deg, var(--neutral-100), var(--neutral-100) 8px, var(--neutral-50) 8px, var(--neutral-50) 16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)', fontSize: 9, fontFamily: 'var(--font-mono)' }}>NO IMAGE</div>
         )}
@@ -66,7 +74,7 @@ const ProductCardSmall = ({ product }: { product: any }) => (
   </Link>
 );
 
-const CarouselRow = ({ items }: { items: any[] }) => {
+const CarouselRow = ({ items }: { items: Product[] }) => {
   const ref = useRef<HTMLDivElement>(null);
   const scroll = (dir: number) => ref.current?.scrollBy({ left: dir * 400, behavior: 'smooth' });
 
@@ -86,7 +94,7 @@ const CarouselRow = ({ items }: { items: any[] }) => {
         display: 'flex', gap: 16, overflowX: 'auto', scrollSnapType: 'x mandatory',
         scrollbarWidth: 'none', padding: '4px 4px 8px',
       }}>
-        {items.map((p: any) => <ProductCardSmall key={p.id} product={p} />)}
+        {items.map((p: Product) => <ProductCardSmall key={p.id} product={p} />)}
       </div>
       <button onClick={() => scroll(1)} style={{
         position: 'absolute', right: -16, top: '50%', transform: 'translateY(-50%)', zIndex: 2,
