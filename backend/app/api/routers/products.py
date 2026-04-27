@@ -9,7 +9,8 @@ from app.models.catalog import Product, Category
 from app.models.commerce import Order, OrderItem
 from app.models.review import Review
 from app.models.user import Pet
-from app.services.retrieval import search_products as vector_search_products, similar_products
+import math
+from app.services.retrieval import similar_products
 
 router = APIRouter()
 
@@ -193,6 +194,31 @@ def read_new_arrivals(db: SessionDep, limit: int = Query(8, ge=1, le=20)) -> Any
     ratings = _get_ratings_map(db, [p.id for p in products])
     return {"items": [_product_dict_with_rating(p, ratings) for p in products]}
 
+def _age_group(age_months: int | None) -> str:
+    if age_months is None:
+        return "adult"
+    if age_months < 12:
+        return "junior"
+    if age_months > 84:
+        return "senior"
+    return "adult"
+
+
+def _content_score(product: Product, ratings_map: dict, species_list: list[str], age_groups: list[str]) -> float:
+    avg, cnt = ratings_map.get(str(product.id), (None, 0))
+    rating_score = (avg or 0) * math.log1p(cnt)
+
+    name_lower = (product.name or "").lower()
+    desc_lower = (product.description or "").lower()
+    age_score = 0.0
+    for group in age_groups:
+        if group in (name_lower + desc_lower):
+            age_score = 1.0
+            break
+
+    return rating_score + age_score
+
+
 @router.get("/recommendations", response_model=dict)
 def read_recommendations(db: SessionDep, current_user: OptionalUser, limit: int = Query(8, ge=1, le=20)) -> Any:
     if not current_user:
@@ -200,46 +226,36 @@ def read_recommendations(db: SessionDep, current_user: OptionalUser, limit: int 
     pets = db.query(Pet).filter(Pet.user_id == current_user.id).all()
     if not pets:
         return {"items": []}
+
     species_list = list({p.species.value for p in pets})
+    age_groups = list({_age_group(p.age_months) for p in pets})
 
-    # Try embedding-based personalized recommendations first.
-    profile_parts = []
-    for p in pets:
-        allergies = (p.allergies or "").strip() or "không có"
-        profile_parts.append(
-            f"Loài {p.species.value}, giống {p.breed or 'không rõ'}, "
-            f"{p.age_months or '?'} tháng, {p.weight_kg or '?'}kg, dị ứng: {allergies}"
-        )
-    profile_str = (
-        "Gợi ý sản phẩm phù hợp cho thú cưng có hồ sơ: " + " | ".join(profile_parts)
-    )
-    try:
-        results = vector_search_products(db, query=profile_str, limit=limit, species=species_list)
-    except Exception:
-        results = []
-    if results:
-        slugs = [r["slug"] for r in results]
-        products = db.query(Product).filter(Product.slug.in_(slugs)).all()
-        by_slug = {p.slug: p for p in products}
-        ordered = [by_slug[s] for s in slugs if s in by_slug]
-        if ordered:
-            r = _get_ratings_map(db, [p.id for p in ordered])
-            return {"items": [_product_dict_with_rating(p, r) for p in ordered], "method": "embedding"}
-
-    # Fallback: species ILIKE.
     species_col = func.cast(Product.target_species, String)
     conditions = [species_col.ilike(f"%{sp}%") for sp in species_list]
-    products = (
+    candidates = (
         db.query(Product)
         .filter(Product.is_active, or_(*conditions))
         .order_by(desc(Product.created_at))
-        .limit(limit)
+        .limit(limit * 5)
         .all()
     )
-    if not products:
-        products = db.query(Product).filter(Product.is_active).order_by(desc(Product.created_at)).limit(limit).all()
-    ratings = _get_ratings_map(db, [p.id for p in products])
-    return {"items": [_product_dict_with_rating(p, ratings) for p in products], "method": "ilike"}
+    if not candidates:
+        candidates = (
+            db.query(Product)
+            .filter(Product.is_active)
+            .order_by(desc(Product.created_at))
+            .limit(limit * 5)
+            .all()
+        )
+
+    ratings = _get_ratings_map(db, [p.id for p in candidates])
+    scored = sorted(
+        candidates,
+        key=lambda p: _content_score(p, ratings, species_list, age_groups),
+        reverse=True,
+    )
+    top = scored[:limit]
+    return {"items": [_product_dict_with_rating(p, ratings) for p in top]}
 
 
 @router.get("/{slug}/similar", response_model=dict)

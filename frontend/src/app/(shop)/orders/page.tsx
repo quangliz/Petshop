@@ -23,59 +23,67 @@ export default function OrdersPage() {
     }
   });
 
-  if (isLoading) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--neutral-500)' }}>Đang tải đơn hàng...</div>;
+  if (isLoading) return <div className="py-24 text-center" style={{ color: 'var(--neutral-500)' }}>Đang tải đơn hàng...</div>;
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--neutral-500)', marginBottom: 32 }}>
+      <div className="flex items-center gap-2 text-xs sm:text-sm mb-6 sm:mb-8" style={{ color: 'var(--neutral-500)' }}>
         <Link href="/" style={{ color: 'inherit', textDecoration: 'none' }}>Trang chủ</Link>
         <ChevronRight size={14} />
         <span style={{ color: 'var(--neutral-900)', fontWeight: 600 }}>Đơn hàng của tôi</span>
       </div>
 
-      <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.025em', margin: '0 0 32px' }}>Lịch sử đơn hàng</h1>
+      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-6 sm:mb-8">Lịch sử đơn hàng</h1>
 
       {orders?.length === 0 && (
-        <div className="card" style={{ padding: '60px 40px', textAlign: 'center' }}>
-          <Package size={48} style={{ color: 'var(--neutral-300)', margin: '0 auto 16px' }} />
-          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--neutral-600)', marginBottom: 8 }}>Chưa có đơn hàng nào</div>
-          <div style={{ fontSize: 14, color: 'var(--neutral-400)', marginBottom: 24 }}>Hãy khám phá cửa hàng và đặt hàng cho bé pet nhé!</div>
+        <div className="card px-6 py-12 sm:py-16 text-center">
+          <Package size={48} className="mx-auto mb-4" style={{ color: 'var(--neutral-300)' }} />
+          <div className="text-base sm:text-lg font-bold mb-2" style={{ color: 'var(--neutral-600)' }}>Chưa có đơn hàng nào</div>
+          <div className="text-sm mb-6" style={{ color: 'var(--neutral-400)' }}>Hãy khám phá cửa hàng và đặt hàng cho bé pet nhé!</div>
           <Link href="/shop" className="btn btn-primary">Mua sắm ngay</Link>
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="flex flex-col gap-3 sm:gap-4">
         {orders?.map((order: Order) => {
           const st = statusConfig[order.status] || statusConfig.pending;
           const Icon = st.icon;
           return (
             <Link key={order.id} href={`/orders/${order.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div className="card" style={{
-                padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                cursor: 'pointer', transition: 'all 160ms ease'
-              }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+              <div
+                className="card cursor-pointer transition-all duration-150"
+                style={{ padding: '16px 20px' }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <div style={{ width: 44, height: 44, borderRadius: 14, background: st.bg, color: st.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon size={22} />
+                {/* Mobile layout: stacked; Desktop: single row */}
+                <div className="flex items-center justify-between gap-3">
+                  {/* Left: icon + order code + date */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center" style={{ background: st.bg, color: st.color }}>
+                      <Icon size={20} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm sm:text-base font-bold truncate" style={{ color: 'var(--neutral-900)' }}>#{order.order_code}</div>
+                      <div className="text-xs mt-0.5" style={{ color: 'var(--neutral-500)' }}>{new Date(order.created_at).toLocaleString('vi-VN')}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--neutral-900)' }}>#{order.order_code}</div>
-                    <div style={{ fontSize: 12, color: 'var(--neutral-500)', marginTop: 2 }}>{new Date(order.created_at).toLocaleString('vi-VN')}</div>
+
+                  {/* Right: status + amount + chevron */}
+                  <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                    <span className="hidden sm:inline-block text-xs font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg" style={{ color: st.color, background: st.bg, letterSpacing: '0.03em' }}>
+                      {st.label}
+                    </span>
+                    <div className="text-right">
+                      <div className="text-sm sm:text-base font-bold" style={{ color: 'var(--primary-600)' }}>{order.total.toLocaleString()}đ</div>
+                      <div className="text-xs mt-0.5" style={{ color: 'var(--neutral-400)' }}>
+                        <span className="sm:hidden" style={{ color: st.color, fontWeight: 700 }}>{st.label} · </span>
+                        {order.payment_method === 'vnpay' ? 'VNPay' : 'COD'}
+                      </div>
+                    </div>
+                    <ChevronRight size={16} style={{ color: 'var(--neutral-300)' }} />
                   </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: st.color, background: st.bg, padding: '4px 10px', borderRadius: 8, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                    {st.label}
-                  </span>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--primary-600)' }}>{order.total.toLocaleString()}đ</div>
-                    <div style={{ fontSize: 11, color: 'var(--neutral-400)', marginTop: 2 }}>{order.payment_method === 'vnpay' ? 'VNPay' : 'COD'}</div>
-                  </div>
-                  <ChevronRight size={18} style={{ color: 'var(--neutral-300)' }} />
                 </div>
               </div>
             </Link>

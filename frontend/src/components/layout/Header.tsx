@@ -25,7 +25,17 @@ const Logo = () => (
 );
 
 export default function Header() {
-  const { user, logout } = useAuthStore();
+  const { user, token, setUser, logout } = useAuthStore();
+
+  useEffect(() => {
+    if (token && !user) {
+      api.get('/auth/me').then((res) => setUser(res.data)).catch(() => {
+        if (typeof window !== 'undefined') localStorage.removeItem('token');
+        setUser(null);
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

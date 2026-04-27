@@ -17,7 +17,7 @@ const statusConfig: Record<string, { label: string, color: string, bg: string, i
 export default function OrderDetailPage() {
   const params = useParams();
   const queryClient = useQueryClient();
-  
+
   const { data: order, isLoading } = useQuery({
     queryKey: ['order', params.id],
     queryFn: async () => {
@@ -41,42 +41,42 @@ export default function OrderDetailPage() {
     }
   });
 
-  if (isLoading) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--neutral-500)' }}>Đang tải...</div>;
-  if (!order) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--danger)' }}>Không tìm thấy đơn hàng.</div>;
+  if (isLoading) return <div className="py-24 text-center" style={{ color: 'var(--neutral-500)' }}>Đang tải...</div>;
+  if (!order) return <div className="py-24 text-center" style={{ color: 'var(--danger)' }}>Không tìm thấy đơn hàng.</div>;
 
   const st = statusConfig[order.status] || statusConfig.pending;
   const StatusIcon = st.icon;
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--neutral-500)', marginBottom: 32 }}>
+      <div className="flex items-center gap-2 text-xs sm:text-sm mb-6 sm:mb-8" style={{ color: 'var(--neutral-500)' }}>
         <Link href="/" style={{ color: 'inherit', textDecoration: 'none' }}>Trang chủ</Link>
         <ChevronRight size={14} />
         <Link href="/orders" style={{ color: 'inherit', textDecoration: 'none' }}>Đơn hàng</Link>
         <ChevronRight size={14} />
-        <span style={{ color: 'var(--neutral-900)', fontWeight: 600 }}>#{order.order_code}</span>
+        <span className="truncate max-w-[140px] sm:max-w-none" style={{ color: 'var(--neutral-900)', fontWeight: 600 }}>#{order.order_code}</span>
       </div>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.025em', margin: '0 0 8px' }}>Đơn hàng #{order.order_code}</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: st.color, background: st.bg, padding: '5px 12px', borderRadius: 8 }}>
-              <StatusIcon size={14} /> {st.label}
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">Đơn hàng #{order.order_code}</h1>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg" style={{ color: st.color, background: st.bg }}>
+              <StatusIcon size={13} /> {st.label}
             </span>
-            <span style={{ fontSize: 13, color: 'var(--neutral-500)' }}>{new Date(order.created_at).toLocaleString('vi-VN')}</span>
+            <span className="text-xs sm:text-sm" style={{ color: 'var(--neutral-500)' }}>{new Date(order.created_at).toLocaleString('vi-VN')}</span>
           </div>
         </div>
         {order.status === 'pending' && (
-          <button 
+          <button
             onClick={() => { if (confirm("Bạn chắc chắn muốn huỷ đơn hàng này chứ?")) cancelOrderMutation.mutate(); }}
             disabled={cancelOrderMutation.isPending}
+            className="self-start sm:self-auto px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-150"
             style={{
-              padding: '10px 20px', borderRadius: 12, border: '1.5px solid var(--danger)',
-              background: 'transparent', color: 'var(--danger)', fontSize: 14, fontWeight: 700,
-              cursor: 'pointer', transition: 'all 120ms ease'
+              border: '1.5px solid var(--danger)',
+              background: 'transparent', color: 'var(--danger)', cursor: 'pointer'
             }}
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--danger)'; e.currentTarget.style.color = 'white'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--danger)'; }}
@@ -86,44 +86,44 @@ export default function OrderDetailPage() {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+      {/* Info cards: stacked on mobile, 2-col on sm+ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         {/* Shipping Info */}
-        <div className="card" style={{ padding: 24 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--primary-50)', color: 'var(--primary-600)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Truck size={16} /></div>
+        <div className="card p-5 sm:p-6">
+          <h2 className="text-sm sm:text-base font-extrabold mb-4 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--primary-50)', color: 'var(--primary-600)' }}><Truck size={15} /></div>
             Thông tin giao hàng
           </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
-              <User size={15} style={{ color: 'var(--neutral-400)' }} />
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2.5 text-sm">
+              <User size={14} style={{ color: 'var(--neutral-400)' }} className="shrink-0" />
               <span>{order.ship_name}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
-              <Phone size={15} style={{ color: 'var(--neutral-400)' }} />
+            <div className="flex items-center gap-2.5 text-sm">
+              <Phone size={14} style={{ color: 'var(--neutral-400)' }} className="shrink-0" />
               <span>{order.ship_phone}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14 }}>
-              <MapPin size={15} style={{ color: 'var(--neutral-400)', marginTop: 2 }} />
+            <div className="flex items-start gap-2.5 text-sm">
+              <MapPin size={14} style={{ color: 'var(--neutral-400)' }} className="shrink-0 mt-0.5" />
               <span>{order.ship_address}</span>
             </div>
           </div>
         </div>
 
         {/* Payment Info */}
-        <div className="card" style={{ padding: 24 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--teal-50)', color: 'var(--teal-600)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CreditCard size={16} /></div>
+        <div className="card p-5 sm:p-6">
+          <h2 className="text-sm sm:text-base font-extrabold mb-4 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--teal-50)', color: 'var(--teal-600)' }}><CreditCard size={15} /></div>
             Thanh toán
           </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between text-sm">
               <span style={{ color: 'var(--neutral-500)' }}>Phương thức</span>
-              <span style={{ fontWeight: 600 }}>{order.payment_method === 'vnpay' ? 'VNPay' : 'Thanh toán khi nhận hàng'}</span>
+              <span className="font-semibold">{order.payment_method === 'vnpay' ? 'VNPay' : 'Thanh toán khi nhận hàng'}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+            <div className="flex justify-between items-center text-sm">
               <span style={{ color: 'var(--neutral-500)' }}>Trạng thái TT</span>
-              <span style={{
-                fontWeight: 700, fontSize: 12, padding: '3px 8px', borderRadius: 6,
+              <span className="text-xs font-bold px-2 py-1 rounded-md" style={{
                 color: order.payment_status === 'paid' ? 'var(--success)' : 'var(--primary-600)',
                 background: order.payment_status === 'paid' ? 'var(--success-bg)' : 'var(--primary-50)',
               }}>
@@ -135,34 +135,34 @@ export default function OrderDetailPage() {
       </div>
 
       {/* Products */}
-      <div className="card" style={{ padding: 24 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--neutral-50)', color: 'var(--neutral-600)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Package size={16} /></div>
+      <div className="card p-5 sm:p-6">
+        <h2 className="text-sm sm:text-base font-extrabold mb-4 flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--neutral-50)', color: 'var(--neutral-600)' }}><Package size={15} /></div>
           Sản phẩm ({order.items.length})
         </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="flex flex-col gap-0">
           {order.items.map((item: { product_name: string; quantity: number; price: number }, idx: number) => (
-            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: idx < order.items.length - 1 ? '1px solid var(--neutral-100)' : 'none' }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--neutral-800)' }}>{item.product_name}</div>
-                <div style={{ fontSize: 12, color: 'var(--neutral-500)', marginTop: 2 }}>SL: {item.quantity} × {item.price.toLocaleString()}đ</div>
+            <div key={idx} className="flex justify-between items-center py-3" style={{ borderBottom: idx < order.items.length - 1 ? '1px solid var(--neutral-100)' : 'none' }}>
+              <div className="min-w-0 pr-3">
+                <div className="text-sm font-semibold" style={{ color: 'var(--neutral-800)' }}>{item.product_name}</div>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--neutral-500)' }}>SL: {item.quantity} × {item.price.toLocaleString()}đ</div>
               </div>
-              <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--neutral-900)' }}>{(item.price * item.quantity).toLocaleString()}đ</span>
+              <span className="text-sm sm:text-base font-bold shrink-0" style={{ color: 'var(--neutral-900)' }}>{(item.price * item.quantity).toLocaleString()}đ</span>
             </div>
           ))}
         </div>
-        <div style={{ borderTop: '1px solid var(--neutral-100)', marginTop: 16, paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+        <div className="flex flex-col gap-2.5 mt-4 pt-4" style={{ borderTop: '1px solid var(--neutral-100)' }}>
+          <div className="flex justify-between text-sm">
             <span style={{ color: 'var(--neutral-500)' }}>Tạm tính</span>
-            <span style={{ fontWeight: 600 }}>{order.subtotal.toLocaleString()}đ</span>
+            <span className="font-semibold">{order.subtotal.toLocaleString()}đ</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+          <div className="flex justify-between text-sm">
             <span style={{ color: 'var(--neutral-500)' }}>Phí vận chuyển</span>
-            <span style={{ fontWeight: 600 }}>{order.shipping_fee.toLocaleString()}đ</span>
+            <span className="font-semibold">{order.shipping_fee.toLocaleString()}đ</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderTop: '1px solid var(--neutral-100)', paddingTop: 12, marginTop: 4 }}>
-            <span style={{ fontSize: 16, fontWeight: 800 }}>Tổng cộng</span>
-            <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--primary-600)' }}>{order.total.toLocaleString()}đ</span>
+          <div className="flex justify-between items-baseline pt-3 mt-1" style={{ borderTop: '1px solid var(--neutral-100)' }}>
+            <span className="text-base font-extrabold">Tổng cộng</span>
+            <span className="text-xl sm:text-2xl font-extrabold" style={{ color: 'var(--primary-600)' }}>{order.total.toLocaleString()}đ</span>
           </div>
         </div>
       </div>
