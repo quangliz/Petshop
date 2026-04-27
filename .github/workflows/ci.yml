@@ -7,7 +7,8 @@ on:
     branches: ["main"]
 
 jobs:
-  test:
+  # ── Backend Tests ──────────────────────────
+  test-backend:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -47,13 +48,40 @@ jobs:
       - name: Test with pytest
         run: uv run pytest
 
-  build:
-    needs: test
+  # ── Frontend Lint & Type Check ─────────────
+  test-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+  # ── Build & Push Backend Image ─────────────
+  build-backend:
+    needs: test-backend
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -69,6 +97,26 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_HUB_USERNAME }}/petshop-backend:${{ github.sha }}
             ${{ secrets.DOCKER_HUB_USERNAME }}/petshop-backend:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+  # ── Build & Push Frontend Image ────────────
+  build-frontend:
+    needs: test-frontend
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
@@ -78,9 +126,15 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_HUB_USERNAME }}/petshop-frontend:${{ github.sha }}
             ${{ secrets.DOCKER_HUB_USERNAME }}/petshop-frontend:latest
+          build-args: |
+            NEXT_PUBLIC_API_URL=/api/v1
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
 
+  # ── Deploy to AWS ──────────────────────────
   deploy:
-    needs: build
+    needs: [build-backend, build-frontend]
     runs-on: ubuntu-latest
 
     steps:
@@ -92,7 +146,7 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_KEY }}
-          source: "docker-compose.prod.yml,nginx/nginx.conf"
+          source: "docker-compose.prod.yml,nginx/nginx.conf,.env"
           target: "~/petshop"
 
       - name: Deploy to AWS

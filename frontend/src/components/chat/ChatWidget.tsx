@@ -83,7 +83,7 @@ export default function ChatWidget() {
     setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
     setIsTyping(true);
 
-    const backendUrl = "http://localhost:8000/api/v1/chat/stream";
+    const backendUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/chat/stream`;
     const token = localStorage.getItem("token");
 
     try {
