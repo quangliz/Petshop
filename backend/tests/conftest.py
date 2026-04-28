@@ -15,12 +15,29 @@ if "SECRET_KEY" not in os.environ:
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
+
 from app.main import app  # noqa: E402
-from app.database import SessionLocal, engine, Base  # noqa: E402
+from app.database import Base  # noqa: E402
 from app.models.user import User, RoleEnum  # noqa: E402
 
-# Create tables for testing if they don't exist
-Base.metadata.create_all(bind=engine)
+# Sync engine for test setup only (does not conflict with the async engine used by the app)
+_SYNC_URL = os.getenv("DATABASE_URL", "")
+if not _SYNC_URL:
+    _u = os.getenv("POSTGRES_USER", "postgres")
+    _pw = os.getenv("POSTGRES_PASSWORD", "postgres")
+    _h = os.getenv("POSTGRES_HOST", "localhost")
+    _p = os.getenv("POSTGRES_PORT", "5432")
+    _d = os.getenv("POSTGRES_DB", "postgres")
+    _SYNC_URL = f"postgresql://{_u}:{_pw}@{_h}:{_p}/{_d}"
+else:
+    _SYNC_URL = _SYNC_URL.replace("postgresql+asyncpg://", "postgresql://")
+_sync_engine = create_engine(_SYNC_URL)
+_SyncSession = sessionmaker(bind=_sync_engine)
+
+Base.metadata.create_all(bind=_sync_engine)
+
 
 # ── Shared client ─────────────────────────────────────────────────────────────
 @pytest.fixture(scope="session")
@@ -33,17 +50,15 @@ TEST_EMAIL = "test_runner@petshop.dev"
 TEST_PASSWORD = "Test@12345"
 TEST_NAME = "Bot Tester"
 
+
 @pytest.fixture(scope="session")
 def auth_token(client: TestClient) -> str:
     """Đăng ký (nếu chưa có) và lấy token."""
-    # Try register first
     client.post("/api/v1/auth/register", json={
         "email": TEST_EMAIL,
         "password": TEST_PASSWORD,
         "full_name": TEST_NAME,
     })
-
-    # Login
     res = client.post("/api/v1/auth/login", data={
         "username": TEST_EMAIL,
         "password": TEST_PASSWORD,
@@ -60,18 +75,18 @@ def auth_headers(auth_token: str) -> dict:
 TEST_ADMIN_EMAIL = "admin_runner@petshop.dev"
 TEST_ADMIN_PASSWORD = "Admin@12345"
 
+
 @pytest.fixture(scope="session")
 def admin_token(client: TestClient) -> str:
     """Đăng ký (nếu chưa có), thiết lập role admin và lấy token."""
-    # Try register first
     client.post("/api/v1/auth/register", json={
         "email": TEST_ADMIN_EMAIL,
         "password": TEST_ADMIN_PASSWORD,
         "full_name": "Admin Tester",
     })
-    
-    # Update role to admin in DB
-    db = SessionLocal()
+
+    # Use sync engine to set admin role — avoids event loop conflicts with TestClient
+    db = _SyncSession()
     try:
         user = db.query(User).filter(User.email == TEST_ADMIN_EMAIL).first()
         if user and user.role != RoleEnum.admin:
@@ -80,7 +95,6 @@ def admin_token(client: TestClient) -> str:
     finally:
         db.close()
 
-    # Login
     res = client.post("/api/v1/auth/login", data={
         "username": TEST_ADMIN_EMAIL,
         "password": TEST_ADMIN_PASSWORD,

@@ -14,7 +14,9 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 def get_url():
-    return os.getenv("DATABASE_URL")
+    url = os.getenv("DATABASE_URL", "")
+    # Alembic uses psycopg2 (sync), not asyncpg
+    return url.replace("postgresql+asyncpg://", "postgresql://")
 
 def run_migrations_offline() -> None:
     url = get_url()

@@ -6,7 +6,7 @@ from langchain_core.tools import tool
 from langchain_core.messages import BaseMessage
 from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import ToolNode, tools_condition
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.services.retrieval import search_products, search_knowledge
@@ -32,9 +32,9 @@ class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
 
 
-def _build_tools(db: Session):
+def _build_tools(db: AsyncSession):
     @tool
-    def search_products_tool(query: str, species: Optional[List[str]] = None) -> str:
+    async def search_products_tool(query: str, species: Optional[List[str]] = None) -> str:
         """Tìm sản phẩm trong cửa hàng ThePawsome bằng vector similarity.
 
         Args:
@@ -43,7 +43,7 @@ def _build_tools(db: Session):
 
         Returns: Danh sách top-5 sản phẩm dạng văn bản, kèm slug để dùng trong thẻ <product>.
         """
-        results = search_products(db, query=query, limit=5, species=species)
+        results = await search_products(db, query=query, limit=5, species=species)
         if not results:
             return "Không tìm thấy sản phẩm phù hợp."
         lines = []
@@ -74,7 +74,7 @@ def _build_tools(db: Session):
     return [search_products_tool, search_knowledge_tool]
 
 
-def build_agent(db: Session):
+def build_agent(db: AsyncSession):
     """Build a per-request StateGraph agent: agent ⇄ tools.
 
     Graph:

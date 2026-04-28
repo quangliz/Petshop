@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import uuid
 import json
+from sqlalchemy import select
 
 from sse_starlette.sse import EventSourceResponse
 
@@ -17,18 +18,18 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 router = APIRouter()
 
-PRODUCT_TAG_RE = re.compile(r"<product>\s*([a-z0-9\-_&.+%]+)\s*</product>", re.IGNORECASE)
+PRODUCT_TAG_RE = re.compile(r"<product>\s*([^\s<>]+)\s*</product>", re.IGNORECASE)
 
 
 @router.get("/sessions")
-def list_sessions(db: SessionDep, current_user: CurrentUser):
-    sessions = (
-        db.query(ChatSession)
-        .filter(ChatSession.user_id == current_user.id)
+async def list_sessions(db: SessionDep, current_user: CurrentUser):
+    result = await db.execute(
+        select(ChatSession)
+        .where(ChatSession.user_id == current_user.id)
         .order_by(ChatSession.created_at.desc())
         .limit(50)
-        .all()
     )
+    sessions = result.scalars().all()
     return [
         {
             "id": str(s.id),
@@ -40,30 +41,36 @@ def list_sessions(db: SessionDep, current_user: CurrentUser):
 
 
 @router.get("/sessions/{session_id}/messages")
-def get_session_messages(session_id: str, db: SessionDep, current_user: CurrentUser):
-    session = db.query(ChatSession).filter(
-        ChatSession.id == uuid.UUID(session_id),
-        ChatSession.user_id == current_user.id,
-    ).first()
+async def get_session_messages(session_id: str, db: SessionDep, current_user: CurrentUser):
+    result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == uuid.UUID(session_id),
+            ChatSession.user_id == current_user.id,
+        )
+    )
+    session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
-    msgs = (
-        db.query(ChatMessage)
-        .filter(ChatMessage.session_id == session.id)
+
+    result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.session_id == session.id)
         .order_by(ChatMessage.created_at.asc())
-        .all()
     )
+    msgs = result.scalars().all()
+
+    messages = []
+    for m in msgs:
+        if m.role not in (ChatRoleEnum.user, ChatRoleEnum.assistant):
+            continue
+        msg_dict = {"role": m.role.value, "content": m.content}
+        if m.role == ChatRoleEnum.assistant and PRODUCT_TAG_RE.search(m.content):
+            msg_dict["products"] = await _extract_products(db, m.content)
+        messages.append(msg_dict)
+
     return {
         "session": {"id": str(session.id), "title": session.title},
-        "messages": [
-            {
-                "role": m.role.value,
-                "content": m.content,
-                **({"products": _extract_products(db, m.content)} if m.role == ChatRoleEnum.assistant and PRODUCT_TAG_RE.search(m.content) else {}),
-            }
-            for m in msgs
-            if m.role in (ChatRoleEnum.user, ChatRoleEnum.assistant)
-        ],
+        "messages": messages,
     }
 
 
@@ -74,15 +81,14 @@ class ChatRequest(BaseModel):
     product_slug: Optional[str] = None
 
 
-def _extract_products(db, content: str) -> list[dict]:
+async def _extract_products(db, content: str) -> list[dict]:
     slugs = list(dict.fromkeys(PRODUCT_TAG_RE.findall(content)))
     if not slugs:
         return []
-    products = (
-        db.query(Product)
-        .filter(Product.slug.in_(slugs), Product.is_active)
-        .all()
+    result = await db.execute(
+        select(Product).where(Product.slug.in_(slugs), Product.is_active)
     )
+    products = result.scalars().all()
     by_slug = {p.slug: p for p in products}
     out = []
     for slug in slugs:
@@ -101,30 +107,35 @@ def _extract_products(db, content: str) -> list[dict]:
 
 
 @router.post("/stream")
-def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUser):
+async def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUser):
     if req.session_id:
-        session = db.query(ChatSession).filter(
-            ChatSession.id == uuid.UUID(req.session_id),
-            ChatSession.user_id == current_user.id
-        ).first()
+        result = await db.execute(
+            select(ChatSession).where(
+                ChatSession.id == uuid.UUID(req.session_id),
+                ChatSession.user_id == current_user.id,
+            )
+        )
+        session = result.scalar_one_or_none()
         if not session:
             raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
-
         pet_id = session.pet_id
     else:
         pet_id = uuid.UUID(req.pet_id) if req.pet_id else None
         session = ChatSession(
             user_id=current_user.id,
             pet_id=pet_id,
-            title=req.message[:30] + "..."
+            title=req.message[:30] + "...",
         )
         db.add(session)
-        db.commit()
-        db.refresh(session)
+        await db.commit()
+        await db.refresh(session)
 
     pet_context = ""
     if pet_id:
-        pet = db.query(Pet).filter(Pet.id == pet_id, Pet.user_id == current_user.id).first()
+        result = await db.execute(
+            select(Pet).where(Pet.id == pet_id, Pet.user_id == current_user.id)
+        )
+        pet = result.scalar_one_or_none()
         if pet:
             pet_context = (
                 f"- Tên: {pet.name}\n"
@@ -138,7 +149,10 @@ def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUser):
 
     product_context = ""
     if req.product_slug:
-        viewed = db.query(Product).filter(Product.slug == req.product_slug, Product.is_active).first()
+        result = await db.execute(
+            select(Product).where(Product.slug == req.product_slug, Product.is_active)
+        )
+        viewed = result.scalar_one_or_none()
         if viewed:
             price = float(viewed.sale_price) if viewed.sale_price else float(viewed.price)
             species = ", ".join(viewed.target_species) if viewed.target_species else "tất cả"
@@ -154,12 +168,17 @@ def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUser):
     hm = ChatMessage(
         session_id=session.id,
         role=ChatRoleEnum.user,
-        content=req.message
+        content=req.message,
     )
     db.add(hm)
-    db.commit()
+    await db.commit()
 
-    past_msgs = db.query(ChatMessage).filter(ChatMessage.session_id == session.id).order_by(ChatMessage.created_at.asc()).all()
+    result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.session_id == session.id)
+        .order_by(ChatMessage.created_at.asc())
+    )
+    past_msgs = result.scalars().all()
     history = [SystemMessage(content=build_system_prompt(pet_context, product_context))]
     for msg in past_msgs:
         if msg.role == ChatRoleEnum.user:
@@ -185,7 +204,6 @@ def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUser):
         try:
             async for event in agent.astream_events(state, version="v2", config=run_config):
                 kind = event["event"]
-                # Stream text tokens from the LLM
                 if kind == "on_chat_model_stream":
                     chunk = event["data"]["chunk"]
                     content = chunk.content if isinstance(chunk.content, str) else ""
@@ -193,9 +211,8 @@ def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUser):
                         full_content += content
                         yield {
                             "event": "message",
-                            "data": json.dumps({"content": content})
+                            "data": json.dumps({"content": content}),
                         }
-                # Capture token usage from the completed LLM call
                 elif kind == "on_chat_model_end":
                     output = event["data"].get("output")
                     if output and hasattr(output, "usage_metadata") and output.usage_metadata:
@@ -205,26 +222,26 @@ def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUser):
                 session_id=session.id,
                 role=ChatRoleEnum.assistant,
                 content=full_content,
-                token_usage={"total_tokens": total_tokens} if total_tokens else None
+                token_usage={"total_tokens": total_tokens} if total_tokens else None,
             )
             db.add(am)
-            db.commit()
+            await db.commit()
 
-            products = _extract_products(db, full_content)
+            products = await _extract_products(db, full_content)
             if products:
                 yield {
                     "event": "products",
-                    "data": json.dumps({"items": products})
+                    "data": json.dumps({"items": products}),
                 }
 
             yield {
                 "event": "done",
-                "data": json.dumps({"session_id": str(session.id)})
+                "data": json.dumps({"session_id": str(session.id)}),
             }
         except Exception as e:
             yield {
                 "event": "error",
-                "data": json.dumps({"error": str(e)})
+                "data": json.dumps({"error": str(e)}),
             }
 
     return EventSourceResponse(event_generator())

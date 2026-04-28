@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 from pydantic import BaseModel, EmailStr
+from sqlalchemy import select
 
 from app.api.deps import SessionDep, CurrentUser
 from app.core.config import settings
@@ -76,8 +77,9 @@ def _user_response(user: User) -> dict:
 
 
 @router.post("/register", response_model=UserResponse)
-def register(user_in: UserRegister, db: SessionDep) -> Any:
-    user = db.query(User).filter(User.email == user_in.email).first()
+async def register(user_in: UserRegister, db: SessionDep) -> Any:
+    result = await db.execute(select(User).where(User.email == user_in.email))
+    user = result.scalar_one_or_none()
     if user:
         raise HTTPException(status_code=400, detail="Email đã được đăng ký trong hệ thống.")
     user = User(
@@ -86,14 +88,15 @@ def register(user_in: UserRegister, db: SessionDep) -> Any:
         full_name=user_in.full_name,
     )
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     return _user_response(user)
 
 
 @router.post("/login", response_model=Token)
-def login(response: Response, db: SessionDep, form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
-    user = db.query(User).filter(User.email == form_data.username).first()
+async def login(response: Response, db: SessionDep, form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
+    result = await db.execute(select(User).where(User.email == form_data.username))
+    user = result.scalar_one_or_none()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Email hoặc mật khẩu không chính xác")
     access_token = create_access_token(subject=str(user.id))
@@ -111,7 +114,7 @@ def login(response: Response, db: SessionDep, form_data: OAuth2PasswordRequestFo
 
 
 @router.post("/refresh", response_model=Token)
-def refresh(request: Request, db: SessionDep) -> Any:
+async def refresh(request: Request, db: SessionDep) -> Any:
     token = request.cookies.get("refresh_token")
     if not token:
         raise HTTPException(status_code=401, detail="Không có refresh token")
@@ -120,7 +123,8 @@ def refresh(request: Request, db: SessionDep) -> Any:
         if payload.get("type") != "refresh":
             raise HTTPException(status_code=401, detail="Token không hợp lệ")
         user_id = payload.get("sub")
-        user = db.query(User).filter(User.id == uuid.UUID(user_id)).first()
+        result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+        user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=401, detail="Người dùng không tồn tại")
     except JWTError:
@@ -132,7 +136,8 @@ def refresh(request: Request, db: SessionDep) -> Any:
 @router.post("/forgot-password")
 async def forgot_password(body: ForgotPasswordRequest, db: SessionDep) -> Any:
     msg = "Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu."
-    user = db.query(User).filter(User.email == body.email).first()
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
     if not user:
         return {"message": msg}
     token = create_reset_token(subject=str(user.id))
@@ -145,32 +150,33 @@ async def forgot_password(body: ForgotPasswordRequest, db: SessionDep) -> Any:
 
 
 @router.post("/reset-password")
-def reset_password(body: ResetPasswordRequest, db: SessionDep) -> Any:
+async def reset_password(body: ResetPasswordRequest, db: SessionDep) -> Any:
     try:
         payload = jwt.decode(body.token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         if payload.get("type") != "reset":
             raise HTTPException(status_code=400, detail="Token không hợp lệ")
-        user = db.query(User).filter(User.id == uuid.UUID(payload["sub"])).first()
+        result = await db.execute(select(User).where(User.id == uuid.UUID(payload["sub"])))
+        user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=400, detail="Token không hợp lệ")
     except JWTError:
         raise HTTPException(status_code=400, detail="Token không hợp lệ hoặc đã hết hạn")
     user.hashed_password = get_password_hash(body.new_password)
-    db.commit()
+    await db.commit()
     return {"message": "Mật khẩu đã được cập nhật."}
 
 
 @router.post("/change-password")
-def change_password(body: ChangePasswordRequest, db: SessionDep, current_user: CurrentUser) -> Any:
+async def change_password(body: ChangePasswordRequest, db: SessionDep, current_user: CurrentUser) -> Any:
     if not verify_password(body.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng")
     current_user.hashed_password = get_password_hash(body.new_password)
-    db.commit()
+    await db.commit()
     return {"message": "Đã đổi mật khẩu thành công."}
 
 
 @router.post("/logout")
-def logout(response: Response) -> Any:
+async def logout(response: Response) -> Any:
     response.delete_cookie("refresh_token", path="/api/v1/auth")
     return {"message": "Đã đăng xuất."}
 
@@ -203,7 +209,6 @@ async def google_login(body: GoogleAuthRequest, response: Response, db: SessionD
     if not id_token:
         raise HTTPException(status_code=400, detail="Google không trả về ID token")
 
-    # Verify and decode the ID token via Google's tokeninfo endpoint
     async with httpx.AsyncClient() as client:
         info_res = await client.get(
             f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}"
@@ -221,7 +226,8 @@ async def google_login(body: GoogleAuthRequest, response: Response, db: SessionD
     if not email:
         raise HTTPException(status_code=400, detail="Không lấy được email từ Google")
 
-    user = db.query(User).filter(User.email == email).first()
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
     if not user:
         user = User(
             email=email,
@@ -229,8 +235,8 @@ async def google_login(body: GoogleAuthRequest, response: Response, db: SessionD
             full_name=full_name,
         )
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
 
     access_token = create_access_token(subject=str(user.id))
     refresh_token = create_refresh_token(subject=str(user.id))
@@ -247,18 +253,18 @@ async def google_login(body: GoogleAuthRequest, response: Response, db: SessionD
 
 
 @router.get("/me", response_model=UserResponse)
-def read_users_me(current_user: CurrentUser) -> Any:
+async def read_users_me(current_user: CurrentUser) -> Any:
     return _user_response(current_user)
 
 
 @router.put("/me", response_model=UserResponse)
-def update_user_me(user_in: UserUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
+async def update_user_me(user_in: UserUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
     if user_in.full_name is not None:
         current_user.full_name = user_in.full_name
     if user_in.phone is not None:
         current_user.phone = user_in.phone
     if user_in.address is not None:
         current_user.address = user_in.address
-    db.commit()
-    db.refresh(current_user)
+    await db.commit()
+    await db.refresh(current_user)
     return _user_response(current_user)

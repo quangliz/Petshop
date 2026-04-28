@@ -12,7 +12,7 @@ type ChatMsg = { role: string; content: string; products?: ChatProduct[] };
 type ChatSessionMeta = { id: string; title: string; created_at: string | null };
 import Image from 'next/image';
 
-const PRODUCT_TAG_RE = /<product>\s*([a-z0-9\-_&.+%]+)\s*<\/product>/gi;
+const PRODUCT_TAG_RE = /<product>\s*([^<>\s]+)\s*<\/product>/gi;
 
 function ProductCard({ pr }: { pr: ChatProduct }) {
   const effectivePrice = pr.sale_price ?? pr.price;

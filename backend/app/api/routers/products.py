@@ -2,7 +2,8 @@ from typing import Any, List, Optional
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import desc, asc, func, String, or_
+from sqlalchemy import desc, asc, func, String, or_, select
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import SessionDep, OptionalUser
 from app.models.catalog import Product, Category
@@ -15,19 +16,19 @@ from app.services.retrieval import similar_products
 router = APIRouter()
 
 
-def _get_ratings_map(db, product_ids: list) -> dict:
+async def _get_ratings_map(db, product_ids: list) -> dict:
     if not product_ids:
         return {}
-    rows = (
-        db.query(
+    result = await db.execute(
+        select(
             Review.product_id,
             func.avg(Review.rating).label("avg"),
             func.count(Review.id).label("cnt"),
         )
-        .filter(Review.product_id.in_(product_ids))
+        .where(Review.product_id.in_(product_ids))
         .group_by(Review.product_id)
-        .all()
     )
+    rows = result.all()
     return {str(r.product_id): (round(float(r.avg), 1), r.cnt) for r in rows}
 
 
@@ -52,6 +53,7 @@ class ProductResponse(BaseModel):
     attributes: Optional[dict] = None
     variants: Optional[List[Any]] = None
     product_images: Optional[List[Any]] = None
+
 
 def _product_dict(p: Product, include_variants: bool = False, avg_rating: float | None = None, review_count: int | None = None) -> dict:
     target_species = p.target_species
@@ -99,9 +101,9 @@ def _product_dict(p: Product, include_variants: bool = False, avg_rating: float 
         ]
     return d
 
-# Lấy ds sản phẩm, có filter và phân trang
+
 @router.get("/", response_model=dict)
-def read_products(
+async def read_products(
     db: SessionDep,
     q: Optional[str] = Query(None, description="Search keyword"),
     category_slug: List[str] = Query(default=[]),
@@ -110,42 +112,45 @@ def read_products(
     max_price: Optional[float] = None,
     sort: Optional[str] = "newest",
     page: int = Query(1, ge=1),
-    size: int = Query(12, ge=1, le=100)
+    size: int = Query(12, ge=1, le=100),
 ) -> Any:
-    query = db.query(Product).filter(Product.is_active)
+    stmt = select(Product).where(Product.is_active)
 
     if q and q.strip():
         tokens = q.strip().split()
         for tok in tokens:
             like = f"%{tok}%"
-            query = query.filter(or_(
+            stmt = stmt.where(or_(
                 Product.name.ilike(like),
                 Product.brand.ilike(like),
                 Product.description.ilike(like),
                 Product.category.has(Category.name.ilike(like)),
             ))
     if category_slug:
-        query = query.join(Product.category).filter(Category.slug.in_(category_slug))
+        stmt = stmt.join(Product.category).where(Category.slug.in_(category_slug))
     if brand:
-        query = query.filter(Product.brand.in_(brand))
-    effective_price = func.coalesce(Product.sale_price, Product.price)
+        stmt = stmt.where(Product.brand.in_(brand))
 
+    effective_price = func.coalesce(Product.sale_price, Product.price)
     if min_price is not None:
-        query = query.filter(effective_price >= min_price)
+        stmt = stmt.where(effective_price >= min_price)
     if max_price is not None:
-        query = query.filter(effective_price <= max_price)
+        stmt = stmt.where(effective_price <= max_price)
 
     if sort == "newest":
-        query = query.order_by(desc(Product.created_at))
+        stmt = stmt.order_by(desc(Product.created_at))
     elif sort == "price_asc":
-        query = query.order_by(asc(effective_price))
+        stmt = stmt.order_by(asc(effective_price))
     elif sort == "price_desc":
-        query = query.order_by(desc(effective_price))
+        stmt = stmt.order_by(desc(effective_price))
 
-    total = query.count()
-    products = query.offset((page - 1) * size).limit(size).all()
+    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+    result = await db.execute(
+        stmt.offset((page - 1) * size).limit(size).options(selectinload(Product.category))
+    )
+    products = result.scalars().all()
 
-    ratings = _get_ratings_map(db, [p.id for p in products])
+    ratings = await _get_ratings_map(db, [p.id for p in products])
     return {
         "items": [_product_dict_with_rating(p, ratings) for p in products],
         "total": total,
@@ -154,45 +159,66 @@ def read_products(
         "pages": (total + size - 1) // size,
     }
 
+
 @router.get("/brands", response_model=List[str])
-def read_brands(db: SessionDep) -> Any:
-    brands = db.query(Product.brand).filter(Product.brand.isnot(None)).distinct().all()
-    return [b[0] for b in brands if b[0]]
+async def read_brands(db: SessionDep) -> Any:
+    result = await db.execute(
+        select(Product.brand).where(Product.brand.isnot(None)).distinct()
+    )
+    return [row[0] for row in result.all() if row[0]]
+
 
 @router.get("/best-sellers", response_model=dict)
-def read_best_sellers(db: SessionDep, limit: int = Query(8, ge=1, le=20)) -> Any:
+async def read_best_sellers(db: SessionDep, limit: int = Query(8, ge=1, le=20)) -> Any:
     week_ago = datetime.now(timezone.utc) - timedelta(days=7)
-    rows = (
-        db.query(Product, func.sum(OrderItem.quantity).label("total_sold"))
+    result = await db.execute(
+        select(Product, func.sum(OrderItem.quantity).label("total_sold"))
         .join(OrderItem, OrderItem.product_id == Product.id)
         .join(Order, Order.id == OrderItem.order_id)
-        .filter(Product.is_active, Order.created_at >= week_ago)
+        .where(Product.is_active, Order.created_at >= week_ago)
         .group_by(Product.id)
         .order_by(desc("total_sold"))
         .limit(limit)
-        .all()
+        .options(selectinload(Product.category))
     )
+    rows = result.all()
     if not rows:
-        fallback = db.query(Product).filter(Product.is_active).order_by(desc(Product.created_at)).limit(limit).all()
-        rows = [(p, 0) for p in fallback]
-    ratings = _get_ratings_map(db, [p.id for p, _ in rows])
+        result = await db.execute(
+            select(Product)
+            .where(Product.is_active)
+            .order_by(desc(Product.created_at))
+            .limit(limit)
+            .options(selectinload(Product.category))
+        )
+        rows = [(p, 0) for p in result.scalars().all()]
+    ratings = await _get_ratings_map(db, [p.id for p, _ in rows])
     return {"items": [_product_dict_with_rating(p, ratings) for p, _ in rows]}
 
+
 @router.get("/new-arrivals", response_model=dict)
-def read_new_arrivals(db: SessionDep, limit: int = Query(8, ge=1, le=20)) -> Any:
+async def read_new_arrivals(db: SessionDep, limit: int = Query(8, ge=1, le=20)) -> Any:
     now = datetime.now(timezone.utc)
     monday = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-    products = (
-        db.query(Product)
-        .filter(Product.is_active, Product.created_at >= monday)
+    result = await db.execute(
+        select(Product)
+        .where(Product.is_active, Product.created_at >= monday)
         .order_by(desc(Product.created_at))
         .limit(limit)
-        .all()
+        .options(selectinload(Product.category))
     )
+    products = result.scalars().all()
     if not products:
-        products = db.query(Product).filter(Product.is_active).order_by(desc(Product.created_at)).limit(limit).all()
-    ratings = _get_ratings_map(db, [p.id for p in products])
+        result = await db.execute(
+            select(Product)
+            .where(Product.is_active)
+            .order_by(desc(Product.created_at))
+            .limit(limit)
+            .options(selectinload(Product.category))
+        )
+        products = result.scalars().all()
+    ratings = await _get_ratings_map(db, [p.id for p in products])
     return {"items": [_product_dict_with_rating(p, ratings) for p in products]}
+
 
 def _age_group(age_months: int | None) -> str:
     if age_months is None:
@@ -207,7 +233,6 @@ def _age_group(age_months: int | None) -> str:
 def _content_score(product: Product, ratings_map: dict, species_list: list[str], age_groups: list[str]) -> float:
     avg, cnt = ratings_map.get(str(product.id), (None, 0))
     rating_score = (avg or 0) * math.log1p(cnt)
-
     name_lower = (product.name or "").lower()
     desc_lower = (product.description or "").lower()
     age_score = 0.0
@@ -215,15 +240,15 @@ def _content_score(product: Product, ratings_map: dict, species_list: list[str],
         if group in (name_lower + desc_lower):
             age_score = 1.0
             break
-
     return rating_score + age_score
 
 
 @router.get("/recommendations", response_model=dict)
-def read_recommendations(db: SessionDep, current_user: OptionalUser, limit: int = Query(8, ge=1, le=20)) -> Any:
+async def read_recommendations(db: SessionDep, current_user: OptionalUser, limit: int = Query(8, ge=1, le=20)) -> Any:
     if not current_user:
         return {"items": []}
-    pets = db.query(Pet).filter(Pet.user_id == current_user.id).all()
+    result = await db.execute(select(Pet).where(Pet.user_id == current_user.id))
+    pets = result.scalars().all()
     if not pets:
         return {"items": []}
 
@@ -232,23 +257,25 @@ def read_recommendations(db: SessionDep, current_user: OptionalUser, limit: int 
 
     species_col = func.cast(Product.target_species, String)
     conditions = [species_col.ilike(f"%{sp}%") for sp in species_list]
-    candidates = (
-        db.query(Product)
-        .filter(Product.is_active, or_(*conditions))
+    result = await db.execute(
+        select(Product)
+        .where(Product.is_active, or_(*conditions))
         .order_by(desc(Product.created_at))
         .limit(limit * 5)
-        .all()
+        .options(selectinload(Product.category))
     )
+    candidates = result.scalars().all()
     if not candidates:
-        candidates = (
-            db.query(Product)
-            .filter(Product.is_active)
+        result = await db.execute(
+            select(Product)
+            .where(Product.is_active)
             .order_by(desc(Product.created_at))
             .limit(limit * 5)
-            .all()
+            .options(selectinload(Product.category))
         )
+        candidates = result.scalars().all()
 
-    ratings = _get_ratings_map(db, [p.id for p in candidates])
+    ratings = await _get_ratings_map(db, [p.id for p in candidates])
     scored = sorted(
         candidates,
         key=lambda p: _content_score(p, ratings, species_list, age_groups),
@@ -259,23 +286,36 @@ def read_recommendations(db: SessionDep, current_user: OptionalUser, limit: int 
 
 
 @router.get("/{slug}/similar", response_model=dict)
-def read_similar_products(slug: str, db: SessionDep, limit: int = Query(6, ge=1, le=20)) -> Any:
-    base = db.query(Product).filter(Product.slug == slug, Product.is_active).first()
+async def read_similar_products(slug: str, db: SessionDep, limit: int = Query(6, ge=1, le=20)) -> Any:
+    result = await db.execute(
+        select(Product).where(Product.slug == slug, Product.is_active)
+    )
+    base = result.scalar_one_or_none()
     if not base:
         raise HTTPException(status_code=404, detail="Sản phẩm không tồn tại")
-    items = similar_products(db, product=base, limit=limit)
+    items = await similar_products(db, product=base, limit=limit)
     product_ids = [i["id"] for i in items]
-    ratings = _get_ratings_map(db, product_ids)
+    ratings = await _get_ratings_map(db, product_ids)
     for item in items:
         avg, cnt = ratings.get(item["id"], (None, 0))
         item["avg_rating"] = avg
         item["review_count"] = cnt
     return {"items": items}
 
+
 @router.get("/{slug}", response_model=ProductResponse)
-def read_product(slug: str, db: SessionDep) -> Any:
-    product = db.query(Product).filter(Product.slug == slug, Product.is_active).first()
+async def read_product(slug: str, db: SessionDep) -> Any:
+    result = await db.execute(
+        select(Product)
+        .where(Product.slug == slug, Product.is_active)
+        .options(
+            selectinload(Product.category),
+            selectinload(Product.product_images),
+            selectinload(Product.variants),
+        )
+    )
+    product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Sản phẩm không tồn tại")
-    ratings = _get_ratings_map(db, [product.id])
+    ratings = await _get_ratings_map(db, [product.id])
     return _product_dict_with_rating(product, ratings, include_variants=True)

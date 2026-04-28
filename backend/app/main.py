@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,28 +19,33 @@ if settings.LANGSMITH_TRACING and settings.LANGSMITH_API_KEY:
     os.environ["LANGCHAIN_PROJECT"] = settings.LANGSMITH_PROJECT
     os.environ["LANGSMITH_ENDPOINT"] = settings.LANGSMITH_ENDPOINT
     os.environ["LANGCHAIN_ENDPOINT"] = settings.LANGSMITH_ENDPOINT
+
 from app.api.routers import auth, products, categories, cart, orders, payments, pets, chat, admin, reviews
 from app.database import engine, Base
 
-# Tạo bảng
-Base.metadata.create_all(bind=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    await engine.dispose()
+
 
 limiter = Limiter(key_func=get_remote_address, storage_uri=settings.REDIS_URL)
-app = FastAPI(title=settings.PROJECT_NAME)
+app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Khởi tạo CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Phát triển cho tiện, tuân thủ localhost:3000 ở config sau
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Lắp Router
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
 app.include_router(products.router, prefix=f"{settings.API_V1_STR}/products", tags=["products"])
 app.include_router(categories.router, prefix=f"{settings.API_V1_STR}/categories", tags=["categories"])
@@ -51,10 +57,12 @@ app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["cha
 app.include_router(reviews.router, prefix=f"{settings.API_V1_STR}/products", tags=["reviews"])
 app.include_router(admin.router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin"])
 
+
 @app.get("/")
-def read_root():
+async def read_root():
     return {"message": "Hello World. API is running!"}
 
+
 @app.get("/health")
-def health_check():
+async def health_check():
     return {"status": "ok"}

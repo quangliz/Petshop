@@ -1,8 +1,8 @@
 import os
 from dotenv import load_dotenv
-from typing import Iterator
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 load_dotenv()
 
@@ -14,24 +14,33 @@ if not _CONNECTION_STRING:
     host = os.getenv("POSTGRES_HOST")
     port = os.getenv("POSTGRES_PORT")
     db = os.getenv("POSTGRES_DB")
-    
+
     if all([user, password, host, port, db]):
         _CONNECTION_STRING = f"postgresql://{user}:{password}@{host}:{port}/{db}"
     else:
         raise ValueError("DATABASE_URL or all POSTGRES_* environment variables must be set")
 
-# .env có thể chứa asyncpg driver — thay thế cho sync engine
-SQLALCHEMY_DATABASE_URL = _CONNECTION_STRING.replace("postgresql+asyncpg://", "postgresql://")
+# Ensure asyncpg driver
+SQLALCHEMY_DATABASE_URL = _CONNECTION_STRING
+if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace(
+        "postgresql://", "postgresql+asyncpg://", 1
+    )
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_async_engine(
+    SQLALCHEMY_DATABASE_URL,
+    echo=False,
+    connect_args={"statement_cache_size": 0},
+    poolclass=NullPool,
+)
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,
+)
+
 
 class Base(DeclarativeBase):
     pass
-
-def get_db() -> Iterator[Session]:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()

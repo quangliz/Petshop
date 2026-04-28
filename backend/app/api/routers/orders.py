@@ -3,6 +3,8 @@ from fastapi import APIRouter, HTTPException
 import uuid
 import datetime
 from pydantic import BaseModel
+from sqlalchemy import select, delete
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import SessionDep, CurrentUser
 from app.models.commerce import Cart, CartItem, Order, OrderItem, OrderStatusEnum, PaymentMethodEnum, PaymentStatusEnum
@@ -10,13 +12,15 @@ from app.models.catalog import Product
 
 router = APIRouter()
 
+
 class CheckoutRequest(BaseModel):
     ship_name: str
     ship_phone: str
     ship_address: str
     payment_method: str
     note: str | None = None
-    item_ids: list[str] | None = None  # if None, checkout all cart items
+    item_ids: list[str] | None = None
+
 
 class OrderResponseLocal(BaseModel):
     id: str
@@ -27,12 +31,19 @@ class OrderResponseLocal(BaseModel):
     payment_status: str
     created_at: datetime.datetime
 
+
 def generate_order_code() -> str:
     return "ORD" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
 
+
 @router.post("/checkout", response_model=OrderResponseLocal)
-def checkout(req: CheckoutRequest, db: SessionDep, current_user: CurrentUser) -> Any:
-    cart = db.query(Cart).filter(Cart.user_id == current_user.id).first()
+async def checkout(req: CheckoutRequest, db: SessionDep, current_user: CurrentUser) -> Any:
+    result = await db.execute(
+        select(Cart)
+        .where(Cart.user_id == current_user.id)
+        .options(selectinload(Cart.cart_items).selectinload(CartItem.product))
+    )
+    cart = result.scalar_one_or_none()
     if not cart or not cart.cart_items:
         raise HTTPException(status_code=400, detail="Giỏ hàng trống")
 
@@ -49,31 +60,34 @@ def checkout(req: CheckoutRequest, db: SessionDep, current_user: CurrentUser) ->
     order_items_to_create = []
 
     product_ids = [item.product_id for item in selected_items]
-    products = db.query(Product).filter(Product.id.in_(product_ids)).with_for_update().all()
+    result = await db.execute(
+        select(Product).where(Product.id.in_(product_ids)).with_for_update()
+    )
+    products = result.scalars().all()
     product_map = {p.id: p for p in products}
 
     for item in selected_items:
         prod = product_map.get(item.product_id)
         if not prod or not prod.is_active:
-             raise HTTPException(status_code=400, detail=f"Sản phẩm {item.product.name} không còn bán.")
+            raise HTTPException(status_code=400, detail=f"Sản phẩm {item.product.name} không còn bán.")
         if item.quantity > prod.stock_qty:
-             raise HTTPException(status_code=400, detail=f"Sản phẩm {prod.name} không đủ tồn kho.")
-             
+            raise HTTPException(status_code=400, detail=f"Sản phẩm {prod.name} không đủ tồn kho.")
+
         prod.stock_qty -= item.quantity
-        
+
         price = float(prod.sale_price if prod.sale_price else prod.price)
         subtotal += price * item.quantity
-        
+
         order_items_to_create.append(OrderItem(
             product_id=prod.id,
             product_name_snapshot=prod.name,
             unit_price_snapshot=price,
-            quantity=item.quantity
+            quantity=item.quantity,
         ))
-        
+
     shipping_fee = 30000.0
     total = subtotal + shipping_fee
-    
+
     new_order = Order(
         user_id=current_user.id,
         order_code=generate_order_code(),
@@ -85,20 +99,19 @@ def checkout(req: CheckoutRequest, db: SessionDep, current_user: CurrentUser) ->
         ship_address=req.ship_address,
         payment_method=pm,
         payment_status=PaymentStatusEnum.unpaid,
-        note=req.note
+        note=req.note,
     )
     db.add(new_order)
-    db.flush()
-    
+    await db.flush()
+
     for oi in order_items_to_create:
         oi.order_id = new_order.id
         db.add(oi)
-        
+
     selected_item_ids = [i.id for i in selected_items]
-    db.query(CartItem).filter(CartItem.id.in_(selected_item_ids)).delete(synchronize_session=False)
-    db.commit()
-    db.refresh(new_order)
-    
+    await db.execute(delete(CartItem).where(CartItem.id.in_(selected_item_ids)))
+    await db.commit()
+
     return OrderResponseLocal(
         id=str(new_order.id),
         order_code=new_order.order_code,
@@ -106,12 +119,18 @@ def checkout(req: CheckoutRequest, db: SessionDep, current_user: CurrentUser) ->
         total=float(new_order.total),
         payment_method=new_order.payment_method.value,
         payment_status=new_order.payment_status.value,
-        created_at=new_order.created_at
+        created_at=new_order.created_at,
     )
 
+
 @router.get("/", response_model=List[OrderResponseLocal])
-def get_user_orders(db: SessionDep, current_user: CurrentUser) -> Any:
-    orders = db.query(Order).filter(Order.user_id == current_user.id).order_by(Order.created_at.desc()).all()
+async def get_user_orders(db: SessionDep, current_user: CurrentUser) -> Any:
+    result = await db.execute(
+        select(Order)
+        .where(Order.user_id == current_user.id)
+        .order_by(Order.created_at.desc())
+    )
+    orders = result.scalars().all()
     return [
         OrderResponseLocal(
             id=str(o.id),
@@ -120,24 +139,32 @@ def get_user_orders(db: SessionDep, current_user: CurrentUser) -> Any:
             total=float(o.total),
             payment_method=o.payment_method.value,
             payment_status=o.payment_status.value,
-            created_at=o.created_at
-        ) for o in orders
+            created_at=o.created_at,
+        )
+        for o in orders
     ]
-    
+
+
 @router.get("/{order_id}", response_model=dict)
-def get_order_detail(order_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
-    order = db.query(Order).filter(Order.id == uuid.UUID(order_id), Order.user_id == current_user.id).first()
+async def get_order_detail(order_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+    result = await db.execute(
+        select(Order)
+        .where(Order.id == uuid.UUID(order_id), Order.user_id == current_user.id)
+        .options(selectinload(Order.order_items))
+    )
+    order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="Không tìm thấy")
-        
-    items = []
-    for oi in order.order_items:
-        items.append({
+
+    items = [
+        {
             "product_name": oi.product_name_snapshot,
             "quantity": oi.quantity,
-            "price": float(oi.unit_price_snapshot)
-        })
-        
+            "price": float(oi.unit_price_snapshot),
+        }
+        for oi in order.order_items
+    ]
+
     return {
         "id": str(order.id),
         "order_code": order.order_code,
@@ -151,29 +178,37 @@ def get_order_detail(order_id: str, db: SessionDep, current_user: CurrentUser) -
         "payment_method": order.payment_method.value,
         "payment_status": order.payment_status.value,
         "items": items,
-        "created_at": order.created_at
+        "created_at": order.created_at,
     }
 
+
 @router.put("/{order_id}/cancel")
-def cancel_order(order_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
-    order = db.query(Order).filter(Order.id == uuid.UUID(order_id), Order.user_id == current_user.id).first()
+async def cancel_order(order_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+    result = await db.execute(
+        select(Order)
+        .where(Order.id == uuid.UUID(order_id), Order.user_id == current_user.id)
+        .options(selectinload(Order.order_items))
+    )
+    order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng")
-        
+
     if order.status != OrderStatusEnum.pending:
         raise HTTPException(status_code=400, detail="Chỉ có thể huỷ đơn hàng đang chờ xử lý")
-        
-    # Restore stock
+
     product_ids = [oi.product_id for oi in order.order_items]
     if product_ids:
-        products = db.query(Product).filter(Product.id.in_(product_ids)).with_for_update().all()
+        result = await db.execute(
+            select(Product).where(Product.id.in_(product_ids)).with_for_update()
+        )
+        products = result.scalars().all()
         product_map = {p.id: p for p in products}
-        
+
         for oi in order.order_items:
             prod = product_map.get(oi.product_id)
             if prod:
                 prod.stock_qty += oi.quantity
-                
+
     order.status = OrderStatusEnum.cancelled
-    db.commit()
+    await db.commit()
     return {"message": "Huỷ đơn hàng thành công"}

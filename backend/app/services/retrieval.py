@@ -1,5 +1,6 @@
 from typing import List, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.models.catalog import Product
 from app.services.embeddings import get_products_store, get_knowledge_store
@@ -13,8 +14,8 @@ def _matches_species(meta_species, species_filter: Optional[List[str]]) -> bool:
     return any(sp in meta_species for sp in species_filter)
 
 
-def search_products(
-    db: Session,
+async def search_products(
+    db: AsyncSession,
     query: str,
     limit: int = 5,
     species: Optional[List[str]] = None,
@@ -45,11 +46,10 @@ def search_products(
     if not ordered_slugs:
         return []
 
-    products = (
-        db.query(Product)
-        .filter(Product.slug.in_(ordered_slugs), Product.is_active)
-        .all()
+    result = await db.execute(
+        select(Product).where(Product.slug.in_(ordered_slugs), Product.is_active)
     )
+    products = result.scalars().all()
     by_slug = {p.slug: p for p in products}
     out: list[dict] = []
     for slug in ordered_slugs:
@@ -85,12 +85,12 @@ def search_knowledge(query: str, limit: int = 4) -> List[dict]:
     ]
 
 
-def similar_products(db: Session, product: Product, limit: int = 6) -> List[dict]:
+async def similar_products(db: AsyncSession, product: Product, limit: int = 6) -> List[dict]:
     """Find products similar to a given Product by re-querying with its source_text."""
     target = ", ".join(product.target_species) if product.target_species else ""
     query_text = (
         f"{product.name} | {product.brand or ''} | "
         f"{product.description or ''} | dành cho: {target}"
     )
-    results = search_products(db, query=query_text, limit=limit + 1)
+    results = await search_products(db, query=query_text, limit=limit + 1)
     return [r for r in results if r["slug"] != product.slug][:limit]

@@ -3,7 +3,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func
+from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import SessionDep, CurrentUser
 from app.models.review import Review
@@ -47,36 +48,37 @@ def _review_response(r: Review) -> dict:
     }
 
 
-def _has_purchased(db, user_id: UUID, product_id: UUID) -> bool:
-    return (
-        db.query(OrderItem.id)
+async def _has_purchased(db, user_id: UUID, product_id: UUID) -> bool:
+    result = await db.execute(
+        select(OrderItem.id)
         .join(Order, Order.id == OrderItem.order_id)
-        .filter(
+        .where(
             Order.user_id == user_id,
             Order.status == OrderStatusEnum.completed,
             OrderItem.product_id == product_id,
         )
-        .first()
-        is not None
     )
+    return result.scalar_one_or_none() is not None
 
 
 @router.post("/{product_id}/reviews", response_model=ReviewResponse)
-def create_review(
+async def create_review(
     product_id: UUID, body: ReviewCreate, db: SessionDep, current_user: CurrentUser
 ) -> Any:
-    product = db.query(Product).filter(Product.id == product_id).first()
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Sản phẩm không tồn tại")
 
-    if not _has_purchased(db, current_user.id, product_id):
+    if not await _has_purchased(db, current_user.id, product_id):
         raise HTTPException(status_code=403, detail="Bạn cần mua sản phẩm trước khi đánh giá")
 
-    existing = (
-        db.query(Review)
-        .filter(Review.user_id == current_user.id, Review.product_id == product_id)
-        .first()
+    result = await db.execute(
+        select(Review)
+        .options(selectinload(Review.user))
+        .where(Review.user_id == current_user.id, Review.product_id == product_id)
     )
+    existing = result.scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=409, detail="Bạn đã đánh giá sản phẩm này rồi")
 
@@ -87,26 +89,32 @@ def create_review(
         comment=body.comment,
     )
     db.add(review)
-    db.commit()
-    db.refresh(review)
+    await db.commit()
+
+    result = await db.execute(
+        select(Review).options(selectinload(Review.user)).where(Review.id == review.id)
+    )
+    review = result.scalar_one()
     return _review_response(review)
 
 
 @router.get("/{product_id}/reviews", response_model=dict)
-def list_reviews(
+async def list_reviews(
     product_id: UUID,
     db: SessionDep,
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=50),
 ) -> Any:
-    query = db.query(Review).filter(Review.product_id == product_id)
-    total = query.count()
-    reviews = (
-        query.order_by(Review.created_at.desc())
+    base_stmt = select(Review).where(Review.product_id == product_id)
+    total = (await db.execute(select(func.count()).select_from(base_stmt.subquery()))).scalar_one()
+    result = await db.execute(
+        base_stmt
+        .options(selectinload(Review.user))
+        .order_by(Review.created_at.desc())
         .offset((page - 1) * size)
         .limit(size)
-        .all()
     )
+    reviews = result.scalars().all()
     return {
         "items": [_review_response(r) for r in reviews],
         "total": total,
@@ -116,13 +124,13 @@ def list_reviews(
 
 
 @router.get("/{product_id}/rating-summary", response_model=RatingSummary)
-def rating_summary(product_id: UUID, db: SessionDep) -> Any:
-    rows = (
-        db.query(Review.rating, func.count(Review.id))
-        .filter(Review.product_id == product_id)
+async def rating_summary(product_id: UUID, db: SessionDep) -> Any:
+    result = await db.execute(
+        select(Review.rating, func.count(Review.id))
+        .where(Review.product_id == product_id)
         .group_by(Review.rating)
-        .all()
     )
+    rows = result.all()
     distribution = {str(i): 0 for i in range(1, 6)}
     total = 0
     rating_sum = 0
@@ -135,13 +143,14 @@ def rating_summary(product_id: UUID, db: SessionDep) -> Any:
 
 
 @router.get("/{product_id}/can-review", response_model=CanReviewResponse)
-def can_review(product_id: UUID, db: SessionDep, current_user: CurrentUser) -> Any:
-    existing = (
-        db.query(Review)
-        .filter(Review.user_id == current_user.id, Review.product_id == product_id)
-        .first()
+async def can_review(product_id: UUID, db: SessionDep, current_user: CurrentUser) -> Any:
+    result = await db.execute(
+        select(Review)
+        .options(selectinload(Review.user))
+        .where(Review.user_id == current_user.id, Review.product_id == product_id)
     )
+    existing = result.scalar_one_or_none()
     if existing:
         return {"can_review": False, "existing_review": _review_response(existing)}
-    purchased = _has_purchased(db, current_user.id, product_id)
+    purchased = await _has_purchased(db, current_user.id, product_id)
     return {"can_review": purchased, "existing_review": None}

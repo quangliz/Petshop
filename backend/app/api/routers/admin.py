@@ -1,6 +1,7 @@
 from typing import Any, Optional
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from sqlalchemy import func, desc, cast, Date
+from sqlalchemy import func, desc, cast, Date, select
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 import uuid
 import datetime
@@ -14,11 +15,13 @@ from app.models.commerce import Order, OrderItem, OrderStatusEnum
 
 router = APIRouter()
 
+
 # ─── Guard ───────────────────────────────────────────────────────────────────
 def require_admin(current_user: CurrentUser) -> User:
     if current_user.role != RoleEnum.admin:
         raise HTTPException(status_code=403, detail="Chỉ Admin mới có quyền này")
     return current_user
+
 
 # ─── Pydantic Schemas ─────────────────────────────────────────────────────────
 class ProductCreate(BaseModel):
@@ -32,6 +35,7 @@ class ProductCreate(BaseModel):
     category_id: Optional[int] = None
     is_active: bool = True
 
+
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     slug: Optional[str] = None
@@ -43,8 +47,10 @@ class ProductUpdate(BaseModel):
     category_id: Optional[int] = None
     is_active: Optional[bool] = None
 
+
 class OrderStatusUpdate(BaseModel):
     status: str
+
 
 class VariantCreate(BaseModel):
     sku: Optional[str] = None
@@ -54,6 +60,7 @@ class VariantCreate(BaseModel):
     attributes: Optional[dict] = None
     is_active: bool = True
 
+
 class VariantUpdate(BaseModel):
     sku: Optional[str] = None
     price: Optional[float] = None
@@ -61,6 +68,7 @@ class VariantUpdate(BaseModel):
     stock_qty: Optional[int] = None
     attributes: Optional[dict] = None
     is_active: Optional[bool] = None
+
 
 def _variant_dict(v: ProductVariant) -> dict:
     return {
@@ -77,6 +85,7 @@ def _variant_dict(v: ProductVariant) -> dict:
         ],
     }
 
+
 def _product_image_dict(img: ProductImage) -> dict:
     return {
         "id": str(img.id),
@@ -89,63 +98,57 @@ def _product_image_dict(img: ProductImage) -> dict:
         "attr_value": img.attr_value,
     }
 
+
 # ─── Stats ────────────────────────────────────────────────────────────────────
 @router.get("/stats")
-def get_stats(db: SessionDep, current_user: CurrentUser) -> Any:
+async def get_stats(db: SessionDep, current_user: CurrentUser) -> Any:
     require_admin(current_user)
     today = datetime.date.today()
 
-    # Revenue stats
-    total_revenue = db.query(func.coalesce(func.sum(Order.total), 0)).filter(
-        Order.status == OrderStatusEnum.completed
-    ).scalar()
+    total_revenue = (await db.execute(
+        select(func.coalesce(func.sum(Order.total), 0))
+        .where(Order.status == OrderStatusEnum.completed)
+    )).scalar_one()
 
-    today_revenue = db.query(func.coalesce(func.sum(Order.total), 0)).filter(
-        Order.status == OrderStatusEnum.completed,
-        cast(Order.created_at, Date) == today
-    ).scalar()
+    today_revenue = (await db.execute(
+        select(func.coalesce(func.sum(Order.total), 0))
+        .where(Order.status == OrderStatusEnum.completed, cast(Order.created_at, Date) == today)
+    )).scalar_one()
 
-    # Order stats
-    new_orders_today = db.query(func.count(Order.id)).filter(
-        cast(Order.created_at, Date) == today
-    ).scalar()
+    new_orders_today = (await db.execute(
+        select(func.count(Order.id)).where(cast(Order.created_at, Date) == today)
+    )).scalar_one()
 
-    # User stats
-    new_users_today = db.query(func.count(User.id)).filter(
-        cast(User.created_at, Date) == today
-    ).scalar()
-    total_users = db.query(func.count(User.id)).scalar()
+    new_users_today = (await db.execute(
+        select(func.count(User.id)).where(cast(User.created_at, Date) == today)
+    )).scalar_one()
 
-    # Top 5 bestselling products
-    top_products = (
-        db.query(
-            Product.id,
-            Product.name,
-            func.sum(OrderItem.quantity).label("total_sold")
-        )
+    total_users = (await db.execute(select(func.count(User.id)))).scalar_one()
+
+    top_products_result = await db.execute(
+        select(Product.id, Product.name, func.sum(OrderItem.quantity).label("total_sold"))
         .join(OrderItem, OrderItem.product_id == Product.id)
         .join(Order, Order.id == OrderItem.order_id)
-        .filter(Order.status == OrderStatusEnum.completed)
+        .where(Order.status == OrderStatusEnum.completed)
         .group_by(Product.id, Product.name)
         .order_by(desc("total_sold"))
         .limit(5)
-        .all()
     )
+    top_products = top_products_result.all()
 
-    # 30-day revenue chart data
-    revenue_chart = (
-        db.query(
+    revenue_chart_result = await db.execute(
+        select(
             cast(Order.created_at, Date).label("date"),
-            func.coalesce(func.sum(Order.total), 0).label("revenue")
+            func.coalesce(func.sum(Order.total), 0).label("revenue"),
         )
-        .filter(
+        .where(
             Order.status == OrderStatusEnum.completed,
-            Order.created_at >= datetime.date.today() - datetime.timedelta(days=29)
+            Order.created_at >= datetime.date.today() - datetime.timedelta(days=29),
         )
         .group_by(cast(Order.created_at, Date))
         .order_by(cast(Order.created_at, Date))
-        .all()
     )
+    revenue_chart = revenue_chart_result.all()
 
     return {
         "total_revenue": float(total_revenue),
@@ -160,21 +163,26 @@ def get_stats(db: SessionDep, current_user: CurrentUser) -> Any:
         "revenue_chart": [
             {"date": str(r.date), "revenue": float(r.revenue)}
             for r in revenue_chart
-        ]
+        ],
     }
+
 
 # ─── Products ─────────────────────────────────────────────────────────────────
 @router.get("/products")
-def admin_list_products(
+async def admin_list_products(
     db: SessionDep, current_user: CurrentUser,
-    skip: int = 0, limit: int = 50, search: str = ""
+    skip: int = 0, limit: int = 50, search: str = "",
 ) -> Any:
     require_admin(current_user)
-    q = db.query(Product)
+    stmt = select(Product)
     if search:
-        q = q.filter(Product.name.ilike(f"%{search}%"))
-    products = q.order_by(desc(Product.created_at)).offset(skip).limit(limit).all()
-    total = q.count()
+        stmt = stmt.where(Product.name.ilike(f"%{search}%"))
+    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+    result = await db.execute(
+        stmt.order_by(desc(Product.created_at)).offset(skip).limit(limit)
+        .options(selectinload(Product.category))
+    )
+    products = result.scalars().all()
     return {
         "total": total,
         "items": [
@@ -194,66 +202,87 @@ def admin_list_products(
                 "created_at": p.created_at,
             }
             for p in products
-        ]
+        ],
     }
 
+
 @router.post("/products")
-def admin_create_product(product_in: ProductCreate, db: SessionDep, current_user: CurrentUser) -> Any:
+async def admin_create_product(product_in: ProductCreate, db: SessionDep, current_user: CurrentUser) -> Any:
     require_admin(current_user)
     product = Product(**product_in.model_dump())
     db.add(product)
-    db.commit()
-    db.refresh(product)
+    await db.commit()
+    await db.refresh(product)
     return {"id": str(product.id), "name": product.name, "slug": product.slug}
 
+
 @router.put("/products/{product_id}")
-def admin_update_product(product_id: str, product_in: ProductUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
+async def admin_update_product(product_id: str, product_in: ProductUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
     require_admin(current_user)
-    product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
+    result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))
+    product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
     for field, value in product_in.model_dump(exclude_unset=True).items():
         setattr(product, field, value)
-    db.commit()
-    db.refresh(product)
+    await db.commit()
+    await db.refresh(product)
     return {"id": str(product.id), "name": product.name}
 
+
 @router.delete("/products/{product_id}")
-def admin_delete_product(product_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+async def admin_delete_product(product_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
     require_admin(current_user)
-    product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
+    result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))
+    product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
-    db.delete(product)
-    db.commit()
+    await db.delete(product)
+    await db.commit()
     return {"message": "Đã xóa thành công"}
 
+
 @router.post("/products/{product_id}/image")
-def admin_upload_product_image(product_id: str, db: SessionDep, current_user: CurrentUser, file: UploadFile = File(...)) -> Any:
+async def admin_upload_product_image(product_id: str, db: SessionDep, current_user: CurrentUser, file: UploadFile = File(...)) -> Any:
     require_admin(current_user)
-    product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
+    result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))
+    product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
     try:
-        result = cloudinary.uploader.upload(file.file, folder="petshop/products")
-        url = result.get("secure_url")
+        upload_result = cloudinary.uploader.upload(file.file, folder="petshop/products")
+        url = upload_result.get("secure_url")
         product.images = {"main": url}
-        existing_main = db.query(ProductImage).filter(
-            ProductImage.product_id == product.id, ProductImage.is_main, ProductImage.variant_id.is_(None)
-        ).first()
+        result = await db.execute(
+            select(ProductImage).where(
+                ProductImage.product_id == product.id,
+                ProductImage.is_main,
+                ProductImage.variant_id.is_(None),
+            )
+        )
+        existing_main = result.scalar_one_or_none()
         if existing_main:
             existing_main.url = url
         else:
             db.add(ProductImage(product_id=product.id, url=url, is_main=True, sort_order=0))
-        db.commit()
+        await db.commit()
         return {"image_url": url}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/products/{product_id}/detail")
-def admin_get_product_detail(product_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+async def admin_get_product_detail(product_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
     require_admin(current_user)
-    product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
+    result = await db.execute(
+        select(Product)
+        .where(Product.id == uuid.UUID(product_id))
+        .options(
+            selectinload(Product.product_images),
+            selectinload(Product.variants).selectinload(ProductVariant.images),
+        )
+    )
+    product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
     product_images = sorted(product.product_images, key=lambda i: i.sort_order)
@@ -274,156 +303,206 @@ def admin_get_product_detail(product_id: str, db: SessionDep, current_user: Curr
         "variants": [_variant_dict(v) for v in product.variants],
     }
 
+
 @router.post("/products/{product_id}/images")
-def admin_upload_product_image_v2(
+async def admin_upload_product_image_v2(
     product_id: str, db: SessionDep, current_user: CurrentUser,
     file: UploadFile = File(...),
     variant_id: Optional[str] = None,
     is_main: bool = False,
 ) -> Any:
     require_admin(current_user)
-    product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
+    result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))
+    product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
     vid = uuid.UUID(variant_id) if variant_id else None
     if vid:
-        variant = db.query(ProductVariant).filter(
-            ProductVariant.id == vid, ProductVariant.product_id == product.id
-        ).first()
+        result = await db.execute(
+            select(ProductVariant).where(
+                ProductVariant.id == vid, ProductVariant.product_id == product.id
+            )
+        )
+        variant = result.scalar_one_or_none()
         if not variant:
             raise HTTPException(status_code=404, detail="Không tìm thấy biến thể")
     try:
-        result = cloudinary.uploader.upload(file.file, folder="petshop/products")
-        url = result.get("secure_url")
+        upload_result = cloudinary.uploader.upload(file.file, folder="petshop/products")
+        url = upload_result.get("secure_url")
         if is_main and not vid:
             product.images = {"main": url}
-            existing_main = db.query(ProductImage).filter(
-                ProductImage.product_id == product.id, ProductImage.is_main, ProductImage.variant_id.is_(None)
-            ).first()
+            result = await db.execute(
+                select(ProductImage).where(
+                    ProductImage.product_id == product.id,
+                    ProductImage.is_main,
+                    ProductImage.variant_id.is_(None),
+                )
+            )
+            existing_main = result.scalar_one_or_none()
             if existing_main:
                 existing_main.url = url
-                db.commit()
+                await db.commit()
                 return {"id": str(existing_main.id), "url": url}
-        count = db.query(func.count(ProductImage.id)).filter(ProductImage.product_id == product.id).scalar()
+        count = (await db.execute(
+            select(func.count(ProductImage.id)).where(ProductImage.product_id == product.id)
+        )).scalar_one()
         img = ProductImage(product_id=product.id, variant_id=vid, url=url, is_main=is_main, sort_order=count)
         db.add(img)
-        db.commit()
-        db.refresh(img)
+        await db.commit()
+        await db.refresh(img)
         return _product_image_dict(img)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.delete("/products/{product_id}/images/{image_id}")
-def admin_delete_product_image(product_id: str, image_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+async def admin_delete_product_image(product_id: str, image_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
     require_admin(current_user)
-    img = db.query(ProductImage).filter(
-        ProductImage.id == uuid.UUID(image_id), ProductImage.product_id == uuid.UUID(product_id)
-    ).first()
+    result = await db.execute(
+        select(ProductImage).where(
+            ProductImage.id == uuid.UUID(image_id),
+            ProductImage.product_id == uuid.UUID(product_id),
+        )
+    )
+    img = result.scalar_one_or_none()
     if not img:
         raise HTTPException(status_code=404, detail="Không tìm thấy ảnh")
-    db.delete(img)
-    db.commit()
+    await db.delete(img)
+    await db.commit()
     return {"message": "Đã xóa"}
 
+
 @router.post("/products/{product_id}/variants")
-def admin_create_variant(product_id: str, variant_in: VariantCreate, db: SessionDep, current_user: CurrentUser) -> Any:
+async def admin_create_variant(product_id: str, variant_in: VariantCreate, db: SessionDep, current_user: CurrentUser) -> Any:
     require_admin(current_user)
-    product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
+    result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))
+    product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
     variant = ProductVariant(product_id=product.id, **variant_in.dict())
     db.add(variant)
-    db.commit()
-    db.refresh(variant)
+    await db.commit()
+    # Reload with images relationship for _variant_dict
+    result = await db.execute(
+        select(ProductVariant)
+        .where(ProductVariant.id == variant.id)
+        .options(selectinload(ProductVariant.images))
+    )
+    variant = result.scalar_one()
     return _variant_dict(variant)
 
+
 @router.put("/products/{product_id}/variants/{variant_id}")
-def admin_update_variant(product_id: str, variant_id: str, variant_in: VariantUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
+async def admin_update_variant(product_id: str, variant_id: str, variant_in: VariantUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
     require_admin(current_user)
-    variant = db.query(ProductVariant).filter(
-        ProductVariant.id == uuid.UUID(variant_id), ProductVariant.product_id == uuid.UUID(product_id)
-    ).first()
+    result = await db.execute(
+        select(ProductVariant)
+        .where(ProductVariant.id == uuid.UUID(variant_id), ProductVariant.product_id == uuid.UUID(product_id))
+        .options(selectinload(ProductVariant.images))
+    )
+    variant = result.scalar_one_or_none()
     if not variant:
         raise HTTPException(status_code=404, detail="Không tìm thấy biến thể")
     for field, value in variant_in.dict(exclude_unset=True).items():
         setattr(variant, field, value)
-    db.commit()
-    db.refresh(variant)
+    await db.commit()
     return _variant_dict(variant)
 
+
 @router.delete("/products/{product_id}/variants/{variant_id}")
-def admin_delete_variant(product_id: str, variant_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+async def admin_delete_variant(product_id: str, variant_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
     require_admin(current_user)
-    variant = db.query(ProductVariant).filter(
-        ProductVariant.id == uuid.UUID(variant_id), ProductVariant.product_id == uuid.UUID(product_id)
-    ).first()
+    result = await db.execute(
+        select(ProductVariant).where(
+            ProductVariant.id == uuid.UUID(variant_id),
+            ProductVariant.product_id == uuid.UUID(product_id),
+        )
+    )
+    variant = result.scalar_one_or_none()
     if not variant:
         raise HTTPException(status_code=404, detail="Không tìm thấy biến thể")
-    db.delete(variant)
-    db.commit()
+    await db.delete(variant)
+    await db.commit()
     return {"message": "Đã xóa"}
 
+
 @router.post("/products/{product_id}/variants/{variant_id}/image")
-def admin_upload_variant_image(product_id: str, variant_id: str, db: SessionDep, current_user: CurrentUser, file: UploadFile = File(...)) -> Any:
+async def admin_upload_variant_image(product_id: str, variant_id: str, db: SessionDep, current_user: CurrentUser, file: UploadFile = File(...)) -> Any:
     require_admin(current_user)
-    variant = db.query(ProductVariant).filter(
-        ProductVariant.id == uuid.UUID(variant_id), ProductVariant.product_id == uuid.UUID(product_id)
-    ).first()
+    result = await db.execute(
+        select(ProductVariant).where(
+            ProductVariant.id == uuid.UUID(variant_id),
+            ProductVariant.product_id == uuid.UUID(product_id),
+        )
+    )
+    variant = result.scalar_one_or_none()
     if not variant:
         raise HTTPException(status_code=404, detail="Không tìm thấy biến thể")
     try:
-        result = cloudinary.uploader.upload(file.file, folder="petshop/products/variants")
-        url = result.get("secure_url")
-        existing = db.query(ProductImage).filter(
-            ProductImage.variant_id == variant.id, ProductImage.is_main
-        ).first()
+        upload_result = cloudinary.uploader.upload(file.file, folder="petshop/products/variants")
+        url = upload_result.get("secure_url")
+        result = await db.execute(
+            select(ProductImage).where(ProductImage.variant_id == variant.id, ProductImage.is_main)
+        )
+        existing = result.scalar_one_or_none()
         if existing:
             existing.url = url
-            db.commit()
+            await db.commit()
             return {"id": str(existing.id), "url": url}
         img = ProductImage(product_id=variant.product_id, variant_id=variant.id, url=url, is_main=True)
         db.add(img)
-        db.commit()
-        db.refresh(img)
+        await db.commit()
+        await db.refresh(img)
         return {"id": str(img.id), "url": url}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/products/{product_id}/attr-images")
-def admin_upload_attr_image(
+async def admin_upload_attr_image(
     product_id: str, db: SessionDep, current_user: CurrentUser,
     attr_key: str = "", attr_value: str = "", file: UploadFile = File(...),
 ) -> Any:
     require_admin(current_user)
     if not attr_key or not attr_value:
         raise HTTPException(status_code=400, detail="attr_key và attr_value là bắt buộc")
-    product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
+    result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))
+    product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
     try:
-        result = cloudinary.uploader.upload(file.file, folder="petshop/products/attrs")
-        url = result.get("secure_url")
-        existing = db.query(ProductImage).filter(
-            ProductImage.product_id == product.id,
-            ProductImage.attr_key == attr_key,
-            ProductImage.attr_value == attr_value,
-        ).first()
+        upload_result = cloudinary.uploader.upload(file.file, folder="petshop/products/attrs")
+        url = upload_result.get("secure_url")
+        result = await db.execute(
+            select(ProductImage).where(
+                ProductImage.product_id == product.id,
+                ProductImage.attr_key == attr_key,
+                ProductImage.attr_value == attr_value,
+            )
+        )
+        existing = result.scalar_one_or_none()
         if existing:
             existing.url = url
-            db.commit()
+            await db.commit()
             return _product_image_dict(existing)
         img = ProductImage(product_id=product.id, attr_key=attr_key, attr_value=attr_value, url=url, is_main=False)
         db.add(img)
-        db.commit()
-        db.refresh(img)
+        await db.commit()
+        await db.refresh(img)
         return _product_image_dict(img)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/products/{product_id}/sync-thumbnail")
-def admin_sync_thumbnail(product_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+async def admin_sync_thumbnail(product_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
     require_admin(current_user)
-    product = db.query(Product).filter(Product.id == uuid.UUID(product_id)).first()
+    result = await db.execute(
+        select(Product)
+        .where(Product.id == uuid.UUID(product_id))
+        .options(selectinload(Product.variants).selectinload(ProductVariant.images))
+    )
+    product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
     if product.images and product.images.get("main"):
@@ -434,22 +513,24 @@ def admin_sync_thumbnail(product_id: str, db: SessionDep, current_user: CurrentU
         img = next((i for i in variant.images if i.is_main), None) or (variant.images[0] if variant.images else None)
         if img:
             product.images = {"main": img.url}
-            db.commit()
+            await db.commit()
             return {"thumbnail_url": img.url, "synced": True}
     return {"thumbnail_url": None, "synced": False}
 
+
 # ─── Orders ───────────────────────────────────────────────────────────────────
 @router.get("/orders")
-def admin_list_orders(
+async def admin_list_orders(
     db: SessionDep, current_user: CurrentUser,
-    status: Optional[str] = None, skip: int = 0, limit: int = 50
+    status: Optional[str] = None, skip: int = 0, limit: int = 50,
 ) -> Any:
     require_admin(current_user)
-    q = db.query(Order).join(User, User.id == Order.user_id)
+    stmt = select(Order).options(selectinload(Order.user))
     if status:
-        q = q.filter(Order.status == status)
-    orders = q.order_by(desc(Order.created_at)).offset(skip).limit(limit).all()
-    total = q.count()
+        stmt = stmt.where(Order.status == status)
+    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+    result = await db.execute(stmt.order_by(desc(Order.created_at)).offset(skip).limit(limit))
+    orders = result.scalars().all()
     return {
         "total": total,
         "items": [
@@ -465,28 +546,34 @@ def admin_list_orders(
                 "created_at": o.created_at,
             }
             for o in orders
-        ]
+        ],
     }
 
+
 @router.put("/orders/{order_id}/status")
-def admin_update_order_status(order_id: str, body: OrderStatusUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
+async def admin_update_order_status(order_id: str, body: OrderStatusUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
     require_admin(current_user)
-    order = db.query(Order).filter(Order.id == uuid.UUID(order_id)).first()
+    result = await db.execute(select(Order).where(Order.id == uuid.UUID(order_id)))
+    order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng")
     try:
         order.status = OrderStatusEnum(body.status)
     except ValueError:
         raise HTTPException(status_code=400, detail="Trạng thái không hợp lệ")
-    db.commit()
+    await db.commit()
     return {"message": "Đã cập nhật", "status": order.status.value}
+
 
 # ─── Users ────────────────────────────────────────────────────────────────────
 @router.get("/users")
-def admin_list_users(db: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 50) -> Any:
+async def admin_list_users(db: SessionDep, current_user: CurrentUser, skip: int = 0, limit: int = 50) -> Any:
     require_admin(current_user)
-    users = db.query(User).order_by(desc(User.created_at)).offset(skip).limit(limit).all()
-    total = db.query(func.count(User.id)).scalar()
+    result = await db.execute(
+        select(User).order_by(desc(User.created_at)).offset(skip).limit(limit)
+    )
+    users = result.scalars().all()
+    total = (await db.execute(select(func.count(User.id)))).scalar_one()
     return {
         "total": total,
         "items": [
@@ -499,17 +586,19 @@ def admin_list_users(db: SessionDep, current_user: CurrentUser, skip: int = 0, l
                 "created_at": u.created_at,
             }
             for u in users
-        ]
+        ],
     }
 
+
 @router.put("/users/{user_id}/toggle-active")
-def admin_toggle_user_active(user_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+async def admin_toggle_user_active(user_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
     require_admin(current_user)
     if str(current_user.id) == user_id:
         raise HTTPException(status_code=400, detail="Không thể khoá chính tài khoản của mình")
-    user = db.query(User).filter(User.id == uuid.UUID(user_id)).first()
+    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")
     user.is_active = not user.is_active
-    db.commit()
+    await db.commit()
     return {"message": "Đã cập nhật", "is_active": user.is_active}
