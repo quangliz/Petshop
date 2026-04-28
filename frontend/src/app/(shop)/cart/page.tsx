@@ -17,7 +17,7 @@ export default function CartPage() {
   const { data: cart, isLoading } = useQuery({
     queryKey: ['cart'],
     queryFn: async () => {
-      const res = await api.get('/cart');
+      const res = await api.get('/cart/');
       return res.data;
     },
     enabled: !!user,

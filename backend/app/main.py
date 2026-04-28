@@ -25,7 +25,7 @@ from app.database import engine, Base
 Base.metadata.create_all(bind=engine)
 
 limiter = Limiter(key_func=get_remote_address, storage_uri=settings.REDIS_URL)
-app = FastAPI(title=settings.PROJECT_NAME, redirect_slashes=False)
+app = FastAPI(title=settings.PROJECT_NAME)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

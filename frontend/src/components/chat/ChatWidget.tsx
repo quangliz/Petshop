@@ -109,7 +109,7 @@ export default function ChatWidget() {
 
   const { data: pets } = useQuery({
     queryKey: ["pets"],
-    queryFn: async () => (await api.get("/pets")).data,
+    queryFn: async () => (await api.get("/pets/")).data,
     enabled: !!user,
   });
 

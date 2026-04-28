@@ -26,7 +26,7 @@ function CheckoutPage() {
   const { data: cart } = useQuery({
     queryKey: ['cart'],
     queryFn: async () => {
-      const res = await api.get('/cart');
+      const res = await api.get('/cart/');
       return res.data;
     }
   });

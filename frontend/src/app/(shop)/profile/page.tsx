@@ -99,7 +99,7 @@ export default function GeneralProfilePage() {
   const { data: pets } = useQuery({
     queryKey: ['pets'],
     queryFn: async () => {
-      const res = await api.get('/pets');
+      const res = await api.get('/pets/');
       return res.data;
     },
     enabled: !!user,
@@ -107,7 +107,7 @@ export default function GeneralProfilePage() {
 
   const createPet = useMutation({
     mutationFn: async (data: Partial<Pet>) => {
-      const res = await api.post('/pets', data);
+      const res = await api.post('/pets/', data);
       return res.data;
     },
     onSuccess: async (newPet) => {
