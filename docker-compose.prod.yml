@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   redis:
     image: redis:7-alpine
@@ -7,6 +5,8 @@ services:
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    networks:
+      - petshop_net
 
   backend:
     image: ${DOCKER_HUB_USERNAME}/petshop-backend:${IMAGE_TAG:-latest}
@@ -15,12 +15,16 @@ services:
     depends_on:
       - redis
     restart: unless-stopped
+    networks:
+      - petshop_net
 
   frontend:
     image: ${DOCKER_HUB_USERNAME}/petshop-frontend:${IMAGE_TAG:-latest}
     container_name: petshop_frontend
     env_file: .env
     restart: unless-stopped
+    networks:
+      - petshop_net
 
   nginx:
     image: nginx:alpine
@@ -33,6 +37,12 @@ services:
       - backend
       - frontend
     restart: unless-stopped
+    networks:
+      - petshop_net
 
 volumes:
   redis_data:
+
+networks:
+  petshop_net:
+    driver: bridge
