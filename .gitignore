@@ -68,3 +68,5 @@ tmp/
 CLAUDE/
 *.pem
 *.pub
+
+side_imgs/
