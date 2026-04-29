@@ -26,13 +26,22 @@ if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
         "postgresql://", "postgresql+asyncpg://", 1
     )
 
+import sys
+from sqlalchemy.pool import NullPool
+
+pool_args = {
+    "pool_size": 10,
+    "max_overflow": 20,
+    "pool_pre_ping": True,
+}
+if "pytest" in sys.modules:
+    pool_args = {"poolclass": NullPool}
+
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
     echo=False,
     connect_args={"statement_cache_size": 0},
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
+    **pool_args,
 )
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

@@ -78,3 +78,16 @@ async def get_optional_user(
 
 
 OptionalUser = Annotated[Optional[User], Depends(get_optional_user)]
+
+
+from app.models.user import RoleEnum  # noqa: E402
+
+
+async def require_admin(current_user: CurrentUser) -> User:
+    """Dependency that enforces admin-only access."""
+    if current_user.role != RoleEnum.admin:
+        raise HTTPException(status_code=403, detail="Chỉ Admin mới có quyền này")
+    return current_user
+
+
+AdminUser = Annotated[User, Depends(require_admin)]
