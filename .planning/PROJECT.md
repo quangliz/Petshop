@@ -28,12 +28,13 @@ From codebase analysis (`/planning/codebase/`):
 - ✓ Vector embeddings — pgvector in PostgreSQL
 - ✓ Admin dashboard — products, orders, users, analytics
 - ✓ Infrastructure — Docker Compose, Postgres, Redis, Cloudinary
+- ✓ Validated in Phase 1: Banner carousel (frontend + backend)
+- ✓ Validated in Phase 1: Knowledge base admin UI
+- ✓ Validated in Phase 1: Embedding management admin
+- ✓ Validated in Phase 1: Indexing service
 
 ### Active (in progress / untracked)
-- [ ] Banner carousel (frontend + backend untracked)
-- [ ] Knowledge base admin UI (untracked)
-- [ ] Embedding management admin (untracked)
-- [ ] Indexing service (untracked)
+(none)
 
 ---
 
@@ -134,4 +135,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-04-29 after initialization*
+*Last updated: 2026-04-29 after Phase 1 completion*
