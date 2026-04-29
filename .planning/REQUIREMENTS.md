@@ -81,6 +81,34 @@ _Source: Codebase map + project questioning_
 
 ## Traceability
 
-| Phase | Requirements |
-|-------|-------------|
-| TBD — mapped by roadmapper | |
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| SEC-01 | Phase 1 | Pending |
+| SEC-02 | Phase 1 | Pending |
+| SEC-03 | Phase 1 | Pending |
+| SEC-04 | Phase 1 | Pending |
+| PERF-01 | Phase 1 | Pending |
+| PERF-02 | Phase 1 | Pending |
+| PERF-03 | Phase 1 | Pending |
+| PERF-04 | Phase 1 | Pending |
+| PERF-05 | Phase 1 | Pending |
+| CODE-01 | Phase 1 | Pending |
+| CODE-02 | Phase 1 | Pending |
+| CODE-03 | Phase 1 | Pending |
+| CODE-04 | Phase 1 | Pending |
+| FEAT-03 | Phase 1 | Pending |
+| FEAT-04 | Phase 1 | Pending |
+| AI-01 | Phase 2 | Pending |
+| AI-02 | Phase 2 | Pending |
+| AI-03 | Phase 2 | Pending |
+| AI-06 | Phase 2 | Pending |
+| AI-07 | Phase 2 | Pending |
+| AI-08 | Phase 2 | Pending |
+| AI-04 | Phase 3 | Pending |
+| AI-05 | Phase 3 | Pending |
+| AI-09 | Phase 3 | Pending |
+| AI-10 | Phase 3 | Pending |
+| AI-11 | Phase 3 | Pending |
+| FEAT-01 | Phase 3 | Pending |
+| FEAT-02 | Phase 3 | Pending |
+| FEAT-05 | Phase 3 | Pending |
