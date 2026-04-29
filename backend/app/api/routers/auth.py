@@ -9,6 +9,7 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 
 from app.api.deps import SessionDep, CurrentUser
+from app.core.limiter import limiter
 from app.core.config import settings
 from app.core.security import (
     verify_password,
@@ -77,7 +78,8 @@ def _user_response(user: User) -> dict:
 
 
 @router.post("/register", response_model=UserResponse)
-async def register(user_in: UserRegister, db: SessionDep) -> Any:
+@limiter.limit("5/minute")
+async def register(request: Request, user_in: UserRegister, db: SessionDep) -> Any:
     result = await db.execute(select(User).where(User.email == user_in.email))
     user = result.scalar_one_or_none()
     if user:
@@ -94,7 +96,8 @@ async def register(user_in: UserRegister, db: SessionDep) -> Any:
 
 
 @router.post("/login", response_model=Token)
-async def login(response: Response, db: SessionDep, form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
+@limiter.limit("5/minute")
+async def login(request: Request, response: Response, db: SessionDep, form_data: OAuth2PasswordRequestForm = Depends()) -> Any:
     result = await db.execute(select(User).where(User.email == form_data.username))
     user = result.scalar_one_or_none()
     if not user or not verify_password(form_data.password, user.hashed_password):
@@ -134,7 +137,8 @@ async def refresh(request: Request, db: SessionDep) -> Any:
 
 
 @router.post("/forgot-password")
-async def forgot_password(body: ForgotPasswordRequest, db: SessionDep) -> Any:
+@limiter.limit("3/minute")
+async def forgot_password(request: Request, body: ForgotPasswordRequest, db: SessionDep) -> Any:
     msg = "Nếu email tồn tại, bạn sẽ nhận được link đặt lại mật khẩu."
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
@@ -150,7 +154,8 @@ async def forgot_password(body: ForgotPasswordRequest, db: SessionDep) -> Any:
 
 
 @router.post("/reset-password")
-async def reset_password(body: ResetPasswordRequest, db: SessionDep) -> Any:
+@limiter.limit("5/minute")
+async def reset_password(request: Request, body: ResetPasswordRequest, db: SessionDep) -> Any:
     try:
         payload = jwt.decode(body.token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         if payload.get("type") != "reset":
@@ -167,7 +172,8 @@ async def reset_password(body: ResetPasswordRequest, db: SessionDep) -> Any:
 
 
 @router.post("/change-password")
-async def change_password(body: ChangePasswordRequest, db: SessionDep, current_user: CurrentUser) -> Any:
+@limiter.limit("5/minute")
+async def change_password(request: Request, body: ChangePasswordRequest, db: SessionDep, current_user: CurrentUser) -> Any:
     if not verify_password(body.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng")
     current_user.hashed_password = get_password_hash(body.new_password)

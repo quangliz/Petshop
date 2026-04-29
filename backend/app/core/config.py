@@ -1,4 +1,6 @@
 import os
+from typing import Any
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -19,6 +21,12 @@ class Settings(BaseSettings):
     MAIL_SERVER: str = "smtp.gmail.com"
 
     FRONTEND_URL: str = "http://localhost:3000"
+    ALLOWED_ORIGINS: str = "http://localhost:3000"
+
+    @property
+    def allowed_origins_list(self) -> list[str]:
+        """Parse ALLOWED_ORIGINS comma-separated string into a list."""
+        return [s.strip() for s in self.ALLOWED_ORIGINS.split(",") if s.strip()]
 
     # Google OAuth
     GOOGLE_CLIENT_ID: str = ""

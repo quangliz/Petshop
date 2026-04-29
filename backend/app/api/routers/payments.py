@@ -4,7 +4,8 @@ import uuid
 from sqlalchemy import select
 
 from app.api.deps import SessionDep, CurrentUser
-from app.models.commerce import Order, Payment, PaymentMethodEnum, PaymentStatusEnum, TxnStatusEnum
+from app.models.catalog import Product
+from app.models.commerce import Order, OrderItem, Payment, PaymentMethodEnum, PaymentStatusEnum, TxnStatusEnum
 from app.services.vnpay import VNPay
 from pydantic import BaseModel
 
@@ -14,6 +15,16 @@ vnpay_service = VNPay()
 
 class PaymentUrlResponse(BaseModel):
     payment_url: str
+
+
+def _resolve_client_ip(request: Request) -> str:
+    """Return the client IP — X-Forwarded-For → request.client → fallback."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client is not None:
+        return request.client.host
+    return "127.0.0.1"
 
 
 @router.post("/vnpay/create/{order_id}", response_model=PaymentUrlResponse)
@@ -31,7 +42,7 @@ async def create_payment_url(order_id: str, request: Request, db: SessionDep, cu
     if order.payment_status == PaymentStatusEnum.paid:
         raise HTTPException(status_code=400, detail="Đơn hàng đã thanh toán")
 
-    ip_addr = request.client.host
+    ip_addr = _resolve_client_ip(request)
     url = vnpay_service.get_payment_url(
         order_code=order.order_code,
         amount=int(order.total),
@@ -75,6 +86,18 @@ async def vnpay_ipn(request: Request, db: SessionDep) -> Any:
 
     if vnp_ResponseCode == '00':
         order.payment_status = PaymentStatusEnum.paid
+        # Increment sold_count for each product in this order
+        items_result = await db.execute(
+            select(OrderItem).where(OrderItem.order_id == order.id)
+        )
+        order_items = items_result.scalars().all()
+        product_ids = [oi.product_id for oi in order_items]
+        if product_ids:
+            prods_result = await db.execute(select(Product).where(Product.id.in_(product_ids)))
+            prods = {p.id: p for p in prods_result.scalars().all()}
+            for oi in order_items:
+                if oi.product_id in prods:
+                    prods[oi.product_id].sold_count += oi.quantity
         await db.commit()
         return {"RspCode": "00", "Message": "Confirm Success"}
     else:
