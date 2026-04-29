@@ -5,7 +5,7 @@ import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Edit, Trash2, X, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { PlusCircle, Edit, Trash2, X, ChevronDown, ChevronUp, Plus, Sparkles } from "lucide-react";
 import Image from 'next/image';
 import { Product, Variant, AttrImage } from '@/lib/types';
 
@@ -166,6 +166,17 @@ export default function AdminProductsPage() {
     onError: (e: { response?: { data?: { detail?: string } } }) => alert(e.response?.data?.detail ?? "Lỗi xóa"),
   });
 
+  const rewriteMutation = useMutation({
+    mutationFn: async (text: string) => {
+      const res = await api.post("/admin/rewrite-markdown", { text });
+      return res.data.result as string;
+    },
+    onSuccess: (result) => {
+      setForm((prev) => ({ ...prev, description: result }));
+    },
+    onError: () => alert("Không thể viết lại mô tả. Vui lòng thử lại sau."),
+  });
+
   const deleteVariantMutation = useMutation({
     mutationFn: ({ productId, variantId }: { productId: string; variantId: string }) =>
       api.delete(`/admin/products/${productId}/variants/${variantId}`),
@@ -318,7 +329,20 @@ export default function AdminProductsPage() {
                   <Label htmlFor="is_active">Kích hoạt bán</Label>
                 </div>
                 <div className="md:col-span-2">
-                  <Label>Mô tả (hỗ trợ Markdown)</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Mô tả (hỗ trợ Markdown)</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-7 gap-1 border-orange-200 text-orange-600 hover:bg-orange-50"
+                      disabled={rewriteMutation.isPending || !form.description?.trim()}
+                      onClick={() => rewriteMutation.mutate(form.description)}
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      {rewriteMutation.isPending ? "Đang viết..." : "AI viết lại"}
+                    </Button>
+                  </div>
                   <textarea className="w-full border rounded p-2 text-sm font-mono" rows={5}
                     placeholder="Hỗ trợ **in đậm**, *nghiêng*, - danh sách, ## tiêu đề..."
                     value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />

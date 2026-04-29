@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import api from '@/lib/api';
 import { addToGuestCart } from '@/lib/guestCart';
@@ -17,6 +17,7 @@ import { Product, Variant, AttrImage } from '@/lib/types';
 
 export default function ProductDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [quantity, setQuantity] = useState(1);
@@ -99,11 +100,35 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!user) {
-      addToGuestCart(product!.id, quantity);
+      addToGuestCart(product!.id, product!.slug, quantity);
       alert("Đã thêm vào giỏ hàng tạm thời. Đăng nhập để thanh toán.");
       return;
     }
     addToCartMutation.mutate();
+  };
+
+  const [buyNowLoading, setBuyNowLoading] = useState(false);
+  const handleBuyNow = async () => {
+    if (!user) {
+      addToGuestCart(product!.id, product!.slug, quantity);
+      router.push('/checkout');
+      return;
+    }
+    setBuyNowLoading(true);
+    try {
+      const res = await api.post('/cart/items', { product_id: product!.id, quantity });
+      const updatedCart = res.data;
+      const cartItem = updatedCart?.items?.find(
+        (i: { product_id: string }) => i.product_id === product!.id
+      );
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+      router.push(cartItem?.id ? `/checkout?items=${cartItem.id}` : '/checkout');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      alert(e.response?.data?.detail || "Lỗi khi xử lý. Vui lòng thử lại.");
+    } finally {
+      setBuyNowLoading(false);
+    }
   };
 
   const { data: similarData } = useQuery({
@@ -172,8 +197,12 @@ export default function ProductDetailPage() {
                 <StarRating value={Math.round(product.avg_rating ?? 0)} size={16} />
                 {(product.review_count ?? 0) > 0 && <span style={{ color: 'var(--neutral-500)', fontSize: 13, fontWeight: 500 }}>{product.review_count} đánh giá</span>}
               </div>
-              <div style={{ width: 1, height: 16, background: 'var(--neutral-200)' }} />
-              <span style={{ fontSize: 13, color: 'var(--neutral-600)', fontWeight: 500 }}>Đã bán 150+</span>
+              {(product.sold_count ?? 0) > 0 && (
+                <>
+                  <div style={{ width: 1, height: 16, background: 'var(--neutral-200)' }} />
+                  <span style={{ fontSize: 13, color: 'var(--neutral-600)', fontWeight: 500 }}>Đã bán {product.sold_count}</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -289,7 +318,14 @@ export default function ProductDetailPage() {
                 <ShoppingCart size={20} /> {addToCartMutation.isPending ? "Đang xử lý..." : "Thêm vào giỏ hàng"}
               </button>
             </div>
-            <button className="btn btn-outline btn-lg w-full md:w-auto" style={{ height: 52, borderRadius: 14, fontSize: 16, fontWeight: 700 }}>Mua ngay</button>
+            <button
+              onClick={handleBuyNow}
+              disabled={effectiveStock === 0 || buyNowLoading}
+              className="btn btn-outline btn-lg w-full md:w-auto"
+              style={{ height: 52, borderRadius: 14, fontSize: 16, fontWeight: 700 }}
+            >
+              {buyNowLoading ? "Đang xử lý..." : "Mua ngay"}
+            </button>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 8 }}>

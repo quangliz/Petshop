@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/store';
 import { PawPrint, Sparkles, ArrowRight, MessageSquare, Star, Search, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import { Product } from '@/lib/types';
+import BannerCarousel from '@/components/BannerCarousel';
 
 const Icon = ({ name, size = 18 }: { name: string, size?: number }) => {
   switch (name) {
@@ -138,77 +139,8 @@ export default function Home() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', paddingBottom: 80 }}>
-      {/* Hero Section */}
-      <section className="mx-4 md:mx-8 mt-6 px-6 py-10 md:p-14" style={{
-        position: 'relative', overflow: 'hidden',
-        background: 'linear-gradient(135deg, oklch(0.97 0.025 55) 0%, oklch(0.95 0.04 30) 60%, oklch(0.96 0.04 85) 100%)',
-        borderRadius: 28,
-      }}>
-        <div style={{ position: 'absolute', top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'oklch(0.93 0.08 50 / 0.5)', filter: 'blur(40px)' }} />
-        <div style={{ position: 'absolute', bottom: -50, left: '40%', width: 220, height: 220, borderRadius: '50%', background: 'oklch(0.92 0.07 195 / 0.4)', filter: 'blur(50px)' }} />
-
-        <div className="grid grid-cols-1 md:grid-cols-[1.15fr_1fr] gap-8 md:gap-10 items-center relative">
-          <div>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px 6px 8px',
-              background: 'white', borderRadius: 999, fontSize: 12, fontWeight: 600,
-              color: 'var(--neutral-700)', boxShadow: 'var(--shadow-sm)', marginBottom: 22,
-            }}>
-              <span style={{ background: 'var(--teal-600)', color: 'white', padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>MỚI</span>
-              Trợ lý AI hiểu từng bé pet của bạn
-            </div>
-            <h1 className="text-[40px] md:text-[60px]" style={{
-              fontWeight: 800, lineHeight: 1.02, letterSpacing: '-0.035em',
-              color: 'var(--neutral-900)', margin: '0 0 20px',
-            }}>
-              Thú cưng của bạn,<br/>
-              <span style={{ color: 'var(--primary-600)', position: 'relative' }}>
-                AI hiểu từng chi tiết
-                <svg viewBox="0 0 200 12" preserveAspectRatio="none" style={{ position: 'absolute', bottom: -6, left: 0, width: '100%', height: 10, opacity: 0.35 }}>
-                  <path d="M2 8 Q 50 2, 100 6 T 198 5" stroke="var(--primary-500)" strokeWidth="3" fill="none" strokeLinecap="round"/>
-                </svg>
-              </span>
-            </h1>
-            <p style={{ fontSize: 17, lineHeight: 1.55, color: 'var(--neutral-600)', maxWidth: 480, margin: '0 0 32px' }}>
-              Tạo hồ sơ cho bé pet — chúng tôi gợi ý sản phẩm phù hợp với tuổi, cân nặng, giống và cả dị ứng của bé. Chat 24/7 với trợ lý AI khi bạn cần tư vấn.
-            </p>
-            <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
-              <Link href="/profile" className="btn btn-primary btn-lg"><Icon name="paw" size={16} /> Tạo hồ sơ pet</Link>
-              <button className="btn btn-outline btn-lg"><Icon name="sparkles" size={16} /> Thử chat AI</button>
-            </div>
-            <div style={{ display: 'flex', gap: 28, fontSize: 12, color: 'var(--neutral-600)' }}>
-              {[
-                { n: '15K+', l: 'Khách hàng' },
-                { n: '2.4K', l: 'Sản phẩm' },
-                { n: '4.8★', l: 'Đánh giá' },
-                { n: '24/7', l: 'AI hỗ trợ' },
-              ].map((s, i) => (
-                <div key={i}>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--neutral-900)', letterSpacing: '-0.02em' }}>{s.n}</div>
-                  <div>{s.l}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative h-[320px] md:h-[440px] flex justify-center w-full mt-8 md:mt-0">
-            <div className="relative md:absolute top-0 md:top-5 right-0 md:right-5 w-[280px] md:w-[320px] h-[320px] md:h-[400px]" style={{
-              borderRadius: 24, background: 'white', boxShadow: 'var(--shadow-lg)',
-              overflow: 'hidden', transform: 'rotate(3deg)', border: '1px solid var(--neutral-100)'
-            }}>
-              <div style={{ height: '100%', width: '100%', background: 'oklch(0.95 0.05 55)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 80 }}>🐈</div>
-              <div style={{ position: 'absolute', bottom: 20, left: 20, right: 20, background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(8px)', padding: '14px 16px', borderRadius: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 22, background: 'oklch(0.85 0.08 50)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🐈</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>Miu · 3 tháng</div>
-                  <div style={{ fontSize: 11, color: 'var(--neutral-500)' }}>Anh lông ngắn · 2.1kg</div>
-                </div>
-                <div style={{ background: 'var(--success-bg)', color: 'var(--success)', fontSize: 10, fontWeight: 700, padding: '4px 8px', borderRadius: 999 }}>ĐANG KHOẺ</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Banner Carousel */}
+      <BannerCarousel />
 
       {/* Pet Recommendations (logged-in users with pets) */}
       {user && recommendations?.items?.length > 0 && (

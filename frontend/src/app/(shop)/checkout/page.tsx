@@ -1,12 +1,22 @@
 "use client";
-import React, { useState, useMemo, Suspense } from 'react';
+import React, { useState, useMemo, useEffect, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { getGuestCart, clearGuestCart, GuestCartItem } from '@/lib/guestCart';
 import { ChevronRight, CreditCard, Truck, ShieldCheck, Phone, User as UserIcon, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { VietnamAddressPicker } from '@/components/VietnamAddressPicker';
+
+interface DisplayItem {
+  id: string;
+  product_id: string;
+  quantity: number;
+  product_name: string;
+  sale_price?: number;
+  price: number;
+}
 
 function CheckoutPage() {
   const router = useRouter();
@@ -23,20 +33,46 @@ function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
+  // Guest cart state
+  const [guestItems, setGuestItems] = useState<GuestCartItem[]>([]);
+  const [guestProducts, setGuestProducts] = useState<DisplayItem[]>([]);
+  const isGuest = !user;
+
+  useEffect(() => {
+    if (!isGuest) return;
+    const items = getGuestCart();
+    setGuestItems(items);
+    if (items.length === 0) return;
+    Promise.all(
+      items.map(i =>
+        api.get(`/products/${i.slug}`).then(r => ({
+          id: i.product_id,
+          product_id: i.product_id,
+          quantity: i.quantity,
+          product_name: r.data.name,
+          sale_price: r.data.sale_price ?? undefined,
+          price: r.data.price,
+        }))
+      )
+    ).then(setGuestProducts).catch(() => {});
+  }, [isGuest]);
+
   const { data: cart } = useQuery({
     queryKey: ['cart'],
     queryFn: async () => {
       const res = await api.get('/cart/');
       return res.data;
-    }
+    },
+    enabled: !isGuest,
   });
 
-  const displayItems = useMemo(() => {
-    const all: { id: string; quantity: number; product_name: string; sale_price?: number; price: number }[] = cart?.items || [];
+  const displayItems: DisplayItem[] = useMemo(() => {
+    if (isGuest) return guestProducts;
+    const all: DisplayItem[] = (cart?.items || []).map((i: DisplayItem) => ({ ...i, product_id: i.product_id || i.id }));
     if (selectedItemIds.length === 0) return all;
     const idSet = new Set(selectedItemIds);
     return all.filter(i => idSet.has(i.id));
-  }, [cart, selectedItemIds]);
+  }, [isGuest, guestProducts, cart, selectedItemIds]);
 
   const subtotal = useMemo(
     () => displayItems.reduce((sum, i) => sum + (i.sale_price || i.price) * i.quantity, 0),
@@ -48,21 +84,35 @@ function CheckoutPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await api.post('/orders/checkout', {
-        ship_name: form.name,
-        ship_phone: form.phone,
-        ship_address: form.address,
-        note: form.note,
-        payment_method: paymentMethod,
-        ...(selectedItemIds.length > 0 ? { item_ids: selectedItemIds } : {})
-      });
-      const order = res.data;
+      let order;
+      if (isGuest) {
+        const res = await api.post('/orders/guest-checkout', {
+          ship_name: form.name,
+          ship_phone: form.phone,
+          ship_address: form.address,
+          note: form.note,
+          payment_method: paymentMethod,
+          items: guestItems,
+        });
+        order = res.data;
+        clearGuestCart();
+      } else {
+        const res = await api.post('/orders/checkout', {
+          ship_name: form.name,
+          ship_phone: form.phone,
+          ship_address: form.address,
+          note: form.note,
+          payment_method: paymentMethod,
+          ...(selectedItemIds.length > 0 ? { item_ids: selectedItemIds } : {})
+        });
+        order = res.data;
+      }
 
       if (paymentMethod === 'vnpay') {
         const vnpRes = await api.post(`/payments/vnpay/create/${order.id}`);
         window.location.href = vnpRes.data.payment_url;
       } else {
-        router.push(`/orders/${order.id}`);
+        router.push(`/orders/${order.id}?guest=1`);
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
@@ -71,7 +121,9 @@ function CheckoutPage() {
     }
   };
 
-  if (!cart || displayItems.length === 0) {
+  const isEmpty = isGuest ? (guestProducts.length === 0 && guestItems.length > 0 ? false : displayItems.length === 0) : (!cart || displayItems.length === 0);
+
+  if (isEmpty && !(isGuest && guestItems.length > 0)) {
     return <div style={{ padding: 100, textAlign: 'center', color: 'var(--neutral-500)' }}>Giỏ hàng của bạn đang trống.</div>;
   }
 

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { Plus, Trash2, Sparkles, ShieldCheck, Pencil } from 'lucide-react';
+import { Plus, Trash2, ShieldCheck, Pencil } from 'lucide-react';
 import Image from 'next/image';
 import { User, Pet } from '@/lib/types';
 import { VietnamAddressPicker } from '@/components/VietnamAddressPicker';
@@ -19,7 +19,7 @@ const PetCard = ({ pet, onDelete, onEdit }: { pet: Pet, onDelete: (id: string) =
 
   return (
     <div className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: 120, background: speciesColors[pet.species] || speciesColors.other, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56 }}>
+      <div style={{ aspectRatio: '1 / 1', background: speciesColors[pet.species] || speciesColors.other, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56 }}>
         {pet.avatar_url ? (
           <Image 
             src={pet.avatar_url} 
@@ -62,9 +62,6 @@ const PetCard = ({ pet, onDelete, onEdit }: { pet: Pet, onDelete: (id: string) =
              <ShieldCheck size={14} /> <strong>Dị ứng:</strong> {pet.allergies}
           </div>
         )}
-        <button className="btn btn-teal btn-sm" style={{ width: '100%', borderRadius: 10, marginTop: 4 }}>
-          <Sparkles size={14} /> Chat AI về {pet.name}
-        </button>
       </div>
     </div>
   );

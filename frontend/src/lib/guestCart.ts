@@ -1,4 +1,4 @@
-export type GuestCartItem = { product_id: string; quantity: number };
+export type GuestCartItem = { product_id: string; slug: string; quantity: number };
 
 const KEY = 'guest_cart';
 
@@ -11,13 +11,13 @@ export function getGuestCart(): GuestCartItem[] {
   }
 }
 
-export function addToGuestCart(product_id: string, quantity = 1): void {
+export function addToGuestCart(product_id: string, slug: string, quantity = 1): void {
   const cart = getGuestCart();
   const existing = cart.find((i) => i.product_id === product_id);
   if (existing) {
     existing.quantity += quantity;
   } else {
-    cart.push({ product_id, quantity });
+    cart.push({ product_id, slug, quantity });
   }
   localStorage.setItem(KEY, JSON.stringify(cart));
 }

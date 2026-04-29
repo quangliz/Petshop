@@ -89,6 +89,15 @@ async def create_review(
         comment=body.comment,
     )
     db.add(review)
+    await db.flush()
+
+    agg = (await db.execute(
+        select(func.avg(Review.rating), func.count(Review.id))
+        .where(Review.product_id == product_id)
+    )).one()
+    product.avg_rating = round(float(agg[0]), 2) if agg[0] else None
+    product.review_count = agg[1]
+
     await db.commit()
 
     result = await db.execute(

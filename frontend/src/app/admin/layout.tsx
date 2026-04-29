@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { LayoutDashboard, Package, ShoppingCart, Users, ArrowLeft, Menu } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, Image, ArrowLeft, Menu, BookOpen, Database } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const menuItems = [
@@ -11,6 +11,9 @@ const menuItems = [
   { href: "/admin/products", label: "Sản phẩm", icon: Package },
   { href: "/admin/orders", label: "Đơn hàng", icon: ShoppingCart },
   { href: "/admin/users", label: "Người dùng", icon: Users },
+  { href: "/admin/banners", label: "Banner", icon: Image },
+  { href: "/admin/knowledge", label: "Tri thức", icon: BookOpen },
+  { href: "/admin/embeddings", label: "Embeddings", icon: Database },
 ];
 
 const SidebarContent = ({ pathname }: { pathname: string }) => (
