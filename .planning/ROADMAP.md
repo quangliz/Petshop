@@ -23,7 +23,12 @@ _Generated: 2026-04-29_
   3. Auth endpoints (login, register) return 429 after rate limit is exceeded
   4. Banner carousel is visible on the storefront and knowledge base admin UI is accessible in the admin panel
   5. Database queries use indexes; connection pool is non-null and reused across requests
-**Plans**: TBD
+**Plans**: 5 plans
+  - [ ] 01-01-PLAN.md — Security hardening (CORS, SECRET_KEY startup gate, auth rate limits, proxy-safe IP)
+  - [ ] 01-02-PLAN.md — DB pooling, performance indexes, collision-safe order codes
+  - [ ] 01-03-PLAN.md — Logged exception in indexing service, unify review_count field
+  - [ ] 01-04-PLAN.md — Split admin.py into 5 resource routers, server-side require_admin
+  - [ ] 01-05-PLAN.md — Commit untracked banner / knowledge / embeddings features (FEAT-03, FEAT-04)
 **UI hint**: yes
 
 ---
@@ -37,7 +42,12 @@ _Generated: 2026-04-29_
   2. Repeated identical searches are served from Redis cache (no OpenAI call on second hit)
   3. A product detail page shows a "similar products" section with items matched by embedding similarity
   4. Creating or editing a product in admin triggers an AI suggestion for compatible pet types and tags
-**Plans**: TBD
+**Plans**: 5 plans
+  - [ ] 01-01-PLAN.md — Security hardening (CORS, SECRET_KEY startup gate, auth rate limits, proxy-safe IP)
+  - [ ] 01-02-PLAN.md — DB pooling, performance indexes, collision-safe order codes
+  - [ ] 01-03-PLAN.md — Logged exception in indexing service, unify review_count field
+  - [ ] 01-04-PLAN.md — Split admin.py into 5 resource routers, server-side require_admin
+  - [ ] 01-05-PLAN.md — Commit untracked banner / knowledge / embeddings features (FEAT-03, FEAT-04)
 
 ---
 
@@ -50,7 +60,12 @@ _Generated: 2026-04-29_
   2. The AI references the user's pet breed and age when recommending products without being explicitly prompted
   3. Asking a health question (e.g. "can my dog eat grapes?") returns an answer that cites the knowledge base source document and links to relevant products
   4. A guest can retrieve their order by entering email + order code on the order lookup page
-**Plans**: TBD
+**Plans**: 5 plans
+  - [ ] 01-01-PLAN.md — Security hardening (CORS, SECRET_KEY startup gate, auth rate limits, proxy-safe IP)
+  - [ ] 01-02-PLAN.md — DB pooling, performance indexes, collision-safe order codes
+  - [ ] 01-03-PLAN.md — Logged exception in indexing service, unify review_count field
+  - [ ] 01-04-PLAN.md — Split admin.py into 5 resource routers, server-side require_admin
+  - [ ] 01-05-PLAN.md — Commit untracked banner / knowledge / embeddings features (FEAT-03, FEAT-04)
 **UI hint**: yes
 
 ---

@@ -21,9 +21,10 @@ Requirements in scope: SEC-01, SEC-02, SEC-03, SEC-04, PERF-01, PERF-02, PERF-03
 - **D-03:** Each new `admin_*.py` file registers its own `APIRouter` with the same prefix it had in the original. Mount all new routers from `main.py` in place of the old `admin` router.
 
 ### Async/Sync Consistency
-- **D-04:** Standardize on **sync** SQLAlchemy throughout. The sync engine in `database.py` is already in use — do not switch to AsyncSession.
-- **D-05:** Convert any router handlers that use `async def` with `await db.execute()` / `await db.scalar()` / etc. to sync equivalents (`db.execute()`, `db.scalar()`, `db.commit()` — no `await`).
-- **D-06:** New admin split files follow the same sync pattern. No new async patterns introduced in this phase.
+- **D-04:** ~~Standardize on sync SQLAlchemy throughout.~~ **SUPERSEDED** — `database.py` uses `create_async_engine` + `AsyncSession`; CLAUDE.md note was stale. Keep async.
+- **D-05:** ~~Convert async def handlers to sync equivalents.~~ **SUPERSEDED** — all routers use `async def` + `await`; no conversion. Keep async.
+- **D-06:** ~~New admin split files follow sync pattern.~~ **SUPERSEDED** — new admin_*.py files follow the existing async pattern.
+- **D-04/D-05/D-06 ratified by user 2026-04-29:** Codebase is fully async; CODE-02 = "no sync SQLAlchemy calls mixed into async handlers."
 
 ### Order Code Collision Fix
 - **D-07:** Replace `generate_order_code()` in `backend/app/api/routers/orders.py` with a UUID-based approach: `"ORD-" + uuid4().hex[:12].upper()` — e.g. `ORD-A3F9B2C1D4E5`.
