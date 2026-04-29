@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, Text, DateTime, func, UniqueConstraint, CheckConstraint
+from sqlalchemy import ForeignKey, Integer, Text, DateTime, func, UniqueConstraint, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import uuid
@@ -20,6 +20,7 @@ class Review(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "product_id", name="uq_user_product_review"),
         CheckConstraint("rating >= 1 AND rating <= 5", name="ck_review_rating"),
+        Index("ix_reviews_product_id", "product_id"),
     )
 
     user = relationship("User", back_populates="reviews")

@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.pool import NullPool
 
 load_dotenv()
 
@@ -31,7 +30,9 @@ engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
     echo=False,
     connect_args={"statement_cache_size": 0},
-    poolclass=NullPool,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,
 )
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

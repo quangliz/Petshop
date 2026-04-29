@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String, Text, Numeric, DateTime, Boolean, func
+from sqlalchemy import ForeignKey, Integer, String, Text, Numeric, DateTime, Boolean, func, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import uuid
@@ -19,6 +19,20 @@ class Category(Base):
     parent = relationship("Category", remote_side=[id], backref="children")
     products = relationship("Product", back_populates="category")
 
+class Banner(Base):
+    __tablename__ = "banners"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    image_url: Mapped[str] = mapped_column(String)
+    title: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    subtitle: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    link_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
+
 class Product(Base):
     __tablename__ = "products"
 
@@ -35,6 +49,9 @@ class Product(Base):
     target_species: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     attributes: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    sold_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    avg_rating: Mapped[Optional[float]] = mapped_column(Numeric(3, 2), nullable=True)
+    review_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
@@ -44,6 +61,11 @@ class Product(Base):
     variants = relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan")
     product_images = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_products_category_id", "category_id"),
+        Index("ix_products_is_active", "is_active"),
+    )
 
 
 class ProductVariant(Base):

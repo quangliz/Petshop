@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String, Text, Numeric, DateTime, Enum as SQLEnum, func
+from sqlalchemy import ForeignKey, Integer, String, Text, Numeric, DateTime, Enum as SQLEnum, func, Index
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import uuid
@@ -53,11 +53,15 @@ class CartItem(Base):
     cart = relationship("Cart", back_populates="cart_items")
     product = relationship("Product", back_populates="cart_items")
 
+    __table_args__ = (
+        Index("ix_cart_items_cart_id", "cart_id"),
+    )
+
 class Order(Base):
     __tablename__ = "orders"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"))
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
     order_code: Mapped[str] = mapped_column(String, unique=True)
     status: Mapped[OrderStatusEnum] = mapped_column(SQLEnum(OrderStatusEnum), default=OrderStatusEnum.pending)
     subtotal: Mapped[float] = mapped_column(Numeric(10, 2))
@@ -72,9 +76,15 @@ class Order(Base):
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
-    user = relationship("User", back_populates="orders")
+    user = relationship("User", back_populates="orders", foreign_keys=[user_id])
     order_items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="order", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_orders_user_id", "user_id"),
+        Index("ix_orders_status", "status"),
+        Index("ix_orders_order_code", "order_code", unique=True),
+    )
 
 class OrderItem(Base):
     __tablename__ = "order_items"
@@ -88,6 +98,10 @@ class OrderItem(Base):
 
     order = relationship("Order", back_populates="order_items")
     product = relationship("Product", back_populates="order_items")
+
+    __table_args__ = (
+        Index("ix_order_items_order_id", "order_id"),
+    )
 
 class Payment(Base):
     __tablename__ = "payments"
