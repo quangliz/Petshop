@@ -22,8 +22,8 @@ if settings.LANGSMITH_TRACING and settings.LANGSMITH_API_KEY:
     os.environ["LANGSMITH_ENDPOINT"] = settings.LANGSMITH_ENDPOINT
     os.environ["LANGCHAIN_ENDPOINT"] = settings.LANGSMITH_ENDPOINT
 
-from app.api.routers import auth, products, categories, cart, orders, payments, pets, chat, admin, reviews, banners
-from app.database import engine, Base
+from app.api.routers import auth, products, categories, cart, orders, payments, pets, chat, admin, reviews, banners  # noqa: E402
+from app.database import engine, Base  # noqa: E402
 
 
 @asynccontextmanager

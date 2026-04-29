@@ -13,7 +13,6 @@ if "SECRET_KEY" not in os.environ:
     os.environ["SECRET_KEY"] = "dummy_secret_key_for_testing_purposes_only_1234567890"
 
 import re  # noqa: E402
-import asyncio  # noqa: E402
 
 from app.api.routers.orders import generate_order_code  # noqa: E402
 

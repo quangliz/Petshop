@@ -7,7 +7,6 @@ import asyncio
 import logging
 from typing import Iterable
 
-logger = logging.getLogger(__name__)
 
 from langchain_core.documents import Document
 from sqlalchemy import select, text
@@ -21,6 +20,8 @@ from app.services.embeddings import (
     get_products_store,
     get_knowledge_store,
 )
+
+logger = logging.getLogger(__name__)
 
 
 COLLECTION_NAMES = {

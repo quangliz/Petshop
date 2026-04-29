@@ -1,7 +1,9 @@
 import os
+import sys
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 load_dotenv()
 
@@ -26,8 +28,6 @@ if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
         "postgresql://", "postgresql+asyncpg://", 1
     )
 
-import sys
-from sqlalchemy.pool import NullPool
 
 pool_args = {
     "pool_size": 10,
