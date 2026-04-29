@@ -72,13 +72,13 @@ export default function AdminBannersPage() {
       queryClient.invalidateQueries({ queryKey: ["admin-banners"] });
       setModal({ open: false });
     },
-    onError: (e: any) => alert(e.response?.data?.detail ?? "Lỗi"),
+    onError: (e: unknown) => alert((e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? "Lỗi"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.delete(`/admin/banners/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-banners"] }),
-    onError: (e: any) => alert(e.response?.data?.detail ?? "Lỗi"),
+    onError: (e: unknown) => alert((e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? "Lỗi"),
   });
 
   const banners = data ?? [];

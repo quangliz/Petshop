@@ -41,6 +41,7 @@ function CheckoutPage() {
   useEffect(() => {
     if (!isGuest) return;
     const items = getGuestCart();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGuestItems(items);
     if (items.length === 0) return;
     Promise.all(

@@ -4,23 +4,12 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { PawPrint, Sparkles, ArrowRight, MessageSquare, Star, Search, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import { Product } from '@/lib/types';
 import BannerCarousel from '@/components/BannerCarousel';
 
-const Icon = ({ name, size = 18 }: { name: string, size?: number }) => {
-  switch (name) {
-    case 'paw': return <PawPrint size={size} />;
-    case 'sparkles': return <Sparkles size={size} />;
-    case 'arrowR': return <ArrowRight size={size} />;
-    case 'chat': return <MessageSquare size={size} />;
-    case 'star': return <Star size={size} />;
-    case 'search': return <Search size={size} />;
-    case 'plus': return <Plus size={size} />;
-    default: return null;
-  }
-};
+
 
 const Rating = ({ value, size = 12, count }: { value: number, size?: number, count?: number }) => (
   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: size, color: 'oklch(0.75 0.15 75)' }}>

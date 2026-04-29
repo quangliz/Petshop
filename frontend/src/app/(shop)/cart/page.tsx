@@ -29,6 +29,7 @@ function GuestCartPage() {
 
   useEffect(() => {
     const items = getGuestCart();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGuestRaw(items);
     setSelectedIds(new Set(items.map(i => i.product_id)));
     if (items.length === 0) return;
@@ -75,7 +76,7 @@ function GuestCartPage() {
 
   const allSelected = items.length > 0 && items.every(i => selectedIds.has(i.id));
   const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map(i => i.id)));
-  const toggleItem = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleItem = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) { n.delete(id); } else { n.add(id); } return n; });
 
   const selectedItems = items.filter(i => selectedIds.has(i.id));
   const selectedTotal = selectedItems.reduce((sum, i) => sum + (i.sale_price || i.price) * i.quantity, 0);
@@ -128,6 +129,7 @@ function AuthCartPage() {
   const items: CartItem[] = useMemo(() => cart?.items || [], [cart]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (items.length > 0) setSelectedIds(new Set(items.map((i: CartItem) => i.id)));
   }, [items]);
 
@@ -135,7 +137,7 @@ function AuthCartPage() {
 
   const allSelected = items.length > 0 && items.every(i => selectedIds.has(i.id));
   const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map(i => i.id)));
-  const toggleItem = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleItem = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) { n.delete(id); } else { n.add(id); } return n; });
 
   const selectedItems = items.filter(i => selectedIds.has(i.id));
   const selectedTotal = selectedItems.reduce((sum, i) => sum + (i.sale_price || i.price) * i.quantity, 0);

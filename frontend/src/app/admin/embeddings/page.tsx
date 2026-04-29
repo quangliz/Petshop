@@ -10,7 +10,7 @@ import { RefreshCw, Trash2, Search, Database } from "lucide-react";
 type EmbeddingItem = {
   id: string;
   preview: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 };
 
 type ListResp = {
@@ -48,13 +48,13 @@ function CollectionPanel({ collection, label }: { collection: string; label: str
       alert(`Đã reindex ${d.indexed} mục cho ${label}`);
       qc.invalidateQueries({ queryKey: ["admin-embeddings", collection] });
     },
-    onError: (e: any) => alert(e.response?.data?.detail ?? "Lỗi reindex"),
+    onError: (e: unknown) => alert((e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? "Lỗi reindex"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/embeddings/${collection}/${encodeURIComponent(id)}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-embeddings", collection] }),
-    onError: (e: any) => alert(e.response?.data?.detail ?? "Lỗi"),
+    onError: (e: unknown) => alert((e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? "Lỗi"),
   });
 
   const items = data?.items ?? [];

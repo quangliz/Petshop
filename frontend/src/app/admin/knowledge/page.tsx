@@ -77,13 +77,13 @@ export default function AdminKnowledgePage() {
       qc.invalidateQueries({ queryKey: ["admin-knowledge"] });
       setModal({ open: false });
     },
-    onError: (e: any) => alert(e.response?.data?.detail ?? "Lỗi"),
+    onError: (e: unknown) => alert((e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? "Lỗi"),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/admin/knowledge/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-knowledge"] }),
-    onError: (e: any) => alert(e.response?.data?.detail ?? "Lỗi"),
+    onError: (e: unknown) => alert((e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? "Lỗi"),
   });
 
   const items = data?.items ?? [];
