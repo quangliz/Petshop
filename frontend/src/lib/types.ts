@@ -34,9 +34,9 @@ export interface Product {
   };
   brand?: string | null;
   is_new?: boolean;
-  reviews_count?: number;
-  review_count?: number; // Some parts of the API use review_count
+  review_count?: number;
   avg_rating?: number;
+  sold_count?: number;
   description?: string;
   sku?: string;
   stock_qty?: number;
@@ -89,4 +89,14 @@ export interface Order {
   payment_method: string;
   status: string;
   created_at: string;
+}
+
+export interface Banner {
+  id: number;
+  image_url: string;
+  title?: string | null;
+  subtitle?: string | null;
+  link_url?: string | null;
+  sort_order: number;
+  is_active: boolean;
 }

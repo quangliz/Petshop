@@ -137,7 +137,7 @@ const Rating = ({ value, size = 12, count }: { value: number, size?: number, cou
   </div>
 );
 
-const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, onAddToCart: (e: React.MouseEvent, id: string) => void, isPending: boolean }) => (
+const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, onAddToCart: (e: React.MouseEvent, id: string, slug: string) => void, isPending: boolean }) => (
   <Link href={`/products/${product.slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
     <div className="card" style={{
       cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column',
@@ -172,13 +172,13 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, on
           display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
           minHeight: 38
         }}>{product.name}</div>
-        <Rating value={4.5} count={product.reviews_count || 0} size={11} />
+        <Rating value={4.5} count={product.review_count || 0} size={11} />
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 'auto', paddingTop: 6 }}>
           <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
           {product.sale_price && <span style={{ fontSize: 12, color: 'var(--neutral-400)', textDecoration: 'line-through' }}>{product.price.toLocaleString()}đ</span>}
         </div>
         <button 
-          onClick={(e) => onAddToCart(e, product.id)}
+          onClick={(e) => onAddToCart(e, product.id, product.slug)}
           disabled={isPending}
           className="btn btn-outline btn-sm"
           style={{ width: '100%', marginTop: 12, borderRadius: 10 }}
@@ -261,10 +261,10 @@ function ShopListing() {
     }
   });
 
-  const handleAddToCart = (e: React.MouseEvent, productId: string) => {
+  const handleAddToCart = (e: React.MouseEvent, productId: string, slug: string) => {
     e.preventDefault();
     if (!user) {
-      addToGuestCart(productId);
+      addToGuestCart(productId, slug);
       alert("Đã thêm vào giỏ hàng tạm thời. Đăng nhập để thanh toán.");
       return;
     }
