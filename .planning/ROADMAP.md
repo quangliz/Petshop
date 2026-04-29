@@ -42,12 +42,11 @@ _Generated: 2026-04-29_
   2. Repeated identical searches are served from Redis cache (no OpenAI call on second hit)
   3. A product detail page shows a "similar products" section with items matched by embedding similarity
   4. Creating or editing a product in admin triggers an AI suggestion for compatible pet types and tags
-**Plans**: 5 plans
-  - [ ] 01-01-PLAN.md — Security hardening (CORS, SECRET_KEY startup gate, auth rate limits, proxy-safe IP)
-  - [ ] 01-02-PLAN.md — DB pooling, performance indexes, collision-safe order codes
-  - [ ] 01-03-PLAN.md — Logged exception in indexing service, unify review_count field
-  - [ ] 01-04-PLAN.md — Split admin.py into 5 resource routers, server-side require_admin
-  - [ ] 01-05-PLAN.md — Commit untracked banner / knowledge / embeddings features (FEAT-03, FEAT-04)
+**Plans**: 4 plans
+  - [ ] 02-01-PLAN.md — Redis async singleton, lifespan teardown, cache test scaffolds
+  - [ ] 02-02-PLAN.md — embed_query_cached helper (embeddings.py), reindex_one_product helper (indexing.py)
+  - [ ] 02-03-PLAN.md — Cache-aware search_products (retrieval.py), semantic branch in products router
+  - [ ] 02-04-PLAN.md — Admin product embedding + AI suggestion hooks, pet profile cache helpers
 
 ---
 
@@ -75,5 +74,5 @@ _Generated: 2026-04-29_
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Harden Foundation | 5/5 | Complete | 2026-04-29 |
-| 2. Build AI Core | 0/0 | Not started | - |
+| 2. Build AI Core | 0/4 | Not started | - |
 | 3. Polish AI Demo | 0/0 | Not started | - |
