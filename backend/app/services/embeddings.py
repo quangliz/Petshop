@@ -18,6 +18,8 @@ def _psycopg_url() -> str:
     url = SQLALCHEMY_DATABASE_URL
     if url.startswith("postgresql+psycopg://"):
         return url
+    if url.startswith("postgresql+asyncpg://"):
+        return "postgresql+psycopg://" + url[len("postgresql+asyncpg://"):]
     if url.startswith("postgresql://"):
         return "postgresql+psycopg://" + url[len("postgresql://"):]
     return url

@@ -11,7 +11,7 @@ from app.models.catalog import Product, Category
 from app.models.commerce import Order, OrderItem
 from app.models.user import Pet
 import math
-from app.services.retrieval import similar_products
+from app.services.retrieval import search_products, similar_products
 
 router = APIRouter()
 
@@ -98,6 +98,18 @@ async def read_products(
     page: int = Query(1, ge=1),
     size: int = Query(12, ge=1, le=100),
 ) -> Any:
+    # AI-01: Semantic search branch — activates when q is present and non-empty
+    if q and q.strip():
+        q_clean = q.strip()[:500]  # ASVS V5: truncate oversized input
+        semantic_items = await search_products(db, query=q_clean, limit=size)
+        return {
+            "items": semantic_items,
+            "total": len(semantic_items),
+            "page": page,
+            "size": size,
+            "pages": 1,
+        }
+
     stmt = select(Product).where(Product.is_active)
 
     if q and q.strip():

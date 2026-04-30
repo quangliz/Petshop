@@ -1,4 +1,7 @@
+import asyncio
 from typing import List, Optional
+
+from app.services.embeddings import embed_query_cached
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -25,20 +28,23 @@ async def search_products(
     Hydrates with live Product rows so price/stock/active flag stay correct.
     Post-filters by species in Python (target_species is stored as a list in metadata).
     """
-    store = get_products_store()
+    store = await asyncio.to_thread(get_products_store)
     fetch_k = limit * 4 if species else limit * 2
-    results = store.similarity_search_with_score(query, k=fetch_k)
+    embedding = await embed_query_cached(query)
+    results = await asyncio.to_thread(
+        store.similarity_search_by_vector, embedding, k=fetch_k
+    )
 
     ordered_slugs: list[str] = []
     score_by_slug: dict[str, float] = {}
-    for doc, distance in results:
+    for i, doc in enumerate(results):
         meta = doc.metadata or {}
         slug = meta.get("slug")
         if not slug or slug in score_by_slug:
             continue
         if not _matches_species(meta.get("target_species"), species):
             continue
-        score_by_slug[slug] = float(1 - distance)
+        score_by_slug[slug] = 1.0 - (i / max(len(results), 1))
         ordered_slugs.append(slug)
         if len(ordered_slugs) >= limit:
             break
