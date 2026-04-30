@@ -73,6 +73,7 @@ class Order(Base):
     payment_method: Mapped[PaymentMethodEnum] = mapped_column(SQLEnum(PaymentMethodEnum))
     payment_status: Mapped[PaymentStatusEnum] = mapped_column(SQLEnum(PaymentStatusEnum), default=PaymentStatusEnum.unpaid)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    guest_email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
@@ -84,6 +85,7 @@ class Order(Base):
         Index("ix_orders_user_id", "user_id"),
         Index("ix_orders_status", "status"),
         Index("ix_orders_order_code", "order_code", unique=True),
+        Index("ix_orders_guest_email", "guest_email"),
     )
 
 class OrderItem(Base):
