@@ -1,5 +1,6 @@
 from typing import List, Optional, Annotated, TypedDict
 import operator
+import uuid
 
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
@@ -7,9 +8,13 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import ToolNode, tools_condition
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.services.retrieval import search_products, search_knowledge
+from app.models.commerce import Cart, CartItem
+from app.models.catalog import Product
 
 
 SYSTEM_PROMPT_BASE = (
@@ -20,6 +25,8 @@ SYSTEM_PROMPT_BASE = (
     "GỌI tool `search_products` để tìm sản phẩm trong cửa hàng.\n"
     "- Khi người dùng hỏi về dinh dưỡng, sức khỏe, huấn luyện, grooming, đặc điểm giống loài: "
     "GỌI tool `search_knowledge` để tra cứu kho kiến thức trước khi trả lời.\n"
+    "- Khi người dùng yêu cầu thêm sản phẩm vào giỏ hàng: GỌI tool `add_to_cart_tool` với slug từ kết quả tìm kiếm.\n"
+    "- Khi người dùng hỏi về giỏ hàng của họ: GỌI tool `view_cart_tool`.\n"
     "- Có thể gọi cả hai tool nếu câu hỏi vừa cần kiến thức vừa cần gợi ý sản phẩm.\n"
     "- Sau khi có kết quả tool, trả lời ngắn gọn, có dẫn chứng. Khi muốn giới thiệu sản phẩm, "
     "viết kèm thẻ định dạng `<product>slug-cua-san-pham</product>` ngay trong câu trả lời "
@@ -32,7 +39,7 @@ class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
 
 
-def _build_tools(db: AsyncSession):
+def _build_tools(db: AsyncSession, user_id: uuid.UUID):
     @tool
     async def search_products_tool(query: str, species: Optional[List[str]] = None) -> str:
         """Tìm sản phẩm trong cửa hàng ThePawsome bằng vector similarity.
@@ -71,10 +78,89 @@ def _build_tools(db: AsyncSession):
             f"[{r['title']} — {r['category']}]\n{r['content']}" for r in results
         )
 
-    return [search_products_tool, search_knowledge_tool]
+    @tool
+    async def add_to_cart_tool(slug: str, quantity: int = 1) -> str:
+        """Thêm sản phẩm vào giỏ hàng của người dùng.
+
+        Args:
+            slug: Slug của sản phẩm (lấy từ kết quả search_products).
+            quantity: Số lượng cần thêm (mặc định 1).
+
+        Returns: Thông báo xác nhận hoặc lỗi bằng tiếng Việt.
+        """
+        # Resolve slug → Product
+        result = await db.execute(
+            select(Product).where(Product.slug == slug, Product.is_active)
+        )
+        product = result.scalar_one_or_none()
+        if not product:
+            return f"Không tìm thấy sản phẩm '{slug}' hoặc sản phẩm không còn bán."
+
+        # Get or create Cart for this user
+        result = await db.execute(select(Cart).where(Cart.user_id == user_id))
+        cart = result.scalar_one_or_none()
+        if not cart:
+            cart = Cart(user_id=user_id)
+            db.add(cart)
+            await db.flush()
+
+        # Get existing CartItem
+        result = await db.execute(
+            select(CartItem).where(
+                CartItem.cart_id == cart.id,
+                CartItem.product_id == product.id,
+            )
+        )
+        existing = result.scalar_one_or_none()
+
+        total_qty = (existing.quantity if existing else 0) + quantity
+        if total_qty > product.stock_qty:
+            return f"Không đủ hàng trong kho. Hiện chỉ còn {product.stock_qty} sản phẩm."
+
+        if existing:
+            existing.quantity += quantity
+        else:
+            db.add(CartItem(cart_id=cart.id, product_id=product.id, quantity=quantity))
+
+        await db.commit()
+        price = float(product.sale_price if product.sale_price else product.price)
+        return (
+            f"✓ Đã thêm {quantity}x **{product.name}** vào giỏ hàng. "
+            f"Giá: {price:,.0f}đ/sản phẩm."
+        )
+
+    @tool
+    async def view_cart_tool() -> str:
+        """Xem danh sách sản phẩm trong giỏ hàng hiện tại.
+
+        Returns: Danh sách sản phẩm trong giỏ hàng dạng văn bản tiếng Việt.
+        """
+        result = await db.execute(
+            select(Cart)
+            .where(Cart.user_id == user_id)
+            .options(selectinload(Cart.cart_items).selectinload(CartItem.product))
+        )
+        cart = result.scalar_one_or_none()
+        if not cart or not cart.cart_items:
+            return "Giỏ hàng của bạn đang trống."
+
+        lines = []
+        total = 0.0
+        for item in cart.cart_items:
+            prod = item.product
+            price = float(prod.sale_price if prod.sale_price else prod.price)
+            subtotal = price * item.quantity
+            total += subtotal
+            lines.append(
+                f"- {prod.name} × {item.quantity} = {subtotal:,.0f}đ"
+            )
+        lines.append(f"\nTổng cộng: {total:,.0f}đ")
+        return "Giỏ hàng của bạn:\n" + "\n".join(lines)
+
+    return [search_products_tool, search_knowledge_tool, add_to_cart_tool, view_cart_tool]
 
 
-def build_agent(db: AsyncSession):
+def build_agent(db: AsyncSession, user_id: uuid.UUID):
     """Build a per-request StateGraph agent: agent ⇄ tools.
 
     Graph:
@@ -86,7 +172,7 @@ def build_agent(db: AsyncSession):
         api_key=settings.OPENAI_API_KEY,
         temperature=0.3,
     )
-    tools = _build_tools(db)
+    tools = _build_tools(db, user_id)
     llm_with_tools = llm.bind_tools(tools)
 
     async def agent_node(state: AgentState):
