@@ -186,12 +186,13 @@ async def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUse
         elif msg.role == ChatRoleEnum.assistant:
             history.append(AIMessage(content=msg.content))
 
-    agent = build_agent(db)
+    agent = build_agent(db, current_user.id)
 
     async def event_generator():
         state = {"messages": history}
         full_content = ""
         total_tokens = 0
+        cart_was_updated = False
         run_config = {
             "run_name": "thepawsome_chat",
             "tags": ["chat", f"user:{current_user.id}"],
@@ -217,6 +218,8 @@ async def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUse
                     output = event["data"].get("output")
                     if output and hasattr(output, "usage_metadata") and output.usage_metadata:
                         total_tokens += output.usage_metadata.get("total_tokens", 0)
+                elif kind == "on_tool_end" and event.get("name") == "add_to_cart_tool":
+                    cart_was_updated = True
 
             am = ChatMessage(
                 session_id=session.id,
@@ -232,6 +235,12 @@ async def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUse
                 yield {
                     "event": "products",
                     "data": json.dumps({"items": products}),
+                }
+
+            if cart_was_updated:
+                yield {
+                    "event": "cart_updated",
+                    "data": json.dumps({}),
                 }
 
             yield {
