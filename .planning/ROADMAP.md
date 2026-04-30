@@ -6,7 +6,7 @@ _Generated: 2026-04-29_
 ## Phases
 
 - [x] **Phase 1: Harden Foundation** - Fix security, reliability, and code quality issues; commit all untracked features
-- [ ] **Phase 2: Build AI Core** - Implement semantic search, embedding pipeline, and LangGraph cart tools
+- [x] **Phase 2: Build AI Core** - Implement semantic search, embedding pipeline, and LangGraph cart tools
 - [ ] **Phase 3: Polish AI Demo** - Complete AI integration polish and feature completeness for thesis demo
 
 ---
@@ -43,10 +43,10 @@ _Generated: 2026-04-29_
   3. A product detail page shows a "similar products" section with items matched by embedding similarity
   4. Creating or editing a product in admin triggers an AI suggestion for compatible pet types and tags
 **Plans**: 4 plans
-  - [ ] 02-01-PLAN.md — Redis async singleton, lifespan teardown, cache test scaffolds
-  - [ ] 02-02-PLAN.md — embed_query_cached helper (embeddings.py), reindex_one_product helper (indexing.py)
-  - [ ] 02-03-PLAN.md — Cache-aware search_products (retrieval.py), semantic branch in products router
-  - [ ] 02-04-PLAN.md — Admin product embedding + AI suggestion hooks, pet profile cache helpers
+  - [x] 02-01-PLAN.md — Redis async singleton, lifespan teardown, cache test scaffolds
+  - [x] 02-02-PLAN.md — embed_query_cached helper (embeddings.py), reindex_one_product helper (indexing.py)
+  - [x] 02-03-PLAN.md — Cache-aware search_products (retrieval.py), semantic branch in products router
+  - [x] 02-04-PLAN.md — Admin product embedding + AI suggestion hooks, pet profile cache helpers
 
 ---
 
@@ -74,5 +74,5 @@ _Generated: 2026-04-29_
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Harden Foundation | 5/5 | Complete | 2026-04-29 |
-| 2. Build AI Core | 0/4 | Not started | - |
+| 2. Build AI Core | 4/4 | Complete | 2026-04-30 |
 | 3. Polish AI Demo | 0/0 | Not started | - |
