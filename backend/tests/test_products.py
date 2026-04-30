@@ -1,4 +1,5 @@
 """Tests for Products API — including new fields: category_name, target_species, attributes."""
+import os
 import pytest
 
 
@@ -24,6 +25,8 @@ class TestProductList:
         assert data["size"] == 5
 
     def test_search_filter(self, client):
+        if not os.getenv("OPENAI_API_KEY"):
+            pytest.skip("OPENAI_API_KEY not set — semantic search requires a real key")
         res = client.get("/api/v1/products/?q=cho")
         assert res.status_code == 200
         data = res.json()
