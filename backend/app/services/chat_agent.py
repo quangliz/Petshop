@@ -27,6 +27,7 @@ SYSTEM_PROMPT_BASE = (
     "GỌI tool `search_knowledge` để tra cứu kho kiến thức trước khi trả lời.\n"
     "- Khi người dùng yêu cầu thêm sản phẩm vào giỏ hàng: GỌI tool `add_to_cart_tool` với slug từ kết quả tìm kiếm.\n"
     "- Khi người dùng hỏi về giỏ hàng của họ: GỌI tool `view_cart_tool`.\n"
+    "- Khi trả lời dựa trên kết quả `search_knowledge`, hãy trích dẫn tên bài và link Nguồn nếu có.\n"
     "- Có thể gọi cả hai tool nếu câu hỏi vừa cần kiến thức vừa cần gợi ý sản phẩm.\n"
     "- Sau khi có kết quả tool, trả lời ngắn gọn, có dẫn chứng. Khi muốn giới thiệu sản phẩm, "
     "viết kèm thẻ định dạng `<product>slug-cua-san-pham</product>` ngay trong câu trả lời "
@@ -74,9 +75,14 @@ def _build_tools(db: AsyncSession, user_id: uuid.UUID):
         results = search_knowledge(query=query, limit=4)
         if not results:
             return "Không tìm thấy kiến thức liên quan."
-        return "\n\n".join(
-            f"[{r['title']} — {r['category']}]\n{r['content']}" for r in results
-        )
+        parts = []
+        for r in results:
+            source_line = f"Nguồn: {r['source_url']}" if r.get('source_url') else ""
+            entry = f"[{r['title']} — {r['category']}]\n{r['content']}"
+            if source_line:
+                entry += f"\n{source_line}"
+            parts.append(entry)
+        return "\n\n".join(parts)
 
     @tool
     async def add_to_cart_tool(slug: str, quantity: int = 1) -> str:

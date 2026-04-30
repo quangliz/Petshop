@@ -13,6 +13,7 @@ from app.models.chat import ChatSession, ChatMessage, ChatRoleEnum
 from app.models.user import Pet
 from app.models.catalog import Product
 from app.services.chat_agent import build_agent, build_system_prompt
+from app.services.pets_service import get_pet_profile_cached
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
@@ -137,15 +138,7 @@ async def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUse
         )
         pet = result.scalar_one_or_none()
         if pet:
-            pet_context = (
-                f"- Tên: {pet.name}\n"
-                f"- Loài: {pet.species.value}\n"
-                f"- Giống: {pet.breed or 'Không rõ'}\n"
-                f"- Tuổi: {pet.age_months or '?'} tháng\n"
-                f"- Cân nặng: {pet.weight_kg or '?'} kg\n"
-                f"- Ghi chú: {pet.health_notes or 'Không có'}\n"
-                f"- Dị ứng: {pet.allergies or 'Không có'}"
-            )
+            pet_context = await get_pet_profile_cached(pet)
 
     product_context = ""
     if req.product_slug:
