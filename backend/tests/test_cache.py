@@ -8,7 +8,7 @@ These tests require:
 Run: uv run pytest tests/test_cache.py -x -v
 """
 import pytest
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.main import app

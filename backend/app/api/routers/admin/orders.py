@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 import uuid
 
 from app.api.deps import SessionDep, AdminUser
-from app.models.commerce import Order, OrderStatusEnum, OrderItem, PaymentMethodEnum
+from app.models.commerce import Order, OrderStatusEnum, PaymentMethodEnum
 from app.models.catalog import Product
 
 router = APIRouter()

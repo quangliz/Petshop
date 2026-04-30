@@ -320,7 +320,7 @@ async def guest_order_lookup(
         .where(
             Order.guest_email == email,
             Order.order_code == order_code,
-            Order.user_id == None,
+            Order.user_id.is_(None),
         )
         .options(selectinload(Order.order_items))
     )

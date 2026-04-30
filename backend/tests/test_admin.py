@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 
 def test_admin_stats(client: TestClient, admin_headers: dict):

@@ -8,7 +8,6 @@ import uuid
 from sqlalchemy import select
 
 from app.api.deps import SessionDep, CurrentUser
-from app.services.pets_service import get_pet_profile_cached, _pet_profile_text
 from app.models.user import Pet, SpeciesEnum, GenderEnum
 from app.core.config import settings
 
