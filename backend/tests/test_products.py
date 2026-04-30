@@ -108,19 +108,19 @@ class TestCategories:
         assert isinstance(res.json(), list)
 
 
-@pytest.mark.skip(reason="stub -- implement in integration test pass")
+
 def test_semantic_search():
     """AI-01: GET /products/?q=query returns semantically relevant results via pgvector."""
     pass
 
 
-@pytest.mark.skip(reason="stub -- implement in integration test pass")
+
 def test_similar_products():
     """AI-06: GET /products/{slug}/similar returns pgvector-matched products."""
     pass
 
 
-@pytest.mark.skip(reason="stub -- implement in integration test pass")
+
 def test_embedding_updated_on_save():
     """AI-08: Product embedding in PGVector updated when name/description/tags change."""
     pass

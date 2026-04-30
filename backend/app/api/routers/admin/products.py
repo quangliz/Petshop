@@ -6,13 +6,20 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 from sqlalchemy import func, desc, select
 from sqlalchemy.orm import selectinload
+import asyncio
+import json
+import logging
 import uuid
 import cloudinary
 import cloudinary.uploader
 
+from app.services.indexing import reindex_one_product
+
 from app.api.deps import SessionDep, AdminUser
 from app.core.config import settings
 from app.models.catalog import Product, ProductVariant, ProductImage
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -138,7 +145,16 @@ async def admin_create_product(product_in: ProductCreate, db: SessionDep, _admin
     db.add(product)
     await db.commit()
     await db.refresh(product)
-    return {"id": str(product.id), "name": product.name, "slug": product.slug}
+    # AI-08: reindex embedding (fire-and-forget, non-blocking)
+    asyncio.create_task(_safe_reindex(product))
+    # AI-07: suggest compatible tags (awaited — returned in response body)
+    ai_suggestion = await suggest_product_tags(product.name, product.description or "")
+    return {
+        "id": str(product.id),
+        "name": product.name,
+        "slug": product.slug,
+        "ai_suggestion": ai_suggestion,
+    }
 
 
 @router.put("/products/{product_id}")
@@ -147,11 +163,19 @@ async def admin_update_product(product_id: str, product_in: ProductUpdate, db: S
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
-    for field, value in product_in.model_dump(exclude_unset=True).items():
+    update_data = product_in.model_dump(exclude_unset=True)
+    needs_reindex = bool(
+        update_data.keys() & {"name", "description", "brand", "target_species"}
+    )
+    for field, value in update_data.items():
         setattr(product, field, value)
     await db.commit()
     await db.refresh(product)
-    return {"id": str(product.id), "name": product.name}
+    ai_suggestion: dict = {}
+    if needs_reindex:
+        asyncio.create_task(_safe_reindex(product))
+        ai_suggestion = await suggest_product_tags(product.name, product.description or "")
+    return {"id": str(product.id), "name": product.name, "ai_suggestion": ai_suggestion}
 
 
 @router.delete("/products/{product_id}")
@@ -436,6 +460,40 @@ async def admin_sync_thumbnail(product_id: str, db: SessionDep, _admin: AdminUse
 
 
 # ─── AI Helper ────────────────────────────────────────────────────────────────
+async def suggest_product_tags(name: str, description: str) -> dict:
+    """Call OpenAI to suggest target_species, age_range, and tags for a product.
+
+    Returns dict with keys: target_species (list), age_range (str), tags (list).
+    Returns empty dict on any failure.
+    Inputs truncated to 500 chars each to prevent prompt injection.
+    """
+    llm = ChatOpenAI(
+        model=settings.CHAT_MODEL,
+        api_key=settings.OPENAI_API_KEY,
+        temperature=0,
+    )
+    prompt = (
+        f"Sản phẩm: {name[:500]}\nMô tả: {(description or '')[:500]}\n\n"
+        "Hãy gợi ý:\n"
+        "1. target_species: danh sách loài phù hợp (dog, cat, bird, fish, rabbit, hamster)\n"
+        "2. age_range: độ tuổi phù hợp (puppy/kitten, adult, senior, all)\n"
+        "3. tags: 3-5 thẻ mô tả ngắn\n"
+        'Trả về JSON thuần: {"target_species": [...], "age_range": "...", "tags": [...]}'
+    )
+    try:
+        result = await llm.ainvoke(prompt)
+        return json.loads(result.content)
+    except Exception:
+        logger.warning("AI tag suggestion failed for product %r", name)
+        return {}
+
+
+async def _safe_reindex(product: Product) -> None:
+    """Fire-and-forget wrapper around reindex_one_product with error logging."""
+    try:
+        await reindex_one_product(product)
+    except Exception:
+        logger.error("Failed to reindex product %s", product.id, exc_info=True)
 @router.post("/rewrite-markdown")
 async def admin_rewrite_markdown(body: RewriteMarkdownRequest, _admin: AdminUser) -> Any:
     if not body.text.strip():
