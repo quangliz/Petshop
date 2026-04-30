@@ -61,6 +61,20 @@ async def _has_purchased(db, user_id: UUID, product_id: UUID) -> bool:
     return result.scalar_one_or_none() is not None
 
 
+async def _recompute_rating(db: SessionDep, product_id: UUID) -> None:
+    """Recompute and persist avg_rating and review_count from the reviews table."""
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        return
+    agg = (await db.execute(
+        select(func.avg(Review.rating), func.count(Review.id))
+        .where(Review.product_id == product_id)
+    )).one()
+    product.avg_rating = round(float(agg[0]), 2) if agg[0] else None
+    product.review_count = agg[1]
+
+
 @router.post("/{product_id}/reviews", response_model=ReviewResponse)
 async def create_review(
     product_id: UUID, body: ReviewCreate, db: SessionDep, current_user: CurrentUser
@@ -91,12 +105,7 @@ async def create_review(
     db.add(review)
     await db.flush()
 
-    agg = (await db.execute(
-        select(func.avg(Review.rating), func.count(Review.id))
-        .where(Review.product_id == product_id)
-    )).one()
-    product.avg_rating = round(float(agg[0]), 2) if agg[0] else None
-    product.review_count = agg[1]
+    await _recompute_rating(db, product_id)
 
     await db.commit()
 
@@ -163,3 +172,24 @@ async def can_review(product_id: UUID, db: SessionDep, current_user: CurrentUser
         return {"can_review": False, "existing_review": _review_response(existing)}
     purchased = await _has_purchased(db, current_user.id, product_id)
     return {"can_review": purchased, "existing_review": None}
+
+
+@router.delete("/{product_id}/reviews/{review_id}", status_code=204)
+async def delete_review(
+    product_id: UUID, review_id: UUID, db: SessionDep, current_user: CurrentUser
+) -> None:
+    result = await db.execute(
+        select(Review).where(
+            Review.id == review_id,
+            Review.product_id == product_id,
+            Review.user_id == current_user.id,
+        )
+    )
+    review = result.scalar_one_or_none()
+    if not review:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đánh giá")
+
+    await db.delete(review)
+    await db.flush()
+    await _recompute_rating(db, product_id)
+    await db.commit()
