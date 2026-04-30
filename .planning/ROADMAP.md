@@ -59,12 +59,11 @@ _Generated: 2026-04-29_
   2. The AI references the user's pet breed and age when recommending products without being explicitly prompted
   3. Asking a health question (e.g. "can my dog eat grapes?") returns an answer that cites the knowledge base source document and links to relevant products
   4. A guest can retrieve their order by entering email + order code on the order lookup page
-**Plans**: 5 plans
-  - [ ] 01-01-PLAN.md — Security hardening (CORS, SECRET_KEY startup gate, auth rate limits, proxy-safe IP)
-  - [ ] 01-02-PLAN.md — DB pooling, performance indexes, collision-safe order codes
-  - [ ] 01-03-PLAN.md — Logged exception in indexing service, unify review_count field
-  - [ ] 01-04-PLAN.md — Split admin.py into 5 resource routers, server-side require_admin
-  - [ ] 01-05-PLAN.md — Commit untracked banner / knowledge / embeddings features (FEAT-03, FEAT-04)
+**Plans**: 4 plans
+  - [x] 03-01-PLAN.md — AI cart tools: add_to_cart_tool and view_cart_tool in chat agent (AI-04, AI-05)
+  - [x] 03-02-PLAN.md — Pet profile caching + knowledge source citations (AI-09, AI-10, AI-11)
+  - [ ] 03-03-PLAN.md — Guest checkout + order lookup page (FEAT-01, FEAT-02)
+  - [ ] 03-04-PLAN.md — Admin order status updates + review moderation (FEAT-05)
 **UI hint**: yes
 
 ---
@@ -75,4 +74,4 @@ _Generated: 2026-04-29_
 |-------|----------------|--------|-----------|
 | 1. Harden Foundation | 5/5 | Complete | 2026-04-29 |
 | 2. Build AI Core | 4/4 | Complete | 2026-04-30 |
-| 3. Polish AI Demo | 0/0 | Not started | - |
+| 3. Polish AI Demo | 2/4 | In progress | - |
