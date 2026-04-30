@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 def test_admin_stats(client: TestClient, admin_headers: dict):
@@ -61,3 +62,9 @@ def test_admin_list_orders(client: TestClient, admin_headers: dict):
     data = res.json()
     assert "total" in data
     assert "items" in data
+
+
+@pytest.mark.skip(reason="stub -- implement in integration test pass")
+def test_product_create_suggestion():
+    """AI-07: POST /admin/products returns ai_suggestion JSON in response body."""
+    pass
