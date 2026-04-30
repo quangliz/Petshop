@@ -20,6 +20,7 @@ SYSTEM_PROMPT_BASE = (
     "GỌI tool `search_products` để tìm sản phẩm trong cửa hàng.\n"
     "- Khi người dùng hỏi về dinh dưỡng, sức khỏe, huấn luyện, grooming, đặc điểm giống loài: "
     "GỌI tool `search_knowledge` để tra cứu kho kiến thức trước khi trả lời.\n"
+    "- Khi trả lời dựa trên kết quả `search_knowledge`, hãy trích dẫn tên bài và link Nguồn nếu có.\n"
     "- Có thể gọi cả hai tool nếu câu hỏi vừa cần kiến thức vừa cần gợi ý sản phẩm.\n"
     "- Sau khi có kết quả tool, trả lời ngắn gọn, có dẫn chứng. Khi muốn giới thiệu sản phẩm, "
     "viết kèm thẻ định dạng `<product>slug-cua-san-pham</product>` ngay trong câu trả lời "
@@ -67,9 +68,14 @@ def _build_tools(db: AsyncSession):
         results = search_knowledge(query=query, limit=4)
         if not results:
             return "Không tìm thấy kiến thức liên quan."
-        return "\n\n".join(
-            f"[{r['title']} — {r['category']}]\n{r['content']}" for r in results
-        )
+        parts = []
+        for r in results:
+            source_line = f"Nguồn: {r['source_url']}" if r.get('source_url') else ""
+            entry = f"[{r['title']} — {r['category']}]\n{r['content']}"
+            if source_line:
+                entry += f"\n{source_line}"
+            parts.append(entry)
+        return "\n\n".join(parts)
 
     return [search_products_tool, search_knowledge_tool]
 
