@@ -36,6 +36,7 @@ function CheckoutPage() {
   // Guest cart state
   const [guestItems, setGuestItems] = useState<GuestCartItem[]>([]);
   const [guestProducts, setGuestProducts] = useState<DisplayItem[]>([]);
+  const [guestEmail, setGuestEmail] = useState<string>('');
   const isGuest = !user;
 
   useEffect(() => {
@@ -92,6 +93,7 @@ function CheckoutPage() {
           ship_phone: form.phone,
           ship_address: form.address,
           note: form.note,
+          guest_email: guestEmail,
           payment_method: paymentMethod,
           items: guestItems,
         });
@@ -113,7 +115,7 @@ function CheckoutPage() {
         const vnpRes = await api.post(`/payments/vnpay/create/${order.id}`);
         window.location.href = vnpRes.data.payment_url;
       } else {
-        router.push(`/orders/${order.id}?guest=1`);
+        router.push(`/orders/${order.id}?guest=1&order_code=${order.order_code}`);
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
@@ -148,6 +150,19 @@ function CheckoutPage() {
               Thông tin nhận hàng
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+              {isGuest && (
+                <div className="sm:col-span-2">
+                  <label htmlFor="guest-email" style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Email (để tra cứu đơn hàng sau)</label>
+                  <input
+                    id="guest-email"
+                    type="email"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    style={{ width: '100%', padding: '14px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }}
+                  />
+                </div>
+              )}
               <div className="sm:col-span-2">
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Họ và tên người nhận</label>
                 <div style={{ position: 'relative' }}>
