@@ -63,10 +63,10 @@ Source: 8-point scale default; exceptions from AI chat widget context (CONTEXT.m
 
 Notes:
 - Vietnamese text renders correctly at 16px/1.5 — do not reduce below 14px for any body copy.
-- Chat message bubbles: 15px / weight 400 / line-height 1.6 (slightly looser for readability in conversational context). This is the only body-text exception.
+- Chat message bubbles: 16px / weight 400 / line-height 1.6 (looser line-height for conversational readability; same size as body).
 - Error and empty-state copy: 14px / weight 400.
 
-Source: globals.css `.btn` pattern (14px/600) + body default (16px/400); chat exception from CONTEXT.md `<specifics>`.
+Source: globals.css `.btn` pattern (14px/600) + body default (16px/400); chat line-height from CONTEXT.md `<specifics>`.
 
 ---
 
@@ -93,6 +93,19 @@ AI accent (teal) reserved for:
 - Streaming cursor / loading indicator inside chat
 
 Source: `globals.css` color palette (detected); teal-as-AI convention from existing `.badge-ai` class + CONTEXT.md AI-11 (knowledge base citations).
+
+---
+
+## Visual Hierarchy & Focal Points
+
+| Screen / State | Primary Focal Point | Rationale |
+|----------------|--------------------|-----------| 
+| `/tra-cuu-don-hang` (initial) | Two-field form (email + order code) centered in the content column, with the orange "Tra cuu" button immediately below | The entire page exists to accept lookup input; nothing else competes |
+| `/tra-cuu-don-hang` (result) | Order detail panel rendered inline below the form | Form remains visible but visually subordinate (reduced opacity or separator line); order detail is the new focal point |
+| ChatWidget open state | Message input bar at the bottom of the widget | Fixed position, accent-bordered on focus, 44px touch target — draws the eye after reading the message history above |
+| ChatWidget message list | Most recent AI message (bottom of scroll area) | Auto-scroll on new message ensures latest content is always in view |
+
+Source: checker flag (Dimension 2) — no focal point declared in prior draft; declared here per interaction states defined in CONTEXT.md D-03, D-05.
 
 ---
 
@@ -134,9 +147,9 @@ Source: CONTEXT.md D-03, D-05, D-07, AI-11; `<specifics>` section.
 
 | State | Visual |
 |-------|--------|
-| Initial | Two inputs (email, order code) + "Tra cuu" primary button. Both fields required. |
+| Initial | Two inputs (email, order code) + "Tra cuu" primary button. Both fields required. Focal point: the form. |
 | Loading | Button shows spinner, disabled. Inputs disabled. |
-| Success | Order detail panel renders inline below the form. Form remains visible (allow re-lookup). |
+| Success | Order detail panel renders inline below the form. Form remains visible (allow re-lookup). Focal point shifts to order detail panel. |
 | Not found | Inline error below form (no toast): Vietnamese error copy (see Copywriting Contract). |
 | Network error | Inline error: Vietnamese generic error copy (see Copywriting Contract). |
 
