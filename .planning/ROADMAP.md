@@ -7,7 +7,7 @@ _Generated: 2026-04-29_
 
 - [x] **Phase 1: Harden Foundation** - Fix security, reliability, and code quality issues; commit all untracked features
 - [x] **Phase 2: Build AI Core** - Implement semantic search, embedding pipeline, and LangGraph cart tools
-- [ ] **Phase 3: Polish AI Demo** - Complete AI integration polish and feature completeness for thesis demo
+- [x] **Phase 3: Polish AI Demo** - Complete AI integration polish and feature completeness for thesis demo
 
 ---
 
@@ -62,8 +62,8 @@ _Generated: 2026-04-29_
 **Plans**: 4 plans
   - [x] 03-01-PLAN.md — AI cart tools: add_to_cart_tool and view_cart_tool in chat agent (AI-04, AI-05)
   - [x] 03-02-PLAN.md — Pet profile caching + knowledge source citations (AI-09, AI-10, AI-11)
-  - [ ] 03-03-PLAN.md — Guest checkout + order lookup page (FEAT-01, FEAT-02)
-  - [ ] 03-04-PLAN.md — Admin order status updates + review moderation (FEAT-05)
+  - [x] 03-03-PLAN.md — Guest checkout + order lookup page (FEAT-01, FEAT-02)
+  - [x] 03-04-PLAN.md — Admin order status updates + review moderation (FEAT-05)
 **UI hint**: yes
 
 ---
@@ -74,4 +74,4 @@ _Generated: 2026-04-29_
 |-------|----------------|--------|-----------|
 | 1. Harden Foundation | 5/5 | Complete | 2026-04-29 |
 | 2. Build AI Core | 4/4 | Complete | 2026-04-30 |
-| 3. Polish AI Demo | 2/4 | In progress | - |
+| 3. Polish AI Demo | 4/4 | Complete | 2026-04-30 |
