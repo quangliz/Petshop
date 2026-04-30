@@ -8,6 +8,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.core.config import settings
 from app.core.limiter import limiter
+from app.core.redis_client import close_redis
 
 _SECRET_KEY_SENTINEL = "CHANGE_ME_IN_PRODUCTION"
 
@@ -36,6 +37,7 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     yield
     await engine.dispose()
+    await close_redis()
 
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
