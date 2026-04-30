@@ -98,6 +98,30 @@ async def reindex_products(db: AsyncSession) -> int:
     return len(docs)
 
 
+async def reindex_one_product(product: Product) -> None:
+    """Incrementally re-embed a single product. Safe to call fire-and-forget.
+
+    Deletes old PGVector entry by product.id, then inserts fresh embedding.
+    Does NOT require a db session — the PGVector store manages its own connection.
+    """
+    doc = Document(
+        page_content=_product_source_text(product),
+        metadata={
+            "product_id": str(product.id),
+            "slug": product.slug,
+            "name": product.name,
+            "brand": product.brand,
+            "target_species": product.target_species or [],
+        },
+    )
+    store = get_products_store()
+    try:
+        await asyncio.to_thread(store.delete, ids=[str(product.id)])
+    except Exception:  # noqa: BLE001
+        logger.warning("Could not delete old embedding for product %s", product.id)
+    await asyncio.to_thread(store.add_documents, [doc], ids=[str(product.id)])
+
+
 def _knowledge_chunks(doc: KnowledgeDoc) -> tuple[list[str], list[Document]]:
     ids: list[str] = []
     documents: list[Document] = []

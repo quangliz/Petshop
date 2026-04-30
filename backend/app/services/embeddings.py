@@ -1,7 +1,12 @@
+import asyncio
+import hashlib
+import json
+
 from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
 
 from app.core.config import settings
+from app.core.redis_client import get_redis
 from app.database import SQLALCHEMY_DATABASE_URL
 
 PRODUCTS_COLLECTION = "petshop_products"
@@ -54,3 +59,23 @@ def get_knowledge_store() -> PGVector:
     if _knowledge_store is None:
         _knowledge_store = _build_store(KNOWLEDGE_COLLECTION)
     return _knowledge_store
+
+
+QUERY_EMB_TTL = 3600  # 1 hour — AI-02 requirement
+
+
+async def embed_query_cached(query: str) -> list[float]:
+    """Embed query string with Redis caching (TTL=1h).
+
+    Cache key: emb:query:{sha256(query)}
+    On cache hit: return cached vector, skip OpenAI call.
+    On cache miss: call OpenAI via asyncio.to_thread (sync embed_query), store result.
+    """
+    key = f"emb:query:{hashlib.sha256(query.encode()).hexdigest()}"
+    r = await get_redis()
+    cached = await r.get(key)
+    if cached:
+        return json.loads(cached)
+    embedding: list[float] = await asyncio.to_thread(get_embedder().embed_query, query)
+    await r.set(key, json.dumps(embedding), ex=QUERY_EMB_TTL)
+    return embedding
