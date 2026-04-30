@@ -33,6 +33,7 @@ class GuestCheckoutRequest(BaseModel):
     ship_address: str
     payment_method: str
     note: str | None = None
+    guest_email: str | None = None
     items: list[GuestCartItem]
 
 
@@ -186,6 +187,7 @@ async def guest_checkout(req: GuestCheckoutRequest, db: SessionDep) -> Any:
         payment_method=pm,
         payment_status=PaymentStatusEnum.unpaid,
         note=req.note,
+        guest_email=req.guest_email,
     )
     db.add(new_order)
     await db.flush()
@@ -301,3 +303,55 @@ async def cancel_order(order_id: str, db: SessionDep, current_user: CurrentUser)
     order.status = OrderStatusEnum.cancelled
     await db.commit()
     return {"message": "Huỷ đơn hàng thành công"}
+
+
+@router.get("/guest-lookup", response_model=dict)
+async def guest_order_lookup(
+    email: str,
+    order_code: str,
+    db: SessionDep,
+) -> Any:
+    """Look up a guest order by email and order code. No authentication required."""
+    if not email or not order_code:
+        raise HTTPException(status_code=400, detail="Email và mã đơn hàng là bắt buộc")
+
+    result = await db.execute(
+        select(Order)
+        .where(
+            Order.guest_email == email,
+            Order.order_code == order_code,
+            Order.user_id == None,
+        )
+        .options(selectinload(Order.order_items))
+    )
+    order = result.scalar_one_or_none()
+    if not order:
+        raise HTTPException(
+            status_code=404,
+            detail="Không tìm thấy đơn hàng với thông tin đã nhập."
+        )
+
+    items = [
+        {
+            "product_name": oi.product_name_snapshot,
+            "quantity": oi.quantity,
+            "price": float(oi.unit_price_snapshot),
+        }
+        for oi in order.order_items
+    ]
+
+    return {
+        "id": str(order.id),
+        "order_code": order.order_code,
+        "status": order.status.value,
+        "total": float(order.total),
+        "shipping_fee": float(order.shipping_fee),
+        "subtotal": float(order.subtotal),
+        "ship_name": order.ship_name,
+        "ship_phone": order.ship_phone,
+        "ship_address": order.ship_address,
+        "payment_method": order.payment_method.value,
+        "payment_status": order.payment_status.value,
+        "items": items,
+        "created_at": order.created_at,
+    }
