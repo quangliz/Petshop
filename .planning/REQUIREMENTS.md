@@ -1,58 +1,40 @@
 # Requirements — PetShop AI (DATN)
 
-_Generated: 2026-04-29_
-_Source: Codebase map + project questioning_
+_Updated: 2026-05-01 — Milestone v1.1: UI/UX Polish_
 
 ---
 
-## v1 Requirements
+## v1.1 Requirements
 
-### Security
+### Loading & Error States
 
-- [ ] **SEC-01**: CORS is restricted to known origins (not wildcard) with credentials allowed only for those origins
-- [ ] **SEC-02**: `SECRET_KEY` is validated at startup — app refuses to start if not set in environment
-- [ ] **SEC-03**: Admin routes are protected server-side (JWT role claim verified in backend dependency, not just client-side)
-- [ ] **SEC-04**: Auth endpoints (login, register, password reset) are rate-limited with `@limiter.limit()`
+- [ ] **UX-01**: Product listing pages display skeleton cards while data is loading (no layout shift on load)
+- [ ] **UX-02**: Product detail page displays skeleton for image, title, price, and description while loading
+- [ ] **UX-03**: Cart page displays skeleton rows while cart items are fetching
+- [ ] **UX-04**: Orders / order history page displays skeleton rows while orders are loading
+- [ ] **UX-05**: Add-to-cart button shows a spinner and is disabled while the mutation is in flight
+- [ ] **UX-06**: Checkout form submit button shows a spinner and is disabled while the order is being created
+- [ ] **UX-07**: Auth forms (login, register) show spinner on submit and disable the button during the request
+- [ ] **UX-08**: Empty cart state shows an illustration and a call-to-action link to browse products
+- [ ] **UX-09**: No orders state shows a message and a link to start shopping
+- [ ] **UX-10**: No search results state shows a helpful message and suggestions
+- [ ] **UX-11**: API errors (add to cart, checkout, login) surface as error toasts (react-hot-toast or shadcn/ui toast)
+- [ ] **UX-12**: Form validation errors are shown inline beneath the relevant field (react-hook-form + zod)
 
-### Reliability & Performance
+### Responsive / Mobile
 
-- [ ] **PERF-01**: Database indexes exist on all high-query columns (product slug, category id, user id FKs, order status, review product_id)
-- [ ] **PERF-02**: Database connection pooling is enabled (QueuePool, not NullPool)
-- [ ] **PERF-03**: `request.client.host` in payments router is safe behind a proxy (uses `X-Forwarded-For` with fallback)
-- [ ] **PERF-04**: Silent `except Exception: pass` blocks are replaced with logged error handling
-- [ ] **PERF-05**: Order code generation is collision-safe under concurrent requests
+- [ ] **RES-01**: Header has a hamburger menu on mobile that opens a slide-in navigation drawer
+- [ ] **RES-02**: Product grid switches from multi-column to single-column layout on small screens
+- [ ] **RES-03**: Product detail page layout stacks image and info vertically on mobile
+- [ ] **RES-04**: Cart page is fully functional and readable on mobile (item rows, quantity controls, total)
+- [ ] **RES-05**: Checkout form is usable on mobile (single-column layout, touch-friendly inputs)
+- [ ] **RES-06**: Admin dashboard pages are readable on tablet (>=768px) — tables scroll horizontally if needed
 
-### Feature Completeness
+---
 
-- [ ] **FEAT-01**: COD orders increment `sold_count` on the product (currently only VNPay IPN does this)
-- [ ] **FEAT-02**: `avg_rating` and `review_count` are consistent — recomputed from actual review data, not only incremented
-- [ ] **FEAT-03**: Banner management is fully committed and functional (frontend + backend)
-- [ ] **FEAT-04**: Knowledge base admin UI is committed and functional
-- [ ] **FEAT-05**: Guest order lookup works (user can find their guest order by email + order code)
+## v1 Requirements (completed in v1.0)
 
-### Code Quality
-
-- [ ] **CODE-01**: `admin.py` (907 lines) is split into resource-specific sub-routers
-- [ ] **CODE-02**: Backend is consistently async throughout (no sync SQLAlchemy calls mixed with async session)
-- [ ] **CODE-03**: `_product_dict_with_rating` no-op is removed or made functional
-- [ ] **CODE-04**: Dual `reviews_count` / `review_count` field names are unified in frontend types
-
-### AI — Core Demo Features
-
-- [ ] **AI-01**: Semantic product search replaces keyword search — query is embedded and compared to product embeddings via pgvector
-- [ ] **AI-02**: Query embeddings for semantic search are cached in Redis (TTL 1h) to avoid re-embedding identical queries
-- [ ] **AI-03**: Pet profile embeddings are cached in Redis (keyed by `pet_id + profile_hash`, invalidated on profile update)
-- [ ] **AI-04**: LangGraph agent has `add_to_cart` tool — user can add a product to cart via chat message
-- [ ] **AI-05**: LangGraph agent has `view_cart` tool — user can ask "what's in my cart?" and get a response
-- [ ] **AI-06**: Similar products section on product detail page is powered by pgvector embedding similarity (precomputed on product save)
-- [ ] **AI-07**: Admin product create/update triggers OpenAI call to suggest compatible pet types, age range, and tags
-- [ ] **AI-08**: Product embeddings are recomputed and stored whenever a product's name, description, or tags change
-
-### AI — Polish & Integration
-
-- [ ] **AI-09**: Chat agent uses pet profile context (breed, age, health notes) when generating recommendations
-- [ ] **AI-10**: Chat agent responses include product links (name + URL) when recommending products
-- [ ] **AI-11**: Knowledge base Q&A (health questions) correctly cites source documents and links to relevant products
+All v1.0 requirements (SEC, PERF, FEAT, CODE, AI) are complete. See git history for traceability.
 
 ---
 
@@ -66,6 +48,8 @@ _Source: Codebase map + project questioning_
 - Mobile app
 - Reorder reminder / subscription system
 - Review sentiment summary (AI-generated pros/cons per product)
+- Chat widget UI polish (typing indicators, product cards in chat)
+- Vietnamese copy & branding overhaul
 
 ---
 
@@ -76,6 +60,7 @@ _Source: Codebase map + project questioning_
 - **Care schedule** — explicitly excluded by user
 - **Payment beyond VNPay sandbox** — not required for thesis
 - **Mobile app** — web only
+- **Chat widget redesign** — deferred to v2
 
 ---
 
@@ -83,32 +68,21 @@ _Source: Codebase map + project questioning_
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | Phase 1 | Pending |
-| SEC-02 | Phase 1 | Pending |
-| SEC-03 | Phase 1 | Pending |
-| SEC-04 | Phase 1 | Pending |
-| PERF-01 | Phase 1 | Pending |
-| PERF-02 | Phase 1 | Pending |
-| PERF-03 | Phase 1 | Pending |
-| PERF-04 | Phase 1 | Pending |
-| PERF-05 | Phase 1 | Pending |
-| CODE-01 | Phase 1 | Pending |
-| CODE-02 | Phase 1 | Pending |
-| CODE-03 | Phase 1 | Pending |
-| CODE-04 | Phase 1 | Pending |
-| FEAT-03 | Phase 1 | Pending |
-| FEAT-04 | Phase 1 | Pending |
-| AI-01 | Phase 2 | Pending |
-| AI-02 | Phase 2 | Pending |
-| AI-03 | Phase 2 | Pending |
-| AI-06 | Phase 2 | Pending |
-| AI-07 | Phase 2 | Pending |
-| AI-08 | Phase 2 | Pending |
-| AI-04 | Phase 3 | Pending |
-| AI-05 | Phase 3 | Pending |
-| AI-09 | Phase 3 | Pending |
-| AI-10 | Phase 3 | Pending |
-| AI-11 | Phase 3 | Pending |
-| FEAT-01 | Phase 3 | Pending |
-| FEAT-02 | Phase 3 | Pending |
-| FEAT-05 | Phase 3 | Pending |
+| UX-01 | TBD | Pending |
+| UX-02 | TBD | Pending |
+| UX-03 | TBD | Pending |
+| UX-04 | TBD | Pending |
+| UX-05 | TBD | Pending |
+| UX-06 | TBD | Pending |
+| UX-07 | TBD | Pending |
+| UX-08 | TBD | Pending |
+| UX-09 | TBD | Pending |
+| UX-10 | TBD | Pending |
+| UX-11 | TBD | Pending |
+| UX-12 | TBD | Pending |
+| RES-01 | TBD | Pending |
+| RES-02 | TBD | Pending |
+| RES-03 | TBD | Pending |
+| RES-04 | TBD | Pending |
+| RES-05 | TBD | Pending |
+| RES-06 | TBD | Pending |
