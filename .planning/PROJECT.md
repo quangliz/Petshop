@@ -123,6 +123,16 @@ An admin can:
 
 ---
 
+## Current Milestone: v1.1 UI/UX Polish
+
+**Goal:** Make the storefront and checkout experience feel production-grade with proper loading states, error handling, and mobile-responsive layouts throughout the app.
+
+**Target features:**
+- Loading & error states — skeletons, spinners, empty states, error toasts across all pages
+- Responsive / Mobile — all pages work well on mobile screens
+
+---
+
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
@@ -135,4 +145,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-04-29 after Phase 1 completion*
+*Last updated: 2026-05-01 — Milestone v1.1 started*
