@@ -68,21 +68,21 @@ All v1.0 requirements (SEC, PERF, FEAT, CODE, AI) are complete. See git history 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UX-01 | TBD | Pending |
-| UX-02 | TBD | Pending |
-| UX-03 | TBD | Pending |
-| UX-04 | TBD | Pending |
-| UX-05 | TBD | Pending |
-| UX-06 | TBD | Pending |
-| UX-07 | TBD | Pending |
-| UX-08 | TBD | Pending |
-| UX-09 | TBD | Pending |
-| UX-10 | TBD | Pending |
-| UX-11 | TBD | Pending |
-| UX-12 | TBD | Pending |
-| RES-01 | TBD | Pending |
-| RES-02 | TBD | Pending |
-| RES-03 | TBD | Pending |
-| RES-04 | TBD | Pending |
-| RES-05 | TBD | Pending |
-| RES-06 | TBD | Pending |
+| UX-01 | Phase 4 | Pending |
+| UX-02 | Phase 4 | Pending |
+| UX-03 | Phase 4 | Pending |
+| UX-04 | Phase 4 | Pending |
+| UX-05 | Phase 5 | Pending |
+| UX-06 | Phase 5 | Pending |
+| UX-07 | Phase 5 | Pending |
+| UX-08 | Phase 5 | Pending |
+| UX-09 | Phase 5 | Pending |
+| UX-10 | Phase 5 | Pending |
+| UX-11 | Phase 5 | Pending |
+| UX-12 | Phase 5 | Pending |
+| RES-01 | Phase 6 | Pending |
+| RES-02 | Phase 6 | Pending |
+| RES-03 | Phase 6 | Pending |
+| RES-04 | Phase 6 | Pending |
+| RES-05 | Phase 6 | Pending |
+| RES-06 | Phase 6 | Pending |

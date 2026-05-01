@@ -75,3 +75,72 @@ _Generated: 2026-04-29_
 | 1. Harden Foundation | 5/5 | Complete | 2026-04-29 |
 | 2. Build AI Core | 4/4 | Complete | 2026-04-30 |
 | 3. Polish AI Demo | 4/4 | Complete | 2026-04-30 |
+
+---
+
+---
+
+# Roadmap — PetShop AI (DATN)
+
+_Milestone v1.1: UI/UX Polish_
+_Generated: 2026-05-01_
+
+## Phases
+
+- [ ] **Phase 4: Loading States** - Skeleton loaders for all data-fetching pages; no layout shift on load
+- [ ] **Phase 5: Feedback & Empty States** - Action spinners, empty state screens, error toasts, and inline form validation
+- [ ] **Phase 6: Responsive Layout** - Mobile-first nav, product grid/detail, cart/checkout, and admin tablet support
+
+---
+
+## Phase Details
+
+### Phase 4: Loading States
+**Goal**: Every page that fetches data shows a skeleton placeholder instantly — users never see a blank or broken layout while waiting for the network
+**Depends on**: Phase 3 (v1.0 complete)
+**Requirements**: UX-01, UX-02, UX-03, UX-04
+**Success Criteria** (what must be TRUE):
+  1. Visiting the product listing page shows skeleton cards in the grid before real products arrive — no blank grid or layout jump
+  2. Opening a product detail page shows placeholder shapes for the image, title, price, and description while loading
+  3. Navigating to the cart shows skeleton rows for each item slot before cart data arrives
+  4. Opening order history shows skeleton rows while the orders request is in flight
+**Plans**: TBD
+**UI hint**: yes
+
+---
+
+### Phase 5: Feedback & Empty States
+**Goal**: Every user action and error condition has visible, clear feedback — users always know whether an action succeeded, failed, or produced no results
+**Depends on**: Phase 4
+**Requirements**: UX-05, UX-06, UX-07, UX-08, UX-09, UX-10, UX-11, UX-12
+**Success Criteria** (what must be TRUE):
+  1. Clicking "Add to cart", submitting checkout, or submitting auth forms disables the button and shows a spinner for the duration of the request
+  2. An empty cart, no orders, and a no-results search each display a distinct illustration or message with a call-to-action link
+  3. API errors (add to cart, checkout, login failures) trigger a visible toast notification with a short error message
+  4. Submitting a form with invalid data shows inline error messages beneath the relevant fields without a page reload
+**Plans**: TBD
+**UI hint**: yes
+
+---
+
+### Phase 6: Responsive Layout
+**Goal**: Every storefront page and the admin dashboard are fully functional and readable on mobile phones and tablets without horizontal overflow or broken controls
+**Depends on**: Phase 5
+**Requirements**: RES-01, RES-02, RES-03, RES-04, RES-05, RES-06
+**Success Criteria** (what must be TRUE):
+  1. On a mobile viewport, the header collapses to a hamburger icon that opens a slide-in navigation drawer covering all main links
+  2. The product grid collapses to a single column on small screens; the product detail page stacks image above info vertically
+  3. The cart and checkout pages are fully operable on mobile — quantity controls, item removal, and form inputs are touch-friendly
+  4. Admin dashboard tables on a tablet (>=768px) scroll horizontally rather than overflowing or wrapping into an unreadable layout
+**Plans**: TBD
+**UI hint**: yes
+
+---
+
+## Progress Table
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 4. Loading States | 0/TBD | Not started | - |
+| 5. Feedback & Empty States | 0/TBD | Not started | - |
+| 6. Responsive Layout | 0/TBD | Not started | - |
