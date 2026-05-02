@@ -13,8 +13,10 @@ interface User {
 interface AuthState {
   user: User | null;
   token: string | null;
+  isLoading: boolean;
   setAuth: (user: User, token: string) => void;
   setUser: (user: User | null) => void;
+  setLoading: (v: boolean) => void;
   logout: () => void;
 }
 
@@ -37,14 +39,16 @@ export const useViewingProductStore = create<ViewingProductState>((set) => ({
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
+  isLoading: false,
   setAuth: (user, token) => {
     if (typeof window !== 'undefined') localStorage.setItem('token', token);
-    set({ user, token });
+    set({ user, token, isLoading: false });
   },
-  setUser: (user) => set({ user }),
+  setUser: (user) => set({ user, isLoading: false }),
+  setLoading: (v) => set({ isLoading: v }),
   logout: () => {
     api.post('/auth/logout').catch(() => {});
     if (typeof window !== 'undefined') localStorage.removeItem('token');
-    set({ user: null, token: null });
+    set({ user: null, token: null, isLoading: false });
   },
 }));

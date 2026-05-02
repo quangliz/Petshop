@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { X, Send, User, ChevronDown, Plus, History, ArrowLeft } from "lucide-react";
+import { X, Send, User, Plus, History, ArrowLeft, Phone, Mail } from "lucide-react";
 import { useAuthStore, useViewingProductStore } from "@/lib/store";
 import CatbotLogo from "./CatbotLogo";
 import { useQuery } from "@tanstack/react-query";
@@ -95,7 +95,15 @@ function renderInlineContent(content: string, products: ChatProduct[] | undefine
 export default function ChatWidget() {
   const { user } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [view, setView] = useState<"chat" | "history">("chat");
+  const closePanel = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+    setTimeout(() => { setIsOpen(false); setIsClosing(false); }, isMobile ? 280 : 200);
+  };
+  const togglePanel = () => { if (isOpen) closePanel(); else setIsOpen(true); };
 
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
@@ -179,7 +187,11 @@ export default function ChatWidget() {
         }),
       });
 
-      if (!response.ok) throw new Error("Lấy phản hồi thất bại");
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        console.error("Chat stream error", response.status, errText);
+        throw new Error(`HTTP ${response.status}: ${errText || "Lấy phản hồi thất bại"}`);
+      }
       if (!response.body) return;
 
       const reader = response.body.getReader();
@@ -249,17 +261,20 @@ export default function ChatWidget() {
       }
     } catch (e) {
       console.error("Chat Error:", e);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: `⚠️ Lỗi: ${e instanceof Error ? e.message : "Không thể kết nối tới máy chủ."}` },
+      ]);
     } finally {
       setIsTyping(false);
     }
   };
 
   return (
-    <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-[1000] flex flex-col items-end gap-4">
+    <div className="fixed bottom-[76px] right-4 md:bottom-8 md:right-8 z-[1000] flex flex-col items-end gap-4">
       {isOpen && (
-        <div className="card fixed inset-0 z-[1001] md:static md:w-[400px] md:h-[600px] flex flex-col overflow-hidden bg-white rounded-none md:rounded-2xl" style={{
+        <div className={`card chat-panel ${isClosing ? "chat-panel-closing" : ""} w-[calc(100vw-2rem)] h-[calc(100dvh-164px)] md:w-[400px] md:h-[600px] flex flex-col overflow-hidden bg-white rounded-2xl`} style={{
           boxShadow: "0 20px 40px rgba(26, 24, 20, 0.15)",
-          animation: "chat-appear 240ms cubic-bezier(0.2, 1, 0.3, 1)",
         }}>
           {/* Header */}
           <div style={{
@@ -293,7 +308,6 @@ export default function ChatWidget() {
                   <button onClick={() => { setView("history"); refetchSessions(); }} title="Lịch sử" style={iconBtnStyle}><History size={16} /></button>
                 </>
               )}
-              <button onClick={() => setIsOpen(false)} style={iconBtnStyle}><ChevronDown size={18} /></button>
             </div>
           </div>
 
@@ -387,10 +401,10 @@ export default function ChatWidget() {
                     <div style={{ width: 30, height: 30, borderRadius: 10, background: "var(--teal-100)", color: "var(--teal-600)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <CatbotLogo size={18} />
                     </div>
-                    <div style={{ padding: "10px 14px", background: "white", borderRadius: 14, borderBottomLeftRadius: 4, display: "flex", gap: 4, alignItems: "center" }}>
-                      <span className="dot-blink" style={{ width: 6, height: 6, borderRadius: 3, background: "var(--teal-300)" }} />
-                      <span className="dot-blink" style={{ width: 6, height: 6, borderRadius: 3, background: "var(--teal-300)", animationDelay: "200ms" }} />
-                      <span className="dot-blink" style={{ width: 6, height: 6, borderRadius: 3, background: "var(--teal-300)", animationDelay: "400ms" }} />
+                    <div style={{ padding: "10px 14px", background: "white", borderRadius: 14, borderBottomLeftRadius: 4, boxShadow: "var(--shadow-sm)", border: "1px solid var(--neutral-100)", display: "flex", gap: 5, alignItems: "center" }}>
+                      <span className="dot-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="dot-bounce" style={{ animationDelay: "160ms" }} />
+                      <span className="dot-bounce" style={{ animationDelay: "320ms" }} />
                     </div>
                   </div>
                 )}
@@ -420,33 +434,97 @@ export default function ChatWidget() {
         </div>
       )}
 
-      {/* Toggle Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 md:w-16 md:h-16 rounded-[20px] md:rounded-3xl text-white border-none cursor-pointer flex items-center justify-center transition-all"
-        style={{
-          background: isOpen ? "var(--neutral-900)" : "linear-gradient(135deg, var(--teal-500) 0%, var(--teal-600) 100%)",
-          boxShadow: "0 12px 24px rgba(13, 148, 136, 0.3)",
-          transform: isOpen ? "rotate(90deg)" : "none",
-        }}
-        onMouseEnter={(e) => { if (!isOpen) e.currentTarget.style.transform = "translateY(-4px)"; }}
-        onMouseLeave={(e) => { if (!isOpen) e.currentTarget.style.transform = "none"; }}
-      >
-        {isOpen ? <X size={28} /> : <CatbotLogo size={34} />}
-      </button>
+      {/* Bottom row: contacts + toggle */}
+      <div className="flex items-center gap-3">
+        {isOpen && !isClosing && (
+          <>
+            <a href="mailto:contact@petshop.dev" aria-label="Email"
+              className="contact-btn contact-btn-3 w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white shadow-md transition-transform duration-200 ease-out hover:scale-125 active:scale-95"
+              style={{ background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)" }}>
+              <Mail size={18} />
+            </a>
+            <a href="tel:+84000000000" aria-label="Phone"
+              className="contact-btn contact-btn-2 w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white shadow-md transition-transform duration-200 ease-out hover:scale-125 active:scale-95"
+              style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)" }}>
+              <Phone size={18} />
+            </a>
+            <a href="https://zalo.me/" target="_blank" rel="noreferrer" aria-label="Zalo"
+              className="contact-btn contact-btn-1 w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white font-extrabold shadow-md transition-transform duration-200 ease-out hover:scale-125 active:scale-95"
+              style={{ background: "linear-gradient(135deg, #2188ff 0%, #0068ff 100%)", fontSize: 14, letterSpacing: "-0.02em" }}>
+              Zalo
+            </a>
+          </>
+        )}
+
+        {/* Toggle Button */}
+        <button
+          onClick={togglePanel}
+          className="w-14 h-14 md:w-16 md:h-16 rounded-[20px] md:rounded-3xl text-white border-none cursor-pointer flex items-center justify-center transition-all duration-200 ease-out hover:scale-105 active:scale-95"
+          style={{
+            background: isOpen ? "var(--neutral-900)" : "linear-gradient(135deg, var(--teal-500) 0%, var(--teal-600) 100%)",
+            boxShadow: "0 12px 24px rgba(13, 148, 136, 0.3)",
+            transform: isOpen ? "rotate(90deg)" : "none",
+          }}
+          onMouseEnter={(e) => { if (!isOpen) e.currentTarget.style.transform = "translateY(-4px)"; }}
+          onMouseLeave={(e) => { if (!isOpen) e.currentTarget.style.transform = "none"; }}
+        >
+          {isOpen ? <X size={28} /> : <CatbotLogo size={34} />}
+        </button>
+      </div>
 
       <style jsx>{`
+        .chat-panel {
+          animation: chat-slide-up 320ms cubic-bezier(0.22, 1, 0.36, 1);
+          will-change: transform, opacity;
+        }
+        .chat-panel.chat-panel-closing {
+          animation: chat-slide-down 280ms cubic-bezier(0.4, 0, 1, 1) forwards;
+        }
+        @keyframes chat-slide-up {
+          from { opacity: 0; transform: translateY(100%); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes chat-slide-down {
+          from { opacity: 1; transform: translateY(0); }
+          to { opacity: 0; transform: translateY(100%); }
+        }
+        @media (min-width: 768px) {
+          .chat-panel {
+            animation: chat-appear 240ms cubic-bezier(0.2, 1, 0.3, 1);
+          }
+          .chat-panel.chat-panel-closing {
+            animation: chat-disappear 200ms cubic-bezier(0.4, 0, 1, 1) forwards;
+          }
+        }
         @keyframes chat-appear {
           from { opacity: 0; transform: translateY(20px) scale(0.95); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        .dot-blink {
-          animation: dot-blink 1.4s infinite both;
+        .contact-btn {
+          animation: contact-slide-in 360ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
         }
-        @keyframes dot-blink {
-          0% { opacity: 0.2; }
-          20% { opacity: 1; }
-          100% { opacity: 0.2; }
+        .contact-btn-1 { animation-delay: 60ms; }
+        .contact-btn-2 { animation-delay: 140ms; }
+        .contact-btn-3 { animation-delay: 220ms; }
+        @keyframes contact-slide-in {
+          from { opacity: 0; transform: translateX(40px) scale(0.6); }
+          to { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        @keyframes chat-disappear {
+          from { opacity: 1; transform: translateY(0) scale(1); }
+          to { opacity: 0; transform: translateY(20px) scale(0.95); }
+        }
+        .dot-bounce {
+          display: inline-block;
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: var(--teal-500);
+          animation: dot-bounce 1.2s ease-in-out infinite both;
+        }
+        @keyframes dot-bounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+          40% { transform: translateY(-6px); opacity: 1; }
         }
       `}</style>
     </div>

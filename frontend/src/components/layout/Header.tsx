@@ -1,11 +1,10 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { ShoppingCart, Search, Menu } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ShoppingCart, Search, PackageSearch, X, ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { getGuestCartCount } from "@/lib/guestCart";
@@ -14,21 +13,27 @@ import { Product } from '@/lib/types';
 
 import BrandLogo from "./BrandLogo";
 
+const HeaderAuthSection = dynamic(() => import("./HeaderAuthSection"), {
+  ssr: false,
+  loading: () => <div className="w-[120px] h-[36px]" />,
+});
+
 const Logo = () => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+  <div className="flex items-center gap-2.5">
     <BrandLogo size={32} />
-    <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
-      <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--neutral-900)' }}>ThePawsome</span>
-      <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--teal-600)', letterSpacing: '0.15em', marginTop: 2 }}>AI · BETA</span>
+    <div className="flex flex-col leading-none">
+      <span className="text-[17px] font-extrabold tracking-tight text-neutral-900">ThePawsome</span>
+      {/* <span className="text-[9px] font-bold text-teal-600 tracking-[0.15em] mt-0.5">AI · BETA</span> */}
     </div>
   </div>
 );
 
 export default function Header() {
-  const { user, token, setUser, logout } = useAuthStore();
+  const { user, token, setUser, setLoading } = useAuthStore();
 
   useEffect(() => {
     if (token && !user) {
+      setLoading(true);
       api.get('/auth/me').then((res) => setUser(res.data)).catch(() => {
         if (typeof window !== 'undefined') localStorage.removeItem('token');
         setUser(null);
@@ -43,20 +48,27 @@ export default function Header() {
   const [debouncedTerm, setDebouncedTerm] = useState("");
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const q = searchParams.get("q") || "";
-    if (pathname === "/shop" && searchTerm !== q) {
+    if (pathname === "/shop" && !mobileSearchOpen) {
       const timer = setTimeout(() => setSearchTerm(q), 0);
       return () => clearTimeout(timer);
     }
-  }, [pathname, searchParams, searchTerm]);
+  }, [pathname, searchParams, mobileSearchOpen]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedTerm(searchTerm.trim()), 200);
     return () => clearTimeout(t);
   }, [searchTerm]);
+
+  // Focus mobile input when opened
+  useEffect(() => {
+    if (mobileSearchOpen && mobileInputRef.current) {
+      setTimeout(() => mobileInputRef.current?.focus(), 100);
+    }
+  }, [mobileSearchOpen]);
 
   const suggestQ = debouncedTerm.length >= 2 ? debouncedTerm : "";
   const { data: suggestions, isFetching: suggestLoading } = useQuery({
@@ -73,6 +85,7 @@ export default function Header() {
     e.preventDefault();
     const q = searchTerm.trim();
     setSuggestOpen(false);
+    setMobileSearchOpen(false);
     router.push(q ? `/shop?q=${encodeURIComponent(q)}` : "/shop");
   };
 
@@ -97,281 +110,191 @@ export default function Header() {
   const cartItemCount = user ? serverCartCount : guestCartCount;
 
   return (
-    <header className="sticky top-0 h-[68px] px-4 md:px-8 gap-3 md:gap-7 z-20 flex items-center w-full" style={{
-      background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)',
-      borderBottom: '1px solid var(--neutral-100)',
-    }}>
-      <Link href="/" style={{ cursor: 'pointer', textDecoration: 'none' }}>
-        <Logo />
-      </Link>
-
-      <nav className="hidden md:flex" style={{ gap: 4 }}>
-        <Link href="/shop" style={{
-          padding: '8px 14px', borderRadius: 8, fontSize: 14, fontWeight: 500, color: 'var(--neutral-700)',
-          textDecoration: 'none', transition: 'background 120ms ease',
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--neutral-50)'}
-        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-        >
-          Cửa hàng
+    <>
+      <header className="sticky top-0 h-[68px] px-4 md:px-8 gap-3 md:gap-7 z-20 flex items-center w-full bg-white/90 backdrop-blur-md border-b border-neutral-100 shadow-sm">
+        <Link href="/" className="cursor-pointer no-underline shrink-0">
+          <Logo />
         </Link>
-      </nav>
 
-      <form onSubmit={submitSearch} className="hidden md:flex" style={{ flex: 1, maxWidth: 440, position: 'relative' }}>
-        <div style={{
-          height: 42, borderRadius: 12, background: 'var(--neutral-50)',
-          border: '1px solid var(--neutral-100)', display: 'flex', alignItems: 'center',
-          padding: '0 14px', gap: 10, color: 'var(--neutral-500)',
-        }}>
-          <Search size={16} />
-          <input
-            value={searchTerm}
-            onChange={(e) => { setSearchTerm(e.target.value); setSuggestOpen(true); }}
-            onFocus={() => setSuggestOpen(true)}
-            onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
-            placeholder="Tìm hạt, đồ chơi, cát vệ sinh..."
-            style={{
-              flex: 1, border: 'none', outline: 'none', background: 'transparent',
-              fontSize: 13, color: 'var(--neutral-800)',
-            }}
-          />
-          <kbd style={{
-            fontFamily: 'var(--font-mono)', fontSize: 10, padding: '2px 6px',
-            background: 'white', borderRadius: 4, border: '1px solid var(--neutral-200)',
-            color: 'var(--neutral-500)',
-          }}>⏎</kbd>
-        </div>
+        <nav className="hidden md:flex gap-1">
+          <Link href="/shop" className="px-3.5 py-2 rounded-lg text-sm font-medium text-neutral-700 no-underline transition-colors hover:bg-neutral-50 hover:text-neutral-900">
+            Cửa hàng
+          </Link>
+          <Link href="/tra-cuu-don-hang" className="px-3.5 py-2 rounded-lg text-sm font-medium text-neutral-700 no-underline transition-colors hover:bg-neutral-50 hover:text-neutral-900">
+            Tra cứu đơn hàng
+          </Link>
+        </nav>
 
-        {suggestOpen && suggestQ && (
-          <div style={{
-            position: 'absolute', top: 48, left: 0, right: 0, zIndex: 30,
-            background: 'white', border: '1px solid var(--neutral-100)', borderRadius: 12,
-            boxShadow: 'var(--shadow-md)', overflow: 'hidden',
-          }}>
-            {suggestLoading && !suggestions ? (
-              <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--neutral-500)' }}>Đang tìm...</div>
-            ) : suggestions?.items?.length ? (
-              <>
-                {suggestions.items.map((p: Product) => (
-                  <Link
-                    key={p.id}
-                    href={`/products/${p.slug}`}
-                    onClick={() => setSuggestOpen(false)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                      textDecoration: 'none', color: 'var(--neutral-800)',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--neutral-50)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--neutral-100)', flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
-                      {(p.thumbnail_url || p.images?.main) && (
-                        <Image
-                          src={p.thumbnail_url || p.images?.main || ''}
-                          alt={p.name}
-                          fill
-                          sizes="40px"
-                          className="object-cover"
-                        />
-                      )}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--neutral-500)' }}>{p.brand || p.category_name}</div>
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary-600)' }}>
-                      {(p.sale_price || p.price).toLocaleString()}đ
-                    </div>
-                  </Link>
-                ))}
-                <div
-                  onMouseDown={(e) => { e.preventDefault(); submitSearch(e as unknown as React.FormEvent); }}
-                  style={{
-                    padding: '10px 14px', fontSize: 12, fontWeight: 600, color: 'var(--primary-600)',
-                    borderTop: '1px solid var(--neutral-100)', cursor: 'pointer', textAlign: 'center',
-                  }}
-                >
-                  Xem tất cả kết quả cho “{suggestQ}” →
-                </div>
-              </>
-            ) : (
-              <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--neutral-500)' }}>Không tìm thấy sản phẩm</div>
-            )}
+        {/* Desktop Search */}
+        <form onSubmit={submitSearch} className="hidden md:flex flex-1 max-w-[440px] relative ml-auto mr-4">
+          <div className="h-[42px] w-full rounded-xl bg-neutral-50 border border-neutral-100 flex items-center px-3.5 gap-2.5 text-neutral-500 focus-within:bg-white focus-within:border-primary-300 focus-within:ring-4 focus-within:ring-primary-50 transition-all duration-200">
+            <Search size={16} />
+            <input
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setSuggestOpen(true); }}
+              onFocus={() => setSuggestOpen(true)}
+              onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
+              placeholder="Tìm hạt, đồ chơi, cát vệ sinh..."
+              className="flex-1 border-none outline-none bg-transparent text-[13px] text-neutral-800 placeholder-neutral-400"
+            />
+            <kbd className="font-mono text-[10px] px-1.5 py-0.5 bg-white rounded border border-neutral-200 text-neutral-400 font-medium">⏎</kbd>
           </div>
-        )}
-      </form>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
-        <button className="md:hidden p-2 text-neutral-700" onClick={() => setMobileSearchOpen(!mobileSearchOpen)}>
-          <Search size={20} />
-        </button>
-
-        <Link href="/cart" style={{ padding: 10, color: 'var(--neutral-700)', position: 'relative', display: 'flex', alignItems: 'center' }}>
-          <ShoppingCart size={20} />
-          {cartItemCount > 0 && (
-            <div style={{
-              position: 'absolute', top: 4, right: 2, minWidth: 18, height: 18,
-              borderRadius: 9, background: 'var(--primary-500)', color: 'white',
-              fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center',
-              justifyContent: 'center', padding: '0 5px'
-            }}>
-              {cartItemCount}
-            </div>
-          )}
-        </Link>
-
-        <div className="hidden md:flex items-center gap-2 ml-2">
-          {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px 4px 4px',
-                  borderRadius: 40, border: '1px solid var(--neutral-200)', background: 'white',
-                  cursor: 'pointer', outline: 'none'
-                }}>
-                  <div style={{
-                    width: 30, height: 30, borderRadius: 15, background: 'oklch(0.9 0.06 85)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, fontWeight: 700, color: 'var(--neutral-800)'
-                  }}>
-                    {user.full_name.charAt(0)}
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--neutral-800)' }}>{user.full_name.split(' ').pop()}</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" style={{ borderRadius: 12, padding: 8, minWidth: 200, boxShadow: 'var(--shadow-md)', background: 'white', zIndex: 50, border: '1px solid var(--neutral-100)' }}>
-                <DropdownMenuItem style={{ fontWeight: 700, fontSize: 14, padding: '10px 12px' }}>{user.full_name}</DropdownMenuItem>
-                {user.role === 'admin' && (
-                  <DropdownMenuItem render={<Link href="/admin" style={{ color: 'var(--primary-600)', fontWeight: 600 }} />}>Bảng cấu hình Admin</DropdownMenuItem>
-                )}
-                <DropdownMenuItem render={<Link href="/profile" />}>Hồ sơ cá nhân</DropdownMenuItem>
-                <DropdownMenuItem render={<Link href="/orders" />}>Đơn hàng của tôi</DropdownMenuItem>
-                <DropdownMenuItem onClick={logout} style={{ color: 'var(--danger)', cursor: 'pointer' }}>Đăng xuất</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Link href="/login" className="btn btn-ghost btn-sm">Đăng nhập</Link>
-              <Link href="/register" className="btn btn-primary btn-sm">Đăng ký</Link>
-            </div>
-          )}
-        </div>
-
-        <div className="md:hidden ml-1">
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger render={
-              <button style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                <Menu size={24} />
-              </button>
-            } />
-            <SheetContent side="right" className="p-0 flex flex-col w-[280px] bg-white z-[60]">
-              <div className="p-6 border-b border-neutral-100">
-                <Link href="/" onClick={() => setMobileMenuOpen(false)}><Logo /></Link>
-              </div>
-              <div className="flex flex-col py-4 flex-1 overflow-y-auto">
-                 <Link href="/" onClick={() => setMobileMenuOpen(false)} className="px-6 py-3 font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors">Trang chủ</Link>
-                 <Link href="/shop" onClick={() => setMobileMenuOpen(false)} className="px-6 py-3 font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors">Cửa hàng</Link>
-                 <Link href="/tra-cuu-don-hang" onClick={() => setMobileMenuOpen(false)} className="px-6 py-3 text-neutral-700 hover:bg-neutral-50 transition-colors">Tra cứu đơn hàng</Link>
-                 <Link href="/cart" onClick={() => setMobileMenuOpen(false)} className="px-6 py-3 text-neutral-700 hover:bg-neutral-50 transition-colors flex items-center justify-between">
-                   Giỏ hàng
-                   {cartItemCount > 0 && (
-                     <span className="bg-primary-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{cartItemCount}</span>
-                   )}
-                 </Link>
-                 <div className="h-px bg-neutral-100 my-2 w-full"></div>
-                 {user ? (
-                    <>
-                      <div className="px-6 py-2 text-xs font-bold uppercase tracking-wider text-neutral-400">Tài khoản</div>
-                      <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="px-6 py-3 text-neutral-700 hover:bg-neutral-50 transition-colors">Hồ sơ cá nhân</Link>
-                      <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="px-6 py-3 text-neutral-700 hover:bg-neutral-50 transition-colors">Đơn hàng của tôi</Link>
-                      {user.role === 'admin' && (
-                         <Link href="/admin" onClick={() => setMobileMenuOpen(false)} className="px-6 py-3 text-primary-600 font-semibold hover:bg-primary-50 transition-colors">Bảng cấu hình Admin</Link>
-                      )}
-                      <div className="h-px bg-neutral-100 my-2 w-full"></div>
-                      <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="px-6 py-3 text-left text-red-600 hover:bg-red-50 transition-colors font-medium">Đăng xuất</button>
-                    </>
-                 ) : (
-                    <div className="flex flex-col gap-3 px-6 mt-2">
-                      <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="btn btn-ghost w-full justify-center border border-neutral-200">Đăng nhập</Link>
-                      <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="btn btn-primary w-full justify-center">Đăng ký</Link>
-                    </div>
-                 )}
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
-      </div>
-
-      {mobileSearchOpen && (
-        <div className="md:hidden absolute top-[68px] left-0 right-0 p-4 bg-white border-b border-neutral-100 z-30 shadow-md">
-          <form onSubmit={(e) => { submitSearch(e); setMobileSearchOpen(false); }} style={{ position: 'relative' }}>
-             <div style={{
-               height: 42, borderRadius: 12, background: 'var(--neutral-50)',
-               border: '1px solid var(--neutral-100)', display: 'flex', alignItems: 'center',
-               padding: '0 14px', gap: 10, color: 'var(--neutral-500)',
-             }}>
-               <Search size={16} />
-               <input
-                 autoFocus
-                 value={searchTerm}
-                 onChange={(e) => { setSearchTerm(e.target.value); setSuggestOpen(true); }}
-                 placeholder="Tìm hạt, đồ chơi, cát..."
-                 style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 14 }}
-               />
-             </div>
-             {suggestOpen && suggestQ && (
-                <div style={{
-                  position: 'absolute', top: 48, left: 0, right: 0, zIndex: 30,
-                  background: 'white', border: '1px solid var(--neutral-100)', borderRadius: 12,
-                  boxShadow: 'var(--shadow-md)', overflow: 'hidden',
-                }}>
-                  {suggestLoading && !suggestions ? (
-                    <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--neutral-500)' }}>Đang tìm...</div>
-                  ) : suggestions?.items?.length ? (
-                    <>
-                      {suggestions.items.slice(0, 3).map((p: Product) => (
-                        <Link
-                          key={p.id}
-                          href={`/products/${p.slug}`}
-                          onClick={() => { setSuggestOpen(false); setMobileSearchOpen(false); }}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                            textDecoration: 'none', color: 'var(--neutral-800)',
-                          }}
-                        >
-                          <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--neutral-100)', flexShrink: 0, overflow: 'hidden', position: 'relative' }}>
-                            {(p.thumbnail_url || p.images?.main) && (
-                              <Image
-                                src={p.thumbnail_url || p.images?.main || ''}
-                                alt={p.name}
-                                fill
-                                sizes="40px"
-                                className="object-cover"
-                              />
-                            )}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                            <div style={{ fontSize: 11, color: 'var(--neutral-500)' }}>{p.brand || p.category_name}</div>
-                          </div>
-                        </Link>
-                      ))}
-                      <div
-                        onMouseDown={(e) => { e.preventDefault(); submitSearch(e as unknown as React.FormEvent); setMobileSearchOpen(false); }}
-                        style={{
-                          padding: '10px 14px', fontSize: 12, fontWeight: 600, color: 'var(--primary-600)',
-                          borderTop: '1px solid var(--neutral-100)', cursor: 'pointer', textAlign: 'center',
-                        }}
-                      >
-                        Xem tất cả →
+          {suggestOpen && suggestQ && (
+            <div className="absolute top-[48px] left-0 right-0 z-30 bg-white border border-neutral-100 rounded-xl shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              {suggestLoading && !suggestions ? (
+                <div className="px-4 py-3.5 text-[13px] text-neutral-500 flex items-center justify-center">Đang tìm...</div>
+              ) : suggestions?.items?.length ? (
+                <>
+                  {suggestions.items.map((p: Product) => (
+                    <Link
+                      key={p.id}
+                      href={`/products/${p.slug}`}
+                      onClick={() => setSuggestOpen(false)}
+                      className="flex items-center gap-3 px-3.5 py-2.5 no-underline text-neutral-800 transition-colors hover:bg-neutral-50"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-neutral-100 shrink-0 overflow-hidden relative border border-neutral-100">
+                        {(p.thumbnail_url || p.images?.main) && (
+                          <Image
+                            src={p.thumbnail_url || p.images?.main || ''}
+                            alt={p.name}
+                            fill
+                            sizes="40px"
+                            className="object-cover"
+                          />
+                        )}
                       </div>
-                    </>
-                  ) : (
-                    <div style={{ padding: '14px 16px', fontSize: 13, color: 'var(--neutral-500)' }}>Không tìm thấy sản phẩm</div>
-                  )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis">{p.name}</div>
+                        <div className="text-[11px] text-neutral-500 mt-0.5">{p.brand || p.category_name}</div>
+                      </div>
+                      <div className="text-[13px] font-bold text-primary-600">
+                        {(p.sale_price || p.price).toLocaleString()}đ
+                      </div>
+                    </Link>
+                  ))}
+                  <div
+                    onMouseDown={(e) => { e.preventDefault(); submitSearch(e as unknown as React.FormEvent); }}
+                    className="px-3.5 py-2.5 text-xs font-semibold text-primary-600 border-t border-neutral-100 cursor-pointer text-center hover:bg-primary-50 transition-colors"
+                  >
+                    Xem tất cả kết quả cho “{suggestQ}” →
+                  </div>
+                </>
+              ) : (
+                <div className="px-4 py-8 text-[13px] text-neutral-500 flex flex-col items-center justify-center gap-2 text-center">
+                   <PackageSearch className="w-8 h-8 text-neutral-300" />
+                   <div>Không tìm thấy sản phẩm nào phù hợp với &quot;{suggestQ}&quot;.</div>
                 </div>
               )}
-          </form>
+            </div>
+          )}
+        </form>
+
+        <div className="flex items-center gap-1 md:gap-2 ml-auto md:ml-0">
+          {/* Mobile Search Toggle */}
+          <button className="md:hidden p-2 text-neutral-700 hover:bg-neutral-100 rounded-full transition-colors" onClick={() => {
+            setSearchTerm("");
+            setMobileSearchOpen(true);
+          }}>
+            <Search size={22} />
+          </button>
+
+          {/* Desktop Cart */}
+          <Link href="/cart" className="hidden md:flex p-2 text-neutral-700 relative items-center hover:bg-neutral-100 rounded-full transition-colors">
+            <ShoppingCart size={20} />
+            {cartItemCount > 0 && (
+              <div className="absolute top-0 right-0 min-w-[18px] h-[18px] rounded-full bg-primary-500 text-white text-[10px] font-bold flex items-center justify-center px-1 border-2 border-white">
+                {cartItemCount > 99 ? '99+' : cartItemCount}
+              </div>
+            )}
+          </Link>
+
+          {/* Desktop Auth */}
+          <div className="hidden md:flex items-center gap-2 ml-1">
+            <HeaderAuthSection />
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile Full-Screen Search Overlay */}
+      {mobileSearchOpen && (
+        <div className="md:hidden fixed inset-0 z-[100] bg-white flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center gap-2 p-3 border-b border-neutral-100">
+            <button onClick={() => setMobileSearchOpen(false)} className="p-2 text-neutral-500 hover:bg-neutral-100 rounded-full transition-colors border-none bg-transparent">
+              <ArrowLeft size={24} />
+            </button>
+            <form onSubmit={submitSearch} className="flex-1 relative">
+              <input
+                ref={mobileInputRef}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Tìm hạt, đồ chơi, cát..."
+                className="w-full h-[40px] pl-4 pr-10 rounded-full bg-neutral-100 border-none outline-none text-[15px] text-neutral-800 placeholder-neutral-400 focus:ring-2 focus:ring-primary-100 transition-all"
+              />
+              {searchTerm && (
+                <button type="button" onClick={() => { setSearchTerm(""); mobileInputRef.current?.focus(); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 p-1 bg-transparent border-none">
+                  <X size={18} />
+                </button>
+              )}
+            </form>
+          </div>
+
+          <div className="flex-1 overflow-y-auto bg-white">
+            {suggestQ ? (
+              <div className="flex flex-col">
+                {suggestLoading && !suggestions ? (
+                  <div className="p-6 text-sm text-neutral-500 text-center">Đang tìm...</div>
+                ) : suggestions?.items?.length ? (
+                  <>
+                    {suggestions.items.map((p: Product) => (
+                      <Link
+                        key={p.id}
+                        href={`/products/${p.slug}`}
+                        onClick={() => setMobileSearchOpen(false)}
+                        className="flex items-center gap-3 p-4 border-b border-neutral-50 no-underline text-neutral-800 hover:bg-neutral-50 transition-colors"
+                      >
+                        <div className="w-12 h-12 rounded-lg bg-neutral-100 shrink-0 overflow-hidden relative border border-neutral-100">
+                          {(p.thumbnail_url || p.images?.main) && (
+                            <Image
+                              src={p.thumbnail_url || p.images?.main || ''}
+                              alt={p.name}
+                              fill
+                              sizes="48px"
+                              className="object-cover"
+                            />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[14px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis">{p.name}</div>
+                          <div className="text-[12px] text-neutral-500 mt-0.5">{p.brand || p.category_name}</div>
+                        </div>
+                        <div className="text-[14px] font-bold text-primary-600">
+                          {(p.sale_price || p.price).toLocaleString()}đ
+                        </div>
+                      </Link>
+                    ))}
+                    <button
+                      onClick={submitSearch}
+                      className="p-4 text-sm font-semibold text-primary-600 text-center hover:bg-primary-50 transition-colors border-none bg-transparent w-full cursor-pointer"
+                    >
+                      Xem tất cả kết quả cho “{suggestQ}” →
+                    </button>
+                  </>
+                ) : (
+                  <div className="p-10 flex flex-col items-center justify-center gap-3 text-center">
+                      <PackageSearch className="w-10 h-10 text-neutral-300" />
+                      <div className="text-sm text-neutral-500">Không tìm thấy sản phẩm nào phù hợp với &quot;{suggestQ}&quot;.</div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-6 text-sm text-neutral-400 text-center">
+                Nhập tên sản phẩm để tìm kiếm
+              </div>
+            )}
+          </div>
         </div>
       )}
-    </header>
+    </>
   );
 }

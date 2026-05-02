@@ -144,21 +144,21 @@ const Rating = ({ value, size = 12, count }: { value: number, size?: number, cou
 
 const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, onAddToCart: (e: React.MouseEvent, id: string, slug: string) => void, isPending: boolean }) => (
   <Link href={`/products/${product.slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-    <div className="card" style={{
+    <div className="card group" style={{
       cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column',
       transition: 'transform 160ms ease, box-shadow 160ms ease', height: '100%'
     }}
     onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
     onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
     >
-      <div style={{ position: 'relative', aspectRatio: '1 / 1', background: 'var(--neutral-50)' }}>
+      <div style={{ position: 'relative', aspectRatio: '1 / 1', background: 'var(--neutral-50)', overflow: 'hidden' }}>
         {(product.thumbnail_url || product.images?.main) ? (
-          <Image 
-            src={product.thumbnail_url || product.images?.main || ''} 
-            alt={product.name} 
-            fill 
+          <Image
+            src={product.thumbnail_url || product.images?.main || ''}
+            alt={product.name}
+            fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover"
+            className="object-cover transition-transform duration-300 ease-out group-hover:scale-105"
           />
         ) : (
           <div style={{ width: '100%', height: '100%', background: 'var(--neutral-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)', fontSize: 10 }}>NO IMAGE</div>

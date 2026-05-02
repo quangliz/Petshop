@@ -8,7 +8,7 @@ const Logo = () => (
     <BrandLogo size={32} />
     <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
       <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--neutral-900)' }}>ThePawsome</span>
-      <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--teal-600)', letterSpacing: '0.15em', marginTop: 2 }}>AI · BETA</span>
+      {/* <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--teal-600)', letterSpacing: '0.15em', marginTop: 2 }}>AI · BETA</span> */}
     </div>
   </div>
 );

@@ -24,7 +24,7 @@ const Rating = ({ value, size = 12, count }: { value: number, size?: number, cou
 
 const ProductCardSmall = ({ product }: { product: Product }) => (
   <Link href={`/products/${product.slug}`} className="w-[130px] md:w-[150px] flex-shrink-0" style={{ textDecoration: 'none', color: 'inherit', scrollSnapAlign: 'start' }}>
-    <div className="card" style={{
+    <div className="card group" style={{
       cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%',
       transition: 'transform 160ms ease, box-shadow 160ms ease',
     }}
@@ -33,12 +33,12 @@ const ProductCardSmall = ({ product }: { product: Product }) => (
     >
       <div style={{ position: 'relative', aspectRatio: '1 / 1', background: 'var(--neutral-50)', overflow: 'hidden' }}>
         {product.images?.main ? (
-          <Image 
-            src={product.images.main} 
-            alt={product.name} 
-            fill 
+          <Image
+            src={product.images.main}
+            alt={product.name}
+            fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover"
+            className="object-cover transition-transform duration-300 ease-out group-hover:scale-105"
           />
         ) : (
           <div style={{ width: '100%', height: '100%', background: 'repeating-linear-gradient(45deg, var(--neutral-100), var(--neutral-100) 8px, var(--neutral-50) 8px, var(--neutral-50) 16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)', fontSize: 9, fontFamily: 'var(--font-mono)' }}>NO IMAGE</div>

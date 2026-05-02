@@ -254,26 +254,32 @@ function CartLayout({ items, selectedIds, selectedTotal, allSelected, toggleAll,
             ))}
           </div>
 
-          <div className="card p-6 md:p-7 fixed bottom-0 left-0 right-0 z-40 md:relative lg:sticky lg:top-24 rounded-t-[32px] md:rounded-3xl shadow-[0_-12px_40px_rgba(0,0,0,0.08)] md:shadow-none">
+          <div className="card border-0 md:border md:border-neutral-100 p-5 md:p-7 fixed bottom-[60px] md:bottom-auto left-0 right-0 z-40 md:relative lg:sticky lg:top-24 rounded-t-[24px] rounded-b-none md:rounded-3xl shadow-[0_-12px_40px_rgba(0,0,0,0.08)] md:shadow-none flex flex-col gap-3 md:gap-0">
             <h3 className="hidden md:block" style={{ fontSize: 20, fontWeight: 800, marginBottom: 24, color: 'var(--neutral-900)' }}>Tổng quan đơn hàng</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div className="hidden md:flex" style={{ justifyContent: 'space-between', fontSize: 14, color: 'var(--neutral-600)' }}>
+            <div className="hidden md:flex" style={{ flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: 'var(--neutral-600)' }}>
                 <span>Tạm tính ({selectedIds.size} sản phẩm đã chọn)</span>
                 <span style={{ fontWeight: 600, color: 'var(--neutral-900)' }}>{selectedTotal.toLocaleString()}đ</span>
               </div>
-              <div className="hidden md:flex" style={{ justifyContent: 'space-between', fontSize: 14, color: 'var(--neutral-600)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: 'var(--neutral-600)' }}>
                 <span>Phí vận chuyển</span>
                 <span style={{ fontWeight: 600, color: 'var(--success)' }}>30,000đ</span>
               </div>
-              <div className="hidden md:block" style={{ height: 1, background: 'var(--neutral-100)', margin: '8px 0' }} />
+              <div style={{ height: 1, background: 'var(--neutral-100)', margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={{ fontSize: 16, fontWeight: 700 }}>Tổng cộng</span>
                 <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--primary-600)' }}>{selectedTotal.toLocaleString()}đ</span>
               </div>
             </div>
+
+            <div className="md:hidden flex justify-between items-center" style={{ height: 52 }}>
+              <span style={{ fontSize: 16, fontWeight: 700 }}>Tổng cộng</span>
+              <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--primary-600)' }}>{selectedTotal.toLocaleString()}đ</span>
+            </div>
+
             <button onClick={handleCheckout} disabled={selectedIds.size === 0}
-              className="btn btn-primary btn-lg mt-5 md:mt-8 w-full h-14 rounded-2xl text-base"
-              style={{ opacity: selectedIds.size === 0 ? 0.5 : 1, cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer' }}>
+              className="btn btn-primary btn-lg w-full md:mt-8"
+              style={{ height: 52, borderRadius: 14, opacity: selectedIds.size === 0 ? 0.5 : 1, cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 700 }}>
               Thanh toán ({selectedIds.size} sản phẩm)
             </button>
           </div>

@@ -289,7 +289,7 @@ export default function ProductDetailPage() {
             </div>
           )}
 
-          <div className="fixed bottom-0 inset-x-0 p-4 bg-white border-t z-50 md:relative md:p-0 md:bg-transparent md:z-auto flex flex-col gap-3 md:gap-4 md:mt-4 md:pt-4 md:border-t md:border-neutral-100 shadow-[0_-8px_20px_rgba(0,0,0,0.08)] md:shadow-none">
+          <div className="fixed bottom-[60px] inset-x-0 p-5 bg-white z-50 rounded-t-[24px] shadow-[0_-12px_40px_rgba(0,0,0,0.08)] md:relative md:bottom-auto md:p-0 md:bg-transparent md:z-auto flex flex-col gap-3 md:gap-4 md:mt-4 md:pt-4 md:border-t md:border-neutral-100 md:rounded-none md:shadow-none">
             {effectiveStock === 0 && (
               <div style={{ fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>Hết hàng</div>
             )}
@@ -349,9 +349,7 @@ export default function ProductDetailPage() {
       <div className="flex gap-2 md:gap-8 mt-12 md:mt-16 border-b border-neutral-200 overflow-x-auto scrollbar-hide">
         {[
           { id: 'desc', label: 'Mô tả' },
-          { id: 'spec', label: 'Thông số' },
           { id: 'review', label: 'Đánh giá', count: product.review_count || undefined },
-          { id: 'ship', label: 'Vận chuyển' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -389,35 +387,9 @@ export default function ProductDetailPage() {
             </div>
           )
         )}
-        {activeTab === 'spec' && (
-          <div className="grid grid-cols-[120px_1fr] sm:grid-cols-[150px_1fr] gap-x-4 gap-y-4">
-            <span style={{ color: 'var(--neutral-500)' }}>Thương hiệu:</span>
-            <span style={{ fontWeight: 600 }}>{product.brand || "Local Brand"}</span>
-            <span style={{ color: 'var(--neutral-500)' }}>Loại sản phẩm:</span>
-            <span style={{ fontWeight: 600 }}>{product.category_name}</span>
-            {hasVariants && selectedVariant && Object.entries(selectedVariant.attributes).map(([k, v]) => (
-              <React.Fragment key={k}>
-                <span style={{ color: 'var(--neutral-500)', textTransform: 'capitalize' }}>{k}:</span>
-                <span style={{ fontWeight: 600 }}>{v}</span>
-              </React.Fragment>
-            ))}
-            {!hasVariants && <>
-              <span style={{ color: 'var(--neutral-500)' }}>Trọng lượng:</span>
-              <span style={{ fontWeight: 600 }}>{product.attributes?.weight || "N/A"}</span>
-              <span style={{ color: 'var(--neutral-500)' }}>Xuất xứ:</span>
-              <span style={{ fontWeight: 600 }}>{product.attributes?.origin || "Việt Nam"}</span>
-            </>}
-          </div>
-        )}
+
         {activeTab === 'review' && (
           <ReviewSection productId={product.id} />
-        )}
-        {activeTab === 'ship' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <p>🚚 <b>Giao hàng hỏa tốc:</b> Nội thành TP.HCM và Hà Nội trong vòng 2-4h.</p>
-            <p>📦 <b>Giao hàng tiêu chuẩn:</b> Toàn quốc từ 2-5 ngày làm việc.</p>
-            <p>💰 <b>Phí vận chuyển:</b> Miễn phí cho đơn hàng từ 500.000đ.</p>
-          </div>
         )}
       </div>
 

@@ -27,7 +27,40 @@ const Logo = ({ size = 28 }) => (
     </div>
     <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
       <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--neutral-900)' }}>ThePawsome</span>
-      <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--teal-600)', letterSpacing: '0.15em', marginTop: 2 }}>AI · BETA</span>
+      {/* <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--teal-600)', letterSpacing: '0.15em', margi## Error Type
+Runtime NotFoundError
+
+## Error Message
+Element.releasePointerCapture: Invalid pointer id
+
+
+    at nI/s< (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:3826:7928)
+    at p (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:3826:9791)
+    at EventListener.handleEvent*onPointerDown (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:3826:10314)
+    at cJ (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:162928)
+    at ./dist/compiled/react-dom/cjs/react-dom-client.production.js/c5/< (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:168825)
+    at tA (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:30648)
+    at c5 (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:164162)
+    at dP (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:200663)
+    at dL (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:200483)
+    at EventListener.handleEvent*c4 (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:163725)
+    at c1 (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:163124)
+    at ./dist/compiled/react-dom/cjs/react-dom-client.production.js/c3/< (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:163290)
+    at c3 (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:163235)
+    at ./dist/compiled/react-dom/cjs/react-dom-client.production.js/cg/r< (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:145864)
+    at cg (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:147919)
+    at cp (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:139169)
+    at ./dist/compiled/react-dom/cjs/react-dom-client.production.js/ct/o< (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:133996)
+    at ct (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:134095)
+    at cB (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:160673)
+    at N (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:224253)
+    at EventHandlerNonNull*./dist/compiled/scheduler/cjs/scheduler.production.js (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:224632)
+    at ./dist/compiled/scheduler/index.js (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:226256)
+    at ./dist/compiled/react-dom/cjs/react-dom-client.production.js (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:10520)
+    at ./dist/compiled/react-dom/client.js (file:///home/quang/Documents/DATN/frontend/.next/dev/static/chunks/node_modules_next_dist_compiled_next-devtools_index_0553esy.js:1841:213431)
+
+Next.js version: 16.2.4 (Turbopack)
+nTop: 2 }}>AI · BETA</span> */}
     </div>
   </div>
 );
