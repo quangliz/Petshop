@@ -64,6 +64,8 @@
     --foreground: 34 20% 10%; /* Map to neutral-900 approx */
     --primary: 24 95% 53%; /* Map to primary-500 approx */
     --primary-foreground: 0 0% 100%;
+    --muted: 38 20% 90%;
+    --muted-foreground: 38 20% 40%;
     --radius: 1rem;
   }
 
