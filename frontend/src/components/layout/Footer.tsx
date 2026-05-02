@@ -47,7 +47,7 @@ export default function Footer() {
           <h4 style={{ color: 'white', fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Nhận tin</h4>
           <div style={{ display: 'flex', gap: 0, background: 'var(--neutral-800)', borderRadius: 10, padding: 4 }}>
             <input 
-              placeholder="email@thepawsome.vn" 
+              placeholder="qcontact.12@gmail.com" 
               style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', padding: '8px 12px', color: 'white', fontSize: 13 }} 
             />
             <button className="btn btn-primary btn-sm">Đăng ký</button>

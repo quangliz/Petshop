@@ -438,17 +438,17 @@ export default function ChatWidget() {
       <div className="flex items-center gap-3">
         {isOpen && !isClosing && (
           <>
-            <a href="mailto:contact@petshop.dev" aria-label="Email"
+            <a href="mailto:qcontact.12@gmail.com" aria-label="Email"
               className="contact-btn contact-btn-3 w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white shadow-md transition-transform duration-200 ease-out hover:scale-125 active:scale-95"
               style={{ background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)" }}>
               <Mail size={18} />
             </a>
-            <a href="tel:+84000000000" aria-label="Phone"
+            <a href="tel:+84888987400" aria-label="Phone"
               className="contact-btn contact-btn-2 w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white shadow-md transition-transform duration-200 ease-out hover:scale-125 active:scale-95"
               style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)" }}>
               <Phone size={18} />
             </a>
-            <a href="https://zalo.me/" target="_blank" rel="noreferrer" aria-label="Zalo"
+            <a href="https://zalo.me/0888987400" target="_blank" rel="noreferrer" aria-label="Zalo"
               className="contact-btn contact-btn-1 w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white font-extrabold shadow-md transition-transform duration-200 ease-out hover:scale-125 active:scale-95"
               style={{ background: "linear-gradient(135deg, #2188ff 0%, #0068ff 100%)", fontSize: 14, letterSpacing: "-0.02em" }}>
               Zalo
