@@ -4,11 +4,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Trash2, Plus, Minus, ChevronRight } from 'lucide-react';
+import { Trash2, Plus, Minus, ChevronRight, ShoppingBag } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { getGuestCart, GuestCartItem } from '@/lib/guestCart';
 import Image from 'next/image';
 import { CartRowSkeleton } from "@/components/skeletons/CartRowSkeleton";
+import { EmptyState } from '@/components/ui/empty-state';
 interface CartItem {
   id: string;
   product_id: string;
@@ -197,10 +198,13 @@ function CartLayout({ items, selectedIds, selectedTotal, allSelected, toggleAll,
       )}
 
       {items.length === 0 ? (
-        <div className="text-center py-20 px-6 bg-white rounded-3xl border border-dashed border-neutral-200">
-          <p style={{ color: 'var(--neutral-500)', marginBottom: 24 }}>Giỏ hàng của bạn đang trống.</p>
-          <Link href="/shop" className="btn btn-outline">Tiếp tục mua sắm</Link>
-        </div>
+        <EmptyState
+          icon={<ShoppingBag size={32} />}
+          title="Giỏ hàng trống"
+          description="Bạn chưa thêm sản phẩm nào vào giỏ hàng. Khám phá cửa hàng ngay!"
+          actionLabel="Tiếp tục mua sắm"
+          actionHref="/shop"
+        />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10 items-start">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

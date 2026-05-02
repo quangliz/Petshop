@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { LucideIcon, ChevronRight, Package, Clock, Truck, CheckCircle, XCircle } from 'lucide-react';
 import { Order } from '@/lib/types';
 import { OrderRowSkeleton } from "@/components/skeletons/OrderRowSkeleton";
+import { EmptyState } from '@/components/ui/empty-state';
 const statusConfig: Record<string, { label: string, color: string, bg: string, icon: LucideIcon }> = {
   pending: { label: 'Chờ xử lý', color: 'var(--primary-600)', bg: 'var(--primary-50)', icon: Clock },
   confirmed: { label: 'Đã xác nhận', color: 'var(--teal-600)', bg: 'var(--teal-50)', icon: CheckCircle },
@@ -43,12 +44,13 @@ export default function OrdersPage() {
       <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-6 sm:mb-8">Lịch sử đơn hàng</h1>
 
       {orders?.length === 0 && (
-        <div className="card px-6 py-12 sm:py-16 text-center">
-          <Package size={48} className="mx-auto mb-4" style={{ color: 'var(--neutral-300)' }} />
-          <div className="text-base sm:text-lg font-bold mb-2" style={{ color: 'var(--neutral-600)' }}>Chưa có đơn hàng nào</div>
-          <div className="text-sm mb-6" style={{ color: 'var(--neutral-400)' }}>Hãy khám phá cửa hàng và đặt hàng cho bé pet nhé!</div>
-          <Link href="/shop" className="btn btn-primary">Mua sắm ngay</Link>
-        </div>
+        <EmptyState
+          icon={<Package size={32} />}
+          title="Chưa có đơn hàng nào"
+          description="Hãy khám phá cửa hàng và đặt hàng cho bé pet nhé!"
+          actionLabel="Mua sắm ngay"
+          actionHref="/shop"
+        />
       )}
 
       <div className="flex flex-col gap-3 sm:gap-4">

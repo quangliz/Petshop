@@ -13,6 +13,8 @@ import StarRating from '@/components/reviews/StarRating';
 import Image from 'next/image';
 import { Product, Variant, AttrImage } from '@/lib/types';
 import { ProductDetailSkeleton } from "@/components/skeletons/ProductDetailSkeleton";
+import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
 
 // Types imported from @/lib/types
 
@@ -94,15 +96,15 @@ export default function ProductDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
-      alert("Đã thêm vào giỏ hàng thành công!");
+      toast.success("Đã thêm vào giỏ hàng!");
     },
-    onError: (err: { response?: { data?: { detail?: string } } }) => alert(err.response?.data?.detail || "Lỗi khi thêm vào giỏ hàng"),
+    onError: (err: { response?: { data?: { detail?: string } } }) => toast.error(err.response?.data?.detail || "Lỗi khi thêm vào giỏ hàng"),
   });
 
   const handleAddToCart = () => {
     if (!user) {
       addToGuestCart(product!.id, product!.slug, quantity);
-      alert("Đã thêm vào giỏ hàng tạm thời. Đăng nhập để thanh toán.");
+      toast.success("Đã thêm vào giỏ hàng!");
       return;
     }
     addToCartMutation.mutate();
@@ -126,7 +128,7 @@ export default function ProductDetailPage() {
       router.push(cartItem?.id ? `/checkout?items=${cartItem.id}` : '/checkout');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
-      alert(e.response?.data?.detail || "Lỗi khi xử lý. Vui lòng thử lại.");
+      toast.error(e.response?.data?.detail || "Lỗi khi xử lý. Vui lòng thử lại.");
     } finally {
       setBuyNowLoading(false);
     }
@@ -316,7 +318,7 @@ export default function ProductDetailPage() {
                 className="btn btn-primary btn-lg"
                 style={{ flex: 1, height: 52, borderRadius: 14, fontSize: 16 }}
               >
-                <ShoppingCart size={20} /> {addToCartMutation.isPending ? "Đang xử lý..." : "Thêm vào giỏ hàng"}
+                <ShoppingCart size={20} /> {addToCartMutation.isPending ? <><Spinner size={20} /> Đang thêm...</> : "Thêm vào giỏ hàng"}
               </button>
             </div>
             <button
@@ -325,7 +327,7 @@ export default function ProductDetailPage() {
               className="btn btn-outline btn-lg w-full md:w-auto"
               style={{ height: 52, borderRadius: 14, fontSize: 16, fontWeight: 700 }}
             >
-              {buyNowLoading ? "Đang xử lý..." : "Mua ngay"}
+              {buyNowLoading ? <><Spinner size={18} /> Đang xử lý...</> : "Mua ngay"}
             </button>
           </div>
 

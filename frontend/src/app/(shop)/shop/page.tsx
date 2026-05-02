@@ -6,11 +6,14 @@ import { addToGuestCart } from '@/lib/guestCart';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
-import { ChevronRight, Star, ShoppingCart, Filter as FilterIcon, Check } from 'lucide-react';
+import { ChevronRight, Star, ShoppingCart, Filter as FilterIcon, Check, SearchX } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import Image from 'next/image';
 import { Product, Category } from '@/lib/types';
 import { ProductCardSkeleton } from "@/components/skeletons/ProductCardSkeleton";
+import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
+import { EmptyState } from '@/components/ui/empty-state';
 const FilterGroup = ({ title, children }: { title: string, children: React.ReactNode }) => (
   <div style={{ padding: '16px 0', borderBottom: '1px solid var(--neutral-100)' }}>
     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--neutral-800)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>{title}</div>
@@ -183,7 +186,7 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, on
           className="btn btn-outline btn-sm"
           style={{ width: '100%', marginTop: 12, borderRadius: 10 }}
         >
-          <ShoppingCart size={14} /> Thêm giỏ
+          {isPending ? <Spinner size={14} /> : <ShoppingCart size={14} />} {isPending ? "Đang thêm..." : "Thêm giỏ"}
         </button>
       </div>
     </div>
@@ -254,10 +257,10 @@ function ShopListing() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
-      alert("Đã thêm vào giỏ hàng!");
+      toast.success("Đã thêm vào giỏ hàng!");
     },
     onError: (err: { response?: { data?: { detail?: string } } }) => {
-      alert(err.response?.data?.detail || "Lỗi khi thêm giỏ hàng");
+      toast.error(err.response?.data?.detail || "Lỗi khi thêm giỏ hàng");
     }
   });
 
@@ -265,7 +268,7 @@ function ShopListing() {
     e.preventDefault();
     if (!user) {
       addToGuestCart(productId, slug);
-      alert("Đã thêm vào giỏ hàng tạm thời. Đăng nhập để thanh toán.");
+      toast.success("Đã thêm vào giỏ hàng!");
       return;
     }
     addToCartMutation.mutate(productId);
@@ -366,6 +369,17 @@ function ShopListing() {
                 isPending={addToCartMutation.isPending} 
               />
             ))}
+            {data.items.length === 0 && (
+              <div className="col-span-full">
+                <EmptyState
+                  icon={<SearchX size={32} />}
+                  title="Không tìm thấy sản phẩm"
+                  description={search ? `Không có kết quả cho "${search}". Hãy thử từ khóa khác.` : "Không có sản phẩm nào phù hợp với bộ lọc đã chọn."}
+                  actionLabel="Xem tất cả sản phẩm"
+                  actionHref="/shop"
+                />
+              </div>
+            )}
           </div>
 
           {data.pages > 1 && (
