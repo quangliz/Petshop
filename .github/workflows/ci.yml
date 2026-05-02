@@ -179,6 +179,7 @@ jobs:
             cd ~/petshop
             export DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }}
             export IMAGE_TAG=${{ github.sha }}
+            echo $IMAGE_TAG
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml down --remove-orphans
             # Force-remove any stray containers with our fixed names from older project scopes
