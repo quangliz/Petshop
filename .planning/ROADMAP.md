@@ -87,8 +87,8 @@ _Generated: 2026-05-01_
 
 ## Phases
 
-- [ ] **Phase 4: Loading States** - Skeleton loaders for all data-fetching pages; no layout shift on load
-- [ ] **Phase 5: Feedback & Empty States** - Action spinners, empty state screens, error toasts, and inline form validation
+- [x] **Phase 4: Loading States** - Skeleton loaders for all data-fetching pages; no layout shift on load
+- [x] **Phase 5: Feedback & Empty States** - Action spinners, empty state screens, error toasts, and inline form validation
 - [ ] **Phase 6: Responsive Layout** - Mobile-first nav, product grid/detail, cart/checkout, and admin tablet support
 
 ---
@@ -122,8 +122,8 @@ _Generated: 2026-05-01_
   3. API errors (add to cart, checkout, login failures) trigger a visible toast notification with a short error message
   4. Submitting a form with invalid data shows inline error messages beneath the relevant fields without a page reload
 **Plans**: 2 plans
-  - [ ] 05-01-PLAN.md — Toast system + Spinner component + Empty states (UX-05, UX-08, UX-09, UX-10, UX-11)
-  - [ ] 05-02-PLAN.md — Form validation with react-hook-form + zod (UX-06, UX-07, UX-12)
+  - [x] 05-01-PLAN.md — Toast system + Spinner component + Empty states (UX-05, UX-08, UX-09, UX-10, UX-11)
+  - [x] 05-02-PLAN.md — Form validation with react-hook-form + zod (UX-06, UX-07, UX-12)
 **UI hint**: yes
 
 ---
@@ -147,5 +147,5 @@ _Generated: 2026-05-01_
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 4. Loading States | 3/3 | Complete | 2026-05-02 |
-| 5. Feedback & Empty States | 0/2 | Planned | - |
+| 5. Feedback & Empty States | 2/2 | Complete | 2026-05-02 |
 | 6. Responsive Layout | 0/TBD | Not started | - |
