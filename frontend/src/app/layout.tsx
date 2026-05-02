@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Be_Vietnam_Pro, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/providers/query-provider";
+import { Toaster } from '@/components/ui/sonner';
 
 const beVietnamPro = Be_Vietnam_Pro({ 
   subsets: ["latin", "vietnamese"],
@@ -29,6 +30,7 @@ export default function RootLayout({
     <html lang="vi" className={`${beVietnamPro.variable} ${jetbrainsMono.variable}`}>
       <body>
         <Providers>{children}</Providers>
+        <Toaster richColors position="bottom-right" toastOptions={{ style: { borderRadius: '12px', fontWeight: 600, fontSize: '13px' } }} />
       </body>
     </html>
   );
