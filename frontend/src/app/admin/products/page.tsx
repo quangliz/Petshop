@@ -216,12 +216,12 @@ export default function AdminProductsPage() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" style={{ minWidth: 700 }}>
           <thead className="bg-gray-50 border-b text-gray-500 uppercase text-xs">
             <tr>
               <th className="text-left px-4 py-3">Ảnh</th>
               <th className="text-left px-4 py-3">Tên sản phẩm</th>
-              <th className="text-left px-4 py-3">Danh mục</th>
+              <th className="text-left px-4 py-3 hidden lg:table-cell">Danh mục</th>
               <th className="text-right px-4 py-3">Giá</th>
               <th className="text-right px-4 py-3">Tồn kho</th>
               <th className="text-center px-4 py-3">Kích hoạt</th>
@@ -247,8 +247,8 @@ export default function AdminProductsPage() {
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 font-medium max-w-[200px] truncate">{p.name}</td>
-                <td className="px-4 py-3 text-gray-500">{p.category_name ?? "—"}</td>
+                <td className="px-4 py-3 font-medium max-w-[160px] lg:max-w-[200px] truncate">{p.name}</td>
+                <td className="px-4 py-3 text-gray-500 hidden lg:table-cell">{p.category_name ?? "—"}</td>
                 <td className="px-4 py-3 text-right">
                   <div>{p.price.toLocaleString()}đ</div>
                   {p.sale_price && <div className="text-orange-500 text-xs">{p.sale_price.toLocaleString()}đ</div>}
@@ -279,7 +279,7 @@ export default function AdminProductsPage() {
 
       {modal.open && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
+          <div className="bg-white rounded-2xl w-full max-w-[95vw] md:max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white z-10">
               <h2 className="text-lg font-bold">{modal.product ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm mới"}</h2>
               <Button variant="ghost" size="icon" onClick={() => setModal({ open: false })}><X className="w-4 h-4" /></Button>

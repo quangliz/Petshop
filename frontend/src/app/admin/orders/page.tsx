@@ -54,7 +54,7 @@ export default function AdminOrdersPage() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm" style={{ minWidth: 600 }}>
           <thead className="bg-gray-50 border-b text-gray-500 uppercase text-xs">
             <tr>
               <th className="text-left px-4 py-3">Mã đơn</th>
