@@ -7,7 +7,7 @@ Pet-shop e-commerce platform with AI-powered chat. Components:
 
 | Component | Technology |
 |-----------|-----------|
-| Frontend | Next.js 14 App Router (React + TypeScript) |
+| Frontend | Next.js 16 App Router (React + TypeScript) |
 | Backend | FastAPI (Python, async SQLAlchemy) |
 | Database | PostgreSQL + pgvector extension |
 | Cache / Rate-limit | Redis (SlowAPI) |

@@ -83,7 +83,7 @@ From codebase analysis (`/planning/codebase/`):
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Keep FastAPI + Next.js 14 | Already built, stable, committee-demo-ready | Locked |
+| Keep FastAPI + Next.js 16 | Already built, stable, committee-demo-ready | Locked |
 | LangGraph for AI agent | Already integrated, supports tool-use natively | Locked |
 | pgvector for embeddings | Co-located with relational data, no extra infra | Locked |
 | Redis for embedding cache | Already used for rate-limiting, zero new infra | Locked |

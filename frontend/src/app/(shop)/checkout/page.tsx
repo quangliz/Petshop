@@ -129,7 +129,7 @@ function CheckoutPage() {
 
       if (paymentMethod === 'vnpay') {
         const vnpRes = await api.post(`/payments/vnpay/create/${order.id}`);
-        window.location.href = vnpRes.data.payment_url;
+        window.location.assign(vnpRes.data.payment_url);
       } else {
         toast.success('Đặt hàng thành công!');
         router.push(`/orders/${order.id}?guest=1&order_code=${order.order_code}`);

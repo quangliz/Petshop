@@ -89,7 +89,7 @@ _Generated: 2026-05-01_
 
 - [x] **Phase 4: Loading States** - Skeleton loaders for all data-fetching pages; no layout shift on load
 - [x] **Phase 5: Feedback & Empty States** - Action spinners, empty state screens, error toasts, and inline form validation
-- [ ] **Phase 6: Responsive Layout** - Mobile-first nav, product grid/detail, cart/checkout, and admin tablet support
+- [x] **Phase 6: Responsive Layout** - Mobile-first nav, product grid/detail, cart/checkout, and admin tablet support (completed 2026-05-02)
 
 ---
 
@@ -139,10 +139,10 @@ _Generated: 2026-05-01_
   4. Admin dashboard tables on a tablet (>=768px) scroll horizontally rather than overflowing or wrapping into an unreadable layout
 **Plans**: 3 plans
   **Wave 1:**
-  - [ ] 06-01-PLAN.md — Mobile navigation & global responsive utilities (RES-01)
-  - [ ] 06-02-PLAN.md — Storefront page responsive layouts (RES-02, RES-03, RES-04, RES-05)
+  - [x] 06-01-PLAN.md — Mobile navigation & global responsive utilities (RES-01)
+  - [x] 06-02-PLAN.md — Storefront page responsive layouts (RES-02, RES-03, RES-04, RES-05)
   **Wave 2** *(blocked on Wave 1 completion)*:
-  - [ ] 06-03-PLAN.md — Admin dashboard tablet support (RES-06)
+  - [x] 06-03-PLAN.md — Admin dashboard tablet support (RES-06)
 **UI hint**: yes
 
 ---
@@ -153,4 +153,4 @@ _Generated: 2026-05-01_
 |-------|----------------|--------|-----------|
 | 4. Loading States | 3/3 | Complete | 2026-05-02 |
 | 5. Feedback & Empty States | 2/2 | Complete | 2026-05-02 |
-| 6. Responsive Layout | 0/3 | Planned | - |
+| 6. Responsive Layout | 3/3 | Complete   | 2026-05-02 |

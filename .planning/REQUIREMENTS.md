@@ -8,10 +8,10 @@ _Updated: 2026-05-01 — Milestone v1.1: UI/UX Polish_
 
 ### Loading & Error States
 
-- [ ] **UX-01**: Product listing pages display skeleton cards while data is loading (no layout shift on load)
-- [ ] **UX-02**: Product detail page displays skeleton for image, title, price, and description while loading
-- [ ] **UX-03**: Cart page displays skeleton rows while cart items are fetching
-- [ ] **UX-04**: Orders / order history page displays skeleton rows while orders are loading
+- [x] **UX-01**: Product listing pages display skeleton cards while data is loading (no layout shift on load)
+- [x] **UX-02**: Product detail page displays skeleton for image, title, price, and description while loading
+- [x] **UX-03**: Cart page displays skeleton rows while cart items are fetching
+- [x] **UX-04**: Orders / order history page displays skeleton rows while orders are loading
 - [ ] **UX-05**: Add-to-cart button shows a spinner and is disabled while the mutation is in flight
 - [ ] **UX-06**: Checkout form submit button shows a spinner and is disabled while the order is being created
 - [ ] **UX-07**: Auth forms (login, register) show spinner on submit and disable the button during the request
@@ -68,10 +68,10 @@ All v1.0 requirements (SEC, PERF, FEAT, CODE, AI) are complete. See git history 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| UX-01 | Phase 4 | Pending |
-| UX-02 | Phase 4 | Pending |
-| UX-03 | Phase 4 | Pending |
-| UX-04 | Phase 4 | Pending |
+| UX-01 | Phase 4 | Complete |
+| UX-02 | Phase 4 | Complete |
+| UX-03 | Phase 4 | Complete |
+| UX-04 | Phase 4 | Complete |
 | UX-05 | Phase 5 | Pending |
 | UX-06 | Phase 5 | Pending |
 | UX-07 | Phase 5 | Pending |

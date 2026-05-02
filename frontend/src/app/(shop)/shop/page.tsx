@@ -43,7 +43,8 @@ const FilterSidebar = ({
   categoryFilter, setCategoryFilter,
   brandFilter, setBrandFilter,
   priceRangeFilter, setPriceRangeFilter,
-  setPage
+  setPage,
+  className = "card"
 }: {
   categories: Category[];
   brands: string[];
@@ -54,6 +55,7 @@ const FilterSidebar = ({
   priceRangeFilter: [number | '', number | ''];
   setPriceRangeFilter: (r: [number | '', number | '']) => void;
   setPage: (p: number) => void;
+  className?: string;
 }) => {
   // Use local state for price range while dragging, apply on button click
   const [localPriceRange, setLocalPriceRange] = useState<[number | '', number | '']>(priceRangeFilter);
@@ -74,7 +76,7 @@ const FilterSidebar = ({
   };
 
   return (
-    <div className="card" style={{ padding: '4px 20px 20px', position: 'sticky', top: 84 }}>
+    <div className={className} style={{ padding: '4px 20px 20px', position: 'sticky', top: 84 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 18 }}>
           <div style={{ fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
             <FilterIcon size={14} /> Bộ lọc
@@ -281,7 +283,7 @@ function ShopListing() {
 
   if (isLoading) return (
     <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 py-8">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {[...Array(12)].map((_, i) => <ProductCardSkeleton key={i} />)}
       </div>
     </div>
@@ -304,7 +306,7 @@ function ShopListing() {
           </h1>
           <p style={{ fontSize: 14, color: 'var(--neutral-500)', marginTop: 4 }}>Hiển thị {data.items.length} trong số {data.total} sản phẩm</p>
         </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div className="flex gap-3 items-center justify-end">
           <div className="lg:hidden">
             <Sheet>
               <SheetTrigger render={
@@ -314,22 +316,18 @@ function ShopListing() {
               } />
               <SheetContent side="right" className="p-0 overflow-y-auto w-[300px]">
                 <SheetTitle className="sr-only">Bộ lọc</SheetTitle>
-                <div className="p-4 border-b border-neutral-100 font-bold flex items-center gap-2">
-                  <FilterIcon size={16} /> Bộ lọc sản phẩm
-                </div>
-                <div className="p-4">
-                  <FilterSidebar 
-                    categories={categories || []}
-                    brands={brands || []}
-                    categoryFilter={categoryFilter} 
-                    setCategoryFilter={setCategoryFilter} 
-                    brandFilter={brandFilter}
-                    setBrandFilter={setBrandFilter}
-                    priceRangeFilter={priceRangeFilter}
-                    setPriceRangeFilter={setPriceRangeFilter}
-                    setPage={setPage} 
-                  />
-                </div>
+                <FilterSidebar 
+                  className="pb-4"
+                  categories={categories || []}
+                  brands={brands || []}
+                  categoryFilter={categoryFilter} 
+                  setCategoryFilter={setCategoryFilter} 
+                  brandFilter={brandFilter}
+                  setBrandFilter={setBrandFilter}
+                  priceRangeFilter={priceRangeFilter}
+                  setPriceRangeFilter={setPriceRangeFilter}
+                  setPage={setPage} 
+                />
               </SheetContent>
             </Sheet>
           </div>
@@ -365,7 +363,7 @@ function ShopListing() {
         </aside>
 
         <div style={{ flex: 1 }}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {data.items.map((prod: Product) => (
               <ProductCard 
                 key={prod.id} 

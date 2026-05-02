@@ -6,7 +6,7 @@ _Last updated: 2026-04-29_
 ```
 DATN/
 ├── backend/               FastAPI application
-├── frontend/              Next.js 14 application
+├── frontend/              Next.js 16 application
 ├── petshop-prototype/     Early static prototype (not wired to backend)
 ├── docs/                  API spec, ERD, data dictionary
 ├── imgs/                  Documentation images

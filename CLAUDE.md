@@ -88,7 +88,7 @@ Auth flow: `/api/v1/auth/register` + `/api/v1/auth/login` (OAuth2 password form)
 
 ## Frontend architecture
 
-Next.js 14 App Router under `frontend/src/app/` with two route groups:
+Next.js 16 App Router under `frontend/src/app/` with two route groups:
 
 - `(shop)/` — storefront (products, cart, checkout, orders, profile). The AI chat widget lives in `components/chat/` and is mounted from the shop layout.
 - `admin/` — admin dashboard (products, orders, users, analytics with Recharts). Access is gated client-side based on the JWT's role claim.

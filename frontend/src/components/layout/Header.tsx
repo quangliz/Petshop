@@ -262,7 +262,7 @@ export default function Header() {
                 <Menu size={24} />
               </button>
             } />
-            <SheetContent side="left" className="p-0 flex flex-col w-[280px] bg-white z-[60]">
+            <SheetContent side="right" className="p-0 flex flex-col w-[280px] bg-white z-[60]">
               <div className="p-6 border-b border-neutral-100">
                 <Link href="/" onClick={() => setMobileMenuOpen(false)}><Logo /></Link>
               </div>

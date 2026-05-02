@@ -167,7 +167,7 @@ Với 2 tháng và level mới bắt đầu, **booking/đặt lịch dịch vụ
 
 ### 3.2 Thành phần chính
 
-- **Frontend (Next.js 14 App Router):** SSR cho SEO trang sản phẩm, CSR cho dashboard/chat. TanStack Query cho data fetching, Zustand cho cart state, Tailwind + shadcn/ui cho UI.
+- **Frontend (Next.js 16 App Router):** SSR cho SEO trang sản phẩm, CSR cho dashboard/chat. TanStack Query cho data fetching, Zustand cho cart state, Tailwind + shadcn/ui cho UI.
 - **Backend (FastAPI):** REST API + SSE (streaming chat). SQLAlchemy 2.x + Alembic cho migration. Pydantic v2 cho validation.
 - **AI Service (LangGraph):** Orchestration chatbot với các "tool" — `search_products`, `get_user_pets`, `get_care_knowledge`. Agent router quyết định tool nào cần gọi.
 - **Vector DB:** `pgvector` (extension PostgreSQL) hoặc Chroma (local). Lưu embedding sản phẩm + tài liệu kiến thức chăm sóc thú cưng.

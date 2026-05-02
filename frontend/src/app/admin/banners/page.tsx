@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Edit, Trash2, X, ImageIcon } from "lucide-react";
-import NextImage from "next/image";
+import Image from "next/image";
 
 export default function AdminBannersPage() {
   const queryClient = useQueryClient();
@@ -123,7 +123,7 @@ export default function AdminBannersPage() {
               <tr key={b.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3">
                   {b.image_url ? (
-                    <NextImage
+                    <Image
                       src={b.image_url}
                       alt={b.title ?? ""}
                       width={120}
@@ -144,11 +144,10 @@ export default function AdminBannersPage() {
                 <td className="px-4 py-3 text-center">{b.sort_order}</td>
                 <td className="px-4 py-3 text-center">
                   <span
-                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                      b.is_active
+                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${b.is_active
                         ? "bg-green-100 text-green-700"
                         : "bg-gray-100 text-gray-500"
-                    }`}
+                      }`}
                   >
                     {b.is_active ? "Có" : "Ẩn"}
                   </span>
@@ -196,7 +195,7 @@ export default function AdminBannersPage() {
                   onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
                 />
                 {modal.banner?.image_url && !imageFile && (
-                  <NextImage
+                  <Image
                     src={modal.banner.image_url}
                     alt="preview"
                     width={300}

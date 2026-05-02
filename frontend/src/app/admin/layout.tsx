@@ -79,21 +79,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-white border-b px-4 md:px-6 py-4 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger render={
-                <button className="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-md">
-                  <Menu size={20} />
-                </button>
-              } />
-              <SheetContent side="left" className="p-0 bg-gray-900 border-r-gray-800 text-white w-64 flex flex-col">
-                <SidebarContent pathname={pathname} />
-              </SheetContent>
-            </Sheet>
             <h2 className="font-semibold text-gray-700">
               {menuItems.find((m) => m.href === pathname)?.label ?? "Admin"}
             </h2>
           </div>
-          <span className="text-sm text-gray-500 hidden sm:inline">Xin chào, <strong>{user?.full_name}</strong></span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500 hidden sm:inline">Xin chào, <strong>{user?.full_name}</strong></span>
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger render={
+                <button className="md:hidden p-2 -mr-2 text-gray-600 hover:bg-gray-100 rounded-md">
+                  <Menu size={20} />
+                </button>
+              } />
+              <SheetContent side="right" className="p-0 bg-gray-900 border-l-gray-800 text-white w-64 flex flex-col">
+                <SidebarContent pathname={pathname} />
+              </SheetContent>
+            </Sheet>
+          </div>
         </header>
         <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>
