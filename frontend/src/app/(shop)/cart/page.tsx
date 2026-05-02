@@ -8,7 +8,7 @@ import { Trash2, Plus, Minus, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { getGuestCart, GuestCartItem } from '@/lib/guestCart';
 import Image from 'next/image';
-
+import { CartRowSkeleton } from "@/components/skeletons/CartRowSkeleton";
 interface CartItem {
   id: string;
   product_id: string;
@@ -133,7 +133,13 @@ function AuthCartPage() {
     if (items.length > 0) setSelectedIds(new Set(items.map((i: CartItem) => i.id)));
   }, [items]);
 
-  if (isLoading) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--neutral-500)' }}>Đang tải giỏ hàng...</div>;
+  if (isLoading) return (
+    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8">
+      <div className="flex flex-col gap-4">
+        {[...Array(3)].map((_, i) => <CartRowSkeleton key={i} />)}
+      </div>
+    </div>
+  );
 
   const allSelected = items.length > 0 && items.every(i => selectedIds.has(i.id));
   const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map(i => i.id)));

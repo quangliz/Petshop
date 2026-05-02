@@ -5,7 +5,7 @@ import api from '@/lib/api';
 import Link from 'next/link';
 import { LucideIcon, ChevronRight, Package, Clock, Truck, CheckCircle, XCircle } from 'lucide-react';
 import { Order } from '@/lib/types';
-
+import { OrderRowSkeleton } from "@/components/skeletons/OrderRowSkeleton";
 const statusConfig: Record<string, { label: string, color: string, bg: string, icon: LucideIcon }> = {
   pending: { label: 'Chờ xử lý', color: 'var(--primary-600)', bg: 'var(--primary-50)', icon: Clock },
   confirmed: { label: 'Đã xác nhận', color: 'var(--teal-600)', bg: 'var(--teal-50)', icon: CheckCircle },
@@ -23,7 +23,13 @@ export default function OrdersPage() {
     }
   });
 
-  if (isLoading) return <div className="py-24 text-center" style={{ color: 'var(--neutral-500)' }}>Đang tải đơn hàng...</div>;
+  if (isLoading) return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="flex flex-col gap-3 sm:gap-4">
+        {[...Array(3)].map((_, i) => <OrderRowSkeleton key={i} />)}
+      </div>
+    </div>
+  );
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
