@@ -4,7 +4,7 @@ import pytest
 
 class TestCartGet:
     def test_get_cart_authenticated(self, client, auth_headers):
-        res = client.get("/api/v1/cart/", headers=auth_headers)
+        res = client.get("/api/v1/cart", headers=auth_headers)
         assert res.status_code == 200
         data = res.json()
         assert "id" in data
@@ -13,14 +13,14 @@ class TestCartGet:
         assert isinstance(data["items"], list)
 
     def test_get_cart_unauthorized(self, client):
-        res = client.get("/api/v1/cart/")
+        res = client.get("/api/v1/cart")
         assert res.status_code == 401
 
 
 class TestCartAddItem:
     def test_add_item_to_cart(self, client, auth_headers):
         """Add a product to cart; skip if no products exist."""
-        products = client.get("/api/v1/products/?size=20").json()
+        products = client.get("/api/v1/products?size=20").json()
         items = [p for p in products.get("items", []) if p.get("stock_qty", 0) > 0]
         if not items:
             pytest.skip("No products to add")
@@ -49,7 +49,7 @@ class TestCartItemFields:
     def test_cart_items_have_product_image_field(self, client, auth_headers):
         """The frontend expects `product_image`, not `image_url`."""
         # Ensure at least one item in cart
-        products = client.get("/api/v1/products/?size=20").json()
+        products = client.get("/api/v1/products?size=20").json()
         items = [p for p in products.get("items", []) if p.get("stock_qty", 0) > 0]
         if not items:
             pytest.skip("No products available")
@@ -60,7 +60,7 @@ class TestCartItemFields:
             "quantity": 1
         })
 
-        res = client.get("/api/v1/cart/", headers=auth_headers)
+        res = client.get("/api/v1/cart", headers=auth_headers)
         assert res.status_code == 200
         cart_items = res.json()["items"]
         assert len(cart_items) >= 1
@@ -80,7 +80,7 @@ class TestCartItemFields:
 class TestCartUpdateDelete:
     def test_update_and_delete_item(self, client, auth_headers):
         """Add, update, then delete a cart item."""
-        products = client.get("/api/v1/products/?size=20").json()
+        products = client.get("/api/v1/products?size=20").json()
         items = [p for p in products.get("items", []) if p.get("stock_qty", 0) > 0]
         if not items:
             pytest.skip("No products available")

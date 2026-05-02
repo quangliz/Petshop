@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 def test_get_categories(client: TestClient):
-    res = client.get("/api/v1/categories/")
+    res = client.get("/api/v1/categories")
     assert res.status_code == 200
     data = res.json()
     assert isinstance(data, list)

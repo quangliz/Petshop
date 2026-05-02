@@ -7,7 +7,7 @@ class TestProductList:
     """GET /api/v1/products/"""
 
     def test_returns_items_and_pagination(self, client):
-        res = client.get("/api/v1/products/")
+        res = client.get("/api/v1/products")
         assert res.status_code == 200
         data = res.json()
         assert "items" in data
@@ -17,7 +17,7 @@ class TestProductList:
         assert "pages" in data
 
     def test_pagination_params(self, client):
-        res = client.get("/api/v1/products/?page=1&size=5")
+        res = client.get("/api/v1/products?page=1&size=5")
         assert res.status_code == 200
         data = res.json()
         assert len(data["items"]) <= 5
@@ -27,13 +27,13 @@ class TestProductList:
     def test_search_filter(self, client):
         if not os.getenv("OPENAI_API_KEY"):
             pytest.skip("OPENAI_API_KEY not set — semantic search requires a real key")
-        res = client.get("/api/v1/products/?q=cho")
+        res = client.get("/api/v1/products?q=cho")
         assert res.status_code == 200
         data = res.json()
         assert "items" in data
 
     def test_sort_price_asc(self, client):
-        res = client.get("/api/v1/products/?sort=price_asc&size=50")
+        res = client.get("/api/v1/products?sort=price_asc&size=50")
         assert res.status_code == 200
         items = res.json()["items"]
         if len(items) >= 2:
@@ -41,7 +41,7 @@ class TestProductList:
             assert prices == sorted(prices), "Prices should be ascending"
 
     def test_sort_price_desc(self, client):
-        res = client.get("/api/v1/products/?sort=price_desc&size=50")
+        res = client.get("/api/v1/products?sort=price_desc&size=50")
         assert res.status_code == 200
         items = res.json()["items"]
         if len(items) >= 2:
@@ -49,14 +49,14 @@ class TestProductList:
             assert prices == sorted(prices, reverse=True), "Prices should be descending"
 
     def test_category_slug_filter(self, client):
-        res = client.get("/api/v1/products/?category_slug=nonexistent-slug-xyz")
+        res = client.get("/api/v1/products?category_slug=nonexistent-slug-xyz")
         assert res.status_code == 200
         data = res.json()
         assert data["total"] == 0
 
     def test_items_contain_new_fields(self, client):
         """Verify the new fields are present in the response (gap #1, #6)."""
-        res = client.get("/api/v1/products/?size=3")
+        res = client.get("/api/v1/products?size=3")
         assert res.status_code == 200
         items = res.json()["items"]
         for item in items:
@@ -75,7 +75,7 @@ class TestProductDetail:
 
     def test_detail_contains_new_fields(self, client):
         """Grab first product from listing and fetch detail — check new fields."""
-        listing = client.get("/api/v1/products/?size=1")
+        listing = client.get("/api/v1/products?size=1")
         items = listing.json().get("items", [])
         if not items:
             pytest.skip("No products in database to test")
@@ -89,7 +89,7 @@ class TestProductDetail:
         assert "attributes" in data
 
     def test_detail_has_core_fields(self, client):
-        listing = client.get("/api/v1/products/?size=1")
+        listing = client.get("/api/v1/products?size=1")
         items = listing.json().get("items", [])
         if not items:
             pytest.skip("No products in database to test")
@@ -106,7 +106,7 @@ class TestCategories:
     """GET /api/v1/categories/"""
 
     def test_list_categories(self, client):
-        res = client.get("/api/v1/categories/")
+        res = client.get("/api/v1/categories")
         assert res.status_code == 200
         assert isinstance(res.json(), list)
 

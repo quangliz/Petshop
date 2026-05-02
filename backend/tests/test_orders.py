@@ -4,17 +4,17 @@ import pytest
 
 class TestOrdersList:
     def test_list_orders_authenticated(self, client, auth_headers):
-        res = client.get("/api/v1/orders/", headers=auth_headers)
+        res = client.get("/api/v1/orders", headers=auth_headers)
         assert res.status_code == 200
         data = res.json()
         assert isinstance(data, list)
 
     def test_list_orders_unauthorized(self, client):
-        res = client.get("/api/v1/orders/")
+        res = client.get("/api/v1/orders")
         assert res.status_code == 401
 
     def test_order_response_fields(self, client, auth_headers):
-        res = client.get("/api/v1/orders/", headers=auth_headers)
+        res = client.get("/api/v1/orders", headers=auth_headers)
         assert res.status_code == 200
         orders = res.json()
         for order in orders:
@@ -27,7 +27,7 @@ class TestCheckout:
     def test_checkout_empty_cart(self, client, auth_headers):
         """Attempting checkout with an empty cart should fail."""
         # Ensure cart is empty by deleting all items first
-        cart = client.get("/api/v1/cart/", headers=auth_headers).json()
+        cart = client.get("/api/v1/cart", headers=auth_headers).json()
         for item in cart.get("items", []):
             client.delete(f"/api/v1/cart/items/{item['id']}", headers=auth_headers)
 
@@ -41,7 +41,7 @@ class TestCheckout:
 
     def test_checkout_success(self, client, auth_headers):
         """Full checkout flow: add item → checkout → verify order."""
-        products = client.get("/api/v1/products/?size=20").json()
+        products = client.get("/api/v1/products?size=20").json()
         items = [p for p in products.get("items", []) if p.get("stock_qty", 0) > 0]
         if not items:
             pytest.skip("No products available")
@@ -72,7 +72,7 @@ class TestCheckout:
 class TestOrderDetail:
     def test_order_detail(self, client, auth_headers):
         """Get detail of the most recent order."""
-        orders = client.get("/api/v1/orders/", headers=auth_headers).json()
+        orders = client.get("/api/v1/orders", headers=auth_headers).json()
         if not orders:
             pytest.skip("No orders to test")
 

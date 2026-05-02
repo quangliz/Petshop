@@ -4,18 +4,18 @@ import pytest
 
 class TestPetsList:
     def test_list_pets_authenticated(self, client, auth_headers):
-        res = client.get("/api/v1/pets/", headers=auth_headers)
+        res = client.get("/api/v1/pets", headers=auth_headers)
         assert res.status_code == 200
         assert isinstance(res.json(), list)
 
     def test_list_pets_unauthorized(self, client):
-        res = client.get("/api/v1/pets/")
+        res = client.get("/api/v1/pets")
         assert res.status_code == 401
 
 
 class TestPetCRUD:
     def test_create_pet(self, client, auth_headers):
-        res = client.post("/api/v1/pets/", headers=auth_headers, json={
+        res = client.post("/api/v1/pets", headers=auth_headers, json={
             "name": "Miu Test",
             "species": "cat",
             "breed": "British Shorthair",
@@ -34,7 +34,7 @@ class TestPetCRUD:
 
     def test_create_pet_minimal(self, client, auth_headers):
         """Create with only required fields."""
-        res = client.post("/api/v1/pets/", headers=auth_headers, json={
+        res = client.post("/api/v1/pets", headers=auth_headers, json={
             "name": "Lucky",
             "species": "dog",
         })
@@ -44,7 +44,7 @@ class TestPetCRUD:
         assert data["species"] == "dog"
 
     def test_update_pet(self, client, auth_headers):
-        pets = client.get("/api/v1/pets/", headers=auth_headers).json()
+        pets = client.get("/api/v1/pets", headers=auth_headers).json()
         if not pets:
             pytest.skip("No pets to update")
 
@@ -58,7 +58,7 @@ class TestPetCRUD:
 
     def test_delete_pet(self, client, auth_headers):
         # Create then delete
-        create_res = client.post("/api/v1/pets/", headers=auth_headers, json={
+        create_res = client.post("/api/v1/pets", headers=auth_headers, json={
             "name": "DeleteMe",
             "species": "fish",
         })
@@ -73,7 +73,7 @@ class TestPetCRUD:
         assert res.status_code == 404
 
     def test_pet_response_fields(self, client, auth_headers):
-        pets = client.get("/api/v1/pets/", headers=auth_headers).json()
+        pets = client.get("/api/v1/pets", headers=auth_headers).json()
         for pet in pets:
             required = ["id", "name", "species", "gender", "avatar_url"]
             for field in required:

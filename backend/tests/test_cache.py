@@ -65,8 +65,8 @@ def test_query_embedding_cache(auth_headers):
     original_embed = emb_module.embed_query_cached  # will exist after Wave 2
 
     with patch.object(emb_module, "embed_query_cached", side_effect=counting_embed):
-        resp1 = client.get("/api/v1/products/?q=thức ăn cho chó golden", headers=auth_headers)
-        resp2 = client.get("/api/v1/products/?q=thức ăn cho chó golden", headers=auth_headers)
+        resp1 = client.get("/api/v1/products?q=thức ăn cho chó golden", headers=auth_headers)
+        resp2 = client.get("/api/v1/products?q=thức ăn cho chó golden", headers=auth_headers)
 
     assert resp1.status_code == 200
     assert resp2.status_code == 200
@@ -83,7 +83,7 @@ def test_pet_profile_cache(auth_headers):
     """
     # Create a pet
     resp = client.post(
-        "/api/v1/pets/",
+        "/api/v1/pets",
         json={
             "name": "CacheTestDog",
             "species": "dog",

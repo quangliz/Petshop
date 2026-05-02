@@ -51,7 +51,7 @@ export default function AdminProductsPage() {
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
-    queryFn: async () => (await api.get("/categories")).data,
+    queryFn: async () => (await api.get("/categories/")).data,
   });
 
   const openCreate = () => {
