@@ -104,7 +104,10 @@ _Generated: 2026-05-01_
   2. Opening a product detail page shows placeholder shapes for the image, title, price, and description while loading
   3. Navigating to the cart shows skeleton rows for each item slot before cart data arrives
   4. Opening order history shows skeleton rows while the orders request is in flight
-**Plans**: TBD
+**Plans**: 3 plans
+  - [ ] 04-01-PLAN.md — Install shadcn Skeleton primitive and build 4 page-specific skeleton components (UX-01..UX-04 foundation)
+  - [ ] 04-02-PLAN.md — Replace isLoading guards on shop listing and product detail pages (UX-01, UX-02)
+  - [ ] 04-03-PLAN.md — Replace isLoading guards on cart and orders pages (UX-03, UX-04)
 **UI hint**: yes
 
 ---
@@ -141,6 +144,6 @@ _Generated: 2026-05-01_
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 4. Loading States | 0/TBD | Not started | - |
+| 4. Loading States | 0/3 | Not started | - |
 | 5. Feedback & Empty States | 0/TBD | Not started | - |
 | 6. Responsive Layout | 0/TBD | Not started | - |
