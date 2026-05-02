@@ -8,6 +8,11 @@ import { getGuestCart, clearGuestCart, GuestCartItem } from '@/lib/guestCart';
 import { ChevronRight, CreditCard, Truck, ShieldCheck, Phone, User as UserIcon, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { VietnamAddressPicker } from '@/components/VietnamAddressPicker';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
 
 interface DisplayItem {
   id: string;
@@ -18,25 +23,38 @@ interface DisplayItem {
   price: number;
 }
 
+const checkoutSchema = z.object({
+  name: z.string().min(1, 'Vui lòng nhập họ tên'),
+  phone: z.string().min(1, 'Vui lòng nhập số điện thoại').regex(/^0\d{9,10}$/, 'Số điện thoại không hợp lệ'),
+  address: z.string().min(1, 'Vui lòng chọn địa chỉ'),
+  note: z.string().optional(),
+  guestEmail: z.string().optional(),
+});
+type CheckoutForm = z.infer<typeof checkoutSchema>;
+
 function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const selectedItemIds = useMemo(() => searchParams.getAll('items'), [searchParams]);
-  const [form, setForm] = useState(() => ({
-    name: user?.full_name || '',
-    phone: user?.phone || '',
-    address: user?.address || '',
-    note: ''
-  }));
+  
+  const { register, handleSubmit, control, formState: { errors, isSubmitting } } = useForm<CheckoutForm>({
+    resolver: zodResolver(checkoutSchema),
+    defaultValues: {
+      name: user?.full_name || '',
+      phone: user?.phone || '',
+      address: user?.address || '',
+      note: '',
+      guestEmail: '',
+    },
+  });
+
   const [paymentMethod, setPaymentMethod] = useState('cod');
-  const [loading, setLoading] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
 
   // Guest cart state
   const [guestItems, setGuestItems] = useState<GuestCartItem[]>([]);
   const [guestProducts, setGuestProducts] = useState<DisplayItem[]>([]);
-  const [guestEmail, setGuestEmail] = useState<string>('');
   const isGuest = !user;
 
   useEffect(() => {
@@ -82,18 +100,16 @@ function CheckoutPage() {
   );
   const total = subtotal + 30000;
 
-  const handleCheckout = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const onSubmit = async (data: CheckoutForm) => {
     try {
       let order;
       if (isGuest) {
         const res = await api.post('/orders/guest-checkout', {
-          ship_name: form.name,
-          ship_phone: form.phone,
-          ship_address: form.address,
-          note: form.note,
-          guest_email: guestEmail,
+          ship_name: data.name,
+          ship_phone: data.phone,
+          ship_address: data.address,
+          note: data.note,
+          guest_email: data.guestEmail,
           payment_method: paymentMethod,
           items: guestItems,
         });
@@ -101,10 +117,10 @@ function CheckoutPage() {
         clearGuestCart();
       } else {
         const res = await api.post('/orders/checkout', {
-          ship_name: form.name,
-          ship_phone: form.phone,
-          ship_address: form.address,
-          note: form.note,
+          ship_name: data.name,
+          ship_phone: data.phone,
+          ship_address: data.address,
+          note: data.note,
           payment_method: paymentMethod,
           ...(selectedItemIds.length > 0 ? { item_ids: selectedItemIds } : {})
         });
@@ -115,12 +131,12 @@ function CheckoutPage() {
         const vnpRes = await api.post(`/payments/vnpay/create/${order.id}`);
         window.location.href = vnpRes.data.payment_url;
       } else {
+        toast.success('Đặt hàng thành công!');
         router.push(`/orders/${order.id}?guest=1&order_code=${order.order_code}`);
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
-      alert(axiosErr.response?.data?.detail || "Lỗi đặt hàng");
-      setLoading(false);
+      toast.error(axiosErr.response?.data?.detail || 'Lỗi đặt hàng. Vui lòng thử lại.');
     }
   };
 
@@ -141,7 +157,7 @@ function CheckoutPage() {
 
       <h1 className="text-2xl md:text-[32px] font-extrabold tracking-tight mb-6 md:mb-10">Xác nhận đơn hàng</h1>
 
-      <form onSubmit={handleCheckout} className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8 lg:gap-12 items-start">
+      <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8 lg:gap-12 items-start">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           {/* Shipping Info */}
           <div className="card" style={{ padding: 32 }}>
@@ -154,10 +170,9 @@ function CheckoutPage() {
                 <div className="sm:col-span-2">
                   <label htmlFor="guest-email" style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Email (để tra cứu đơn hàng sau)</label>
                   <input
+                    {...register('guestEmail')}
                     id="guest-email"
                     type="email"
-                    value={guestEmail}
-                    onChange={(e) => setGuestEmail(e.target.value)}
                     placeholder="email@example.com"
                     style={{ width: '100%', padding: '14px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }}
                   />
@@ -167,25 +182,34 @@ function CheckoutPage() {
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Họ và tên người nhận</label>
                 <div style={{ position: 'relative' }}>
                   <UserIcon size={16} style={{ position: 'absolute', left: 14, top: 18, color: 'var(--neutral-400)' }} />
-                  <input required style={{ width: '100%', padding: '14px 16px 14px 40px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+                  <input {...register('name')} style={{ width: '100%', padding: '14px 16px 14px 40px', borderRadius: 12, border: `1.5px solid ${errors.name ? 'var(--danger)' : 'var(--neutral-200)'}`, outline: 'none' }} />
                 </div>
+                {errors.name && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 6, fontWeight: 600 }}>{errors.name.message}</p>}
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Số điện thoại</label>
                 <div style={{ position: 'relative' }}>
                   <Phone size={16} style={{ position: 'absolute', left: 14, top: 18, color: 'var(--neutral-400)' }} />
-                  <input required style={{ width: '100%', padding: '14px 16px 14px 40px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
+                  <input {...register('phone')} style={{ width: '100%', padding: '14px 16px 14px 40px', borderRadius: 12, border: `1.5px solid ${errors.phone ? 'var(--danger)' : 'var(--neutral-200)'}`, outline: 'none' }} />
                 </div>
+                {errors.phone && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 6, fontWeight: 600 }}>{errors.phone.message}</p>}
               </div>
               <div className="sm:col-span-2">
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Địa chỉ giao hàng</label>
-                <VietnamAddressPicker value={form.address} onChange={v => setForm({...form, address: v})} />
+                <Controller
+                  name="address"
+                  control={control}
+                  render={({ field }) => (
+                    <VietnamAddressPicker value={field.value} onChange={field.onChange} />
+                  )}
+                />
+                {errors.address && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 6, fontWeight: 600 }}>{errors.address.message}</p>}
               </div>
               <div className="sm:col-span-2">
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Ghi chú cho đơn hàng (tuỳ chọn)</label>
                 <div style={{ position: 'relative' }}>
                   <MessageSquare size={16} style={{ position: 'absolute', left: 14, top: 18, color: 'var(--neutral-400)' }} />
-                  <input style={{ width: '100%', padding: '14px 16px 14px 40px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={form.note} onChange={e => setForm({...form, note: e.target.value})} />
+                  <input {...register('note')} style={{ width: '100%', padding: '14px 16px 14px 40px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} />
                 </div>
               </div>
             </div>
@@ -256,8 +280,8 @@ function CheckoutPage() {
                 <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--primary-600)' }}>{total.toLocaleString()}đ</span>
               </div>
             </div>
-            <button type="submit" disabled={loading} className="btn btn-primary btn-lg" style={{ width: '100%', marginTop: 32, height: 56, borderRadius: 16, fontSize: 16 }}>
-              {loading ? "Đang xử lý..." : "Xác nhận đặt hàng"}
+            <button type="submit" disabled={isSubmitting} className="btn btn-primary btn-lg" style={{ width: '100%', marginTop: 32, height: 56, borderRadius: 16, fontSize: 16 }}>
+              {isSubmitting ? <><Spinner size={18} /> Đang xử lý...</> : "Xác nhận đặt hàng"}
             </button>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 24, color: 'var(--neutral-400)', fontSize: 12 }}>
               <ShieldCheck size={14} /> Thanh toán an toàn & bảo mật
