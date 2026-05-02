@@ -8,7 +8,7 @@ A production-grade pet-shop e-commerce platform with an AI assistant as the core
 
 **Target audience:** Thesis evaluation committee (must be demo-able and technically impressive) and real pet owners in Vietnam.
 
-**Timeline:** < 1 month to thesis submission. ~70% of codebase already exists.
+**Timeline:** < 1 month to thesis submission. ~90% of codebase complete.
 
 ---
 
@@ -32,6 +32,9 @@ From codebase analysis (`/planning/codebase/`):
 - ✓ Validated in Phase 1: Knowledge base admin UI
 - ✓ Validated in Phase 1: Embedding management admin
 - ✓ Validated in Phase 1: Indexing service
+- ✓ **Validated in Phase 4-5**: Skeleton loaders, action feedback (toasts/spinners), and empty states
+- ✓ **Validated in Phase 5**: Form validation with react-hook-form + zod
+- ✓ **Validated in Phase 6**: Fully responsive storefront & admin dashboard
 
 ### Active (in progress / untracked)
 (none)
@@ -42,40 +45,41 @@ From codebase analysis (`/planning/codebase/`):
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| Semantic search | Query embedding → pgvector similarity search (cached in Redis) | To build |
-| Pet-aware recommendations | Pet profile embed cached in Redis → pgvector product query | To optimize |
-| Cart tool-use in chat | LangGraph tools: `add_to_cart`, `view_cart` | To build |
-| Chat + product rec | AI recommends products in conversation using RAG | Exists — polish |
-| Admin auto-tagging | OpenAI call on product save → suggest compatible pets, tags | To build |
-| Similar products | Precomputed on product save, stored in pgvector | To build |
-| Embedding caching | Redis cache for query, pet-profile, and similar-product embeddings | To build |
+| Semantic search | Query embedding → pgvector similarity search (cached in Redis) | Complete |
+| Pet-aware recommendations | Pet profile embed cached in Redis → pgvector product query | Complete |
+| Cart tool-use in chat | LangGraph tools: `add_to_cart`, `view_cart` | Complete |
+| Chat + product rec | AI recommends products in conversation using RAG | Complete |
+| Admin auto-tagging | OpenAI call on product save → suggest compatible pets, tags | Complete |
+| Similar products | Precomputed on product save, stored in pgvector | Complete |
+| Embedding caching | Redis cache for query, pet-profile, and similar-product embeddings | Complete |
 
 ---
 
 ## Production Requirements (thesis quality bar)
 
 ### Security
-- Fix wildcard CORS + credentials (critical)
-- Fix `SECRET_KEY` defaulting to None
-- Proper admin auth (server-side, not client-side only)
-- Rate limiting on auth endpoints
+- [x] Fix wildcard CORS + credentials
+- [x] Fix `SECRET_KEY` defaulting to None
+- [x] Proper admin auth (server-side check)
+- [x] Rate limiting on auth endpoints
 
 ### Reliability & Performance
-- DB indexes on all queried columns
-- Connection pooling (replace NullPool)
-- Fix silent error swallowing
-- Fix `request.client.host` crash behind proxy
+- [x] DB indexes on all queried columns
+- [x] Connection pooling (SQLAlchemy)
+- [x] Fix silent error swallowing
+- [x] Proxy-safe IP detection
 
 ### Feature Completeness
-- Commit untracked features (banners, knowledge base admin, indexing)
-- COD orders increment `sold_count`
-- `avg_rating` / `review_count` consistency
-- Order code collision fix
+- [x] Commit untracked features (banners, knowledge, indexing)
+- [x] COD orders increment `sold_count`
+- [x] `avg_rating` / `review_count` consistency
+- [x] Order code collision fix
 
-### Code Quality
-- Split `admin.py` monolith (907 lines)
-- Consistent async throughout backend
-- Remove `_product_dict_with_rating` no-op
+### UX & Interface (v1.1)
+- [x] Skeleton loading states for all pages
+- [x] Form validation & inline errors
+- [x] Toast notifications (Sonner)
+- [x] Full mobile responsiveness
 
 ---
 
@@ -88,61 +92,33 @@ From codebase analysis (`/planning/codebase/`):
 | pgvector for embeddings | Co-located with relational data, no extra infra | Locked |
 | Redis for embedding cache | Already used for rate-limiting, zero new infra | Locked |
 | OpenAI for embeddings + chat | Already integrated | Locked |
-| No care schedule feature | Out of thesis scope | Locked |
-| No image-based search | Out of thesis scope | Locked |
 | VNPay sandbox | Real integration, sufficient for thesis demo | Locked |
 | Vietnamese UI text | Target market + committee language | Locked |
+| Right-hand bias for mobile | Improved accessibility for common one-handed usage | Logged (v1.1) |
 
 ---
 
-## What Done Looks Like
+## Milestone History
 
-A committee member can:
-1. Register, add a pet profile (breed, age)
-2. Open the AI chat and ask "what food should I buy for my golden retriever?"
-3. Get personalized recommendations with reasoning
-4. Say "add the first one to my cart" and it works
-5. Ask "can my dog eat grapes?" and get an accurate health answer with product links
-6. Search the store and get semantically relevant results
-7. Complete a checkout (VNPay or guest)
+<details>
+<summary>v1.0 Foundation & AI Core (Completed 2026-04-30)</summary>
 
-An admin can:
-8. Create a product and get AI-suggested tags automatically
-9. View a product page and see "similar products" powered by embeddings
+**Goal:** Establish a secure, high-performance base and implement the core AI shopping experience.
+**Highlights:** AI Cart tools, semantic search, pet-aware RAG, and guest order lookup.
+</details>
 
----
+<details>
+<summary>v1.1 UI/UX Polish (Completed 2026-05-02)</summary>
 
-## Out of Scope
-
-- Care schedule / vet schedule generator — too large for timeline
-- Image-based product search — requires separate ML pipeline
-- Real payment processing (non-sandbox) — not for thesis
-- Mobile app — web only
-- Google OAuth — config exists but not implementing callback
-- Multi-language (i18n) — Vietnamese only
+**Goal:** Polish the user experience with loading feedback, form validation, and mobile responsiveness.
+**Highlights:** Skeleton loaders, Sonner toasts, and full responsive overhaul of storefront and admin.
+</details>
 
 ---
 
-## Current Milestone: v1.1 UI/UX Polish
-
-**Goal:** Make the storefront and checkout experience feel production-grade with proper loading states, error handling, and mobile-responsive layouts throughout the app.
-
-**Target features:**
-- Loading & error states — skeletons, spinners, empty states, error toasts across all pages
-- Responsive / Mobile — all pages work well on mobile screens
+## Next Milestone: TBA
+Run `/gsd-new-milestone` to define goals.
 
 ---
 
-## Evolution
-
-This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition** (via `/gsd-transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-
----
-
-*Last updated: 2026-05-01 — Milestone v1.1 started*
+*Last updated: 2026-05-02 — Milestone v1.1 archived*
