@@ -7,23 +7,32 @@ import { useAuthStore } from '@/lib/store';
 import { getGuestCart, clearGuestCart } from '@/lib/guestCart';
 import { Mail, Lock, Sparkles, ArrowRight } from 'lucide-react';
 import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
+
+const loginSchema = z.object({
+  email: z.string().min(1, 'Vui lòng nhập email').email('Email không hợp lệ'),
+  password: z.string().min(1, 'Vui lòng nhập mật khẩu'),
+});
+type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+  });
+  const [serverError, setServerError] = useState('');
   const { setAuth } = useAuthStore();
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+  const onSubmit = async (data: LoginForm) => {
+    setServerError('');
     try {
       const formData = new URLSearchParams();
-      formData.append('username', email);
-      formData.append('password', password);
+      formData.append('username', data.email);
+      formData.append('password', data.password);
       
       const res = await api.post('/auth/login', formData, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
@@ -42,11 +51,11 @@ export default function LoginPage() {
         }
         clearGuestCart();
       }
+      toast.success('Đăng nhập thành công!');
       router.push('/');
     } catch {
-      setError('Email hoặc mật khẩu không chính xác');
-    } finally {
-      setLoading(false);
+      setServerError('Email hoặc mật khẩu không chính xác');
+      toast.error('Đăng nhập thất bại');
     }
   };
 
@@ -63,20 +72,21 @@ export default function LoginPage() {
           <p style={{ fontSize: 14, color: 'var(--neutral-500)' }}>Đăng nhập để tiếp tục chăm sóc bé pet của bạn</p>
         </div>
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {error && <div style={{ padding: '12px', background: 'var(--danger-bg)', color: 'var(--danger)', borderRadius: 10, fontSize: 13, textAlign: 'center', fontWeight: 600 }}>{error}</div>}
+        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {serverError && <div style={{ padding: '12px', background: 'var(--danger-bg)', color: 'var(--danger)', borderRadius: 10, fontSize: 13, textAlign: 'center', fontWeight: 600 }}>{serverError}</div>}
           
           <div>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Email</label>
             <div style={{ position: 'relative' }}>
               <Mail size={18} style={{ position: 'absolute', left: 14, top: 15, color: 'var(--neutral-400)' }} />
               <input 
-                type="email" required 
-                style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }}
+                {...register('email')}
+                type="email"
+                style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: 12, border: `1.5px solid ${errors.email ? 'var(--danger)' : 'var(--neutral-200)'}`, outline: 'none' }}
                 placeholder="pet@example.com"
-                value={email} onChange={e => setEmail(e.target.value)}
               />
             </div>
+            {errors.email && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 6, fontWeight: 600 }}>{errors.email.message}</p>}
           </div>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -86,19 +96,20 @@ export default function LoginPage() {
             <div style={{ position: 'relative' }}>
               <Lock size={18} style={{ position: 'absolute', left: 14, top: 15, color: 'var(--neutral-400)' }} />
               <input 
-                type="password" required 
-                style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }}
+                {...register('password')}
+                type="password"
+                style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: 12, border: `1.5px solid ${errors.password ? 'var(--danger)' : 'var(--neutral-200)'}`, outline: 'none' }}
                 placeholder="••••••••"
-                value={password} onChange={e => setPassword(e.target.value)}
               />
             </div>
+            {errors.password && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 6, fontWeight: 600 }}>{errors.password.message}</p>}
           </div>
           <button 
-            type="submit" disabled={loading}
+            type="submit" disabled={isSubmitting}
             className="btn btn-primary btn-lg" 
             style={{ width: '100%', height: 52, borderRadius: 14, marginTop: 12, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            {loading ? "Đang xử lý..." : (
+            {isSubmitting ? <><Spinner size={18} /> Đang đăng nhập...</> : (
               <>Đăng nhập <ArrowRight size={18} style={{ marginLeft: 8 }} /></>
             )}
           </button>
