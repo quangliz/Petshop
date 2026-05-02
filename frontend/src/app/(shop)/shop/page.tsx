@@ -281,7 +281,7 @@ function ShopListing() {
 
   if (isLoading) return (
     <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 py-8">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {[...Array(12)].map((_, i) => <ProductCardSkeleton key={i} />)}
       </div>
     </div>
@@ -299,7 +299,7 @@ function ShopListing() {
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-[28px] md:text-[32px]" style={{ fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>
+          <h1 className="text-2xl sm:text-[28px] md:text-[32px]" style={{ fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>
             {search ? `Kết quả cho “${search}”` : 'Tất cả sản phẩm'}
           </h1>
           <p style={{ fontSize: 14, color: 'var(--neutral-500)', marginTop: 4 }}>Hiển thị {data.items.length} trong số {data.total} sản phẩm</p>
@@ -308,7 +308,7 @@ function ShopListing() {
           <div className="lg:hidden">
             <Sheet>
               <SheetTrigger render={
-                <button className="btn btn-outline flex items-center justify-center gap-2 w-full py-3 md:hidden">
+                <button className="btn btn-outline flex items-center justify-center gap-2 w-full py-3 lg:hidden">
                   <FilterIcon size={16} /> Lọc
                 </button>
               } />
@@ -365,7 +365,7 @@ function ShopListing() {
         </aside>
 
         <div style={{ flex: 1 }}>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {data.items.map((prod: Product) => (
               <ProductCard 
                 key={prod.id} 
@@ -390,7 +390,7 @@ function ShopListing() {
           {data.pages > 1 && (
             <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 56 }}>
               <button 
-                className="btn btn-outline" 
+                className="btn btn-outline touch-target" 
                 disabled={page <= 1} 
                 onClick={() => setPage(p => p - 1)}
                 style={{ padding: '10px 20px' }}
@@ -402,7 +402,7 @@ function ShopListing() {
                   key={i}
                   onClick={() => setPage(i + 1)}
                   style={{
-                    width: 40, height: 40, borderRadius: 10, border: '1px solid var(--neutral-100)',
+                    minWidth: 44, minHeight: 44, borderRadius: 10, border: '1px solid var(--neutral-100)',
                     background: page === i + 1 ? 'var(--neutral-900)' : 'white',
                     color: page === i + 1 ? 'white' : 'var(--neutral-700)',
                     fontWeight: 600, cursor: 'pointer', transition: 'all 120ms ease'
@@ -412,7 +412,7 @@ function ShopListing() {
                 </button>
               ))}
               <button 
-                className="btn btn-outline" 
+                className="btn btn-outline touch-target" 
                 disabled={page >= data.pages} 
                 onClick={() => setPage(p => p + 1)}
                 style={{ padding: '10px 20px' }}

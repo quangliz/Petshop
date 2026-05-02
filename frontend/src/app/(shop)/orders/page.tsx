@@ -25,7 +25,7 @@ export default function OrdersPage() {
   });
 
   if (isLoading) return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8">
       <div className="flex flex-col gap-3 sm:gap-4">
         {[...Array(3)].map((_, i) => <OrderRowSkeleton key={i} />)}
       </div>
@@ -33,7 +33,7 @@ export default function OrdersPage() {
   );
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs sm:text-sm mb-6 sm:mb-8" style={{ color: 'var(--neutral-500)' }}>
         <Link href="/" style={{ color: 'inherit', textDecoration: 'none' }}>Trang chủ</Link>
@@ -41,7 +41,7 @@ export default function OrdersPage() {
         <span style={{ color: 'var(--neutral-900)', fontWeight: 600 }}>Đơn hàng của tôi</span>
       </div>
 
-      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-6 sm:mb-8">Lịch sử đơn hàng</h1>
+      <h1 className="text-2xl md:text-[32px]" style={{ fontWeight: 800, letterSpacing: '-0.025em', margin: '0 0 24px 0' }}>Lịch sử đơn hàng</h1>
 
       {orders?.length === 0 && (
         <EmptyState

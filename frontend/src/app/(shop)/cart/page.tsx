@@ -215,10 +215,10 @@ function CartLayout({ items, selectedIds, selectedTotal, allSelected, toggleAll,
             </label>
 
             {items.map((item) => (
-              <div key={item.id} className="card" style={{ padding: 20, display: 'flex', gap: 16, alignItems: 'center' }}>
+              <div key={item.id} className="card p-3 md:p-5" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleItem(item.id)}
                   style={{ width: 18, height: 18, accentColor: 'var(--primary-600)', cursor: 'pointer', flexShrink: 0 }} />
-                <div style={{ width: 100, height: 100, borderRadius: 12, background: 'var(--neutral-50)', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+                <div className="w-[70px] h-[70px] md:w-[100px] md:h-[100px]" style={{ borderRadius: 12, background: 'var(--neutral-50)', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
                   {item.product_image ? (
                     <Image src={item.product_image} alt={item.product_name} fill sizes="100px" className="object-cover" />
                   ) : (
@@ -227,7 +227,7 @@ function CartLayout({ items, selectedIds, selectedTotal, allSelected, toggleAll,
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--neutral-900)' }}>{item.product_name}</h3>
+                    <h3 className="text-sm md:text-base" style={{ fontWeight: 700, margin: 0, color: 'var(--neutral-900)' }}>{item.product_name}</h3>
                     <button onClick={() => onRemove(item.id)}
                       style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--neutral-400)', padding: 4 }}
                       onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
@@ -235,16 +235,16 @@ function CartLayout({ items, selectedIds, selectedTotal, allSelected, toggleAll,
                       <Trash2 size={18} />
                     </button>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-3 md:mt-4">
                     <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--primary-600)' }}>{(item.sale_price || item.price).toLocaleString()}đ</div>
                     <div style={{ display: 'flex', alignItems: 'center', background: 'var(--neutral-50)', borderRadius: 10, padding: 2 }}>
                       <button onClick={() => onUpdateQty(item.id, -1)}
-                        style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Minus size={14} />
                       </button>
                       <span style={{ width: 36, textAlign: 'center', fontSize: 14, fontWeight: 700 }}>{item.quantity}</span>
                       <button onClick={() => onUpdateQty(item.id, 1)}
-                        style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Plus size={14} />
                       </button>
                     </div>

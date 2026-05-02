@@ -160,9 +160,9 @@ function CheckoutPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8 lg:gap-12 items-start">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           {/* Shipping Info */}
-          <div className="card" style={{ padding: 32 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 18, background: 'var(--primary-50)', color: 'var(--primary-600)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Truck size={20}/></div>
+          <div className="card p-5 md:p-8">
+            <h2 className="text-lg md:text-xl" style={{ fontWeight: 800, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center" style={{ background: 'var(--primary-50)', color: 'var(--primary-600)' }}><Truck size={20}/></div>
               Thông tin nhận hàng
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
@@ -216,14 +216,14 @@ function CheckoutPage() {
           </div>
 
           {/* Payment Method */}
-          <div className="card" style={{ padding: 32 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 18, background: 'var(--teal-50)', color: 'var(--teal-600)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CreditCard size={20}/></div>
+          <div className="card p-5 md:p-8">
+            <h2 className="text-lg md:text-xl" style={{ fontWeight: 800, marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center" style={{ background: 'var(--teal-50)', color: 'var(--teal-600)' }}><CreditCard size={20}/></div>
               Phương thức thanh toán
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <label style={{ 
-                display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', borderRadius: 16, border: '1.5px solid',
+                display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 16, border: '1.5px solid',
                 borderColor: paymentMethod === 'cod' ? 'var(--primary-500)' : 'var(--neutral-100)',
                 background: paymentMethod === 'cod' ? 'var(--primary-25)' : 'white', cursor: 'pointer', transition: 'all 120ms ease'
               }}>
@@ -234,7 +234,7 @@ function CheckoutPage() {
                 </div>
               </label>
               <label style={{ 
-                display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', borderRadius: 16, border: '1.5px solid',
+                display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 16, border: '1.5px solid',
                 borderColor: paymentMethod === 'vnpay' ? 'var(--primary-500)' : 'var(--neutral-100)',
                 background: paymentMethod === 'vnpay' ? 'var(--primary-25)' : 'white', cursor: 'pointer', transition: 'all 120ms ease'
               }}>
@@ -280,7 +280,7 @@ function CheckoutPage() {
                 <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--primary-600)' }}>{total.toLocaleString()}đ</span>
               </div>
             </div>
-            <button type="submit" disabled={isSubmitting} className="btn btn-primary btn-lg" style={{ width: '100%', marginTop: 32, height: 56, borderRadius: 16, fontSize: 16 }}>
+            <button type="submit" disabled={isSubmitting} className="btn btn-primary btn-lg w-full h-14 rounded-2xl text-base mt-6 md:mt-8">
               {isSubmitting ? <><Spinner size={18} /> Đang xử lý...</> : "Xác nhận đặt hàng"}
             </button>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 24, color: 'var(--neutral-400)', fontSize: 12 }}>

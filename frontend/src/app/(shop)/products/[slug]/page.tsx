@@ -194,7 +194,7 @@ export default function ProductDetailPage() {
                 <span style={{ fontSize: 12, color: 'var(--neutral-400)' }}>SKU: {selectedVariant?.sku ?? product.sku}</span>
               )}
             </div>
-            <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, color: 'var(--neutral-900)', margin: '0 0 16px' }}>{product.name}</h1>
+            <h1 className="text-2xl md:text-4xl" style={{ fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, color: 'var(--neutral-900)', margin: '0 0 16px' }}>{product.name}</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'oklch(0.75 0.15 75)' }}>
                 <StarRating value={Math.round(product.avg_rating ?? 0)} size={16} />
@@ -214,9 +214,9 @@ export default function ProductDetailPage() {
             padding: '24px 28px', borderRadius: 20, border: '1px solid var(--neutral-100)',
             display: 'flex', alignItems: 'baseline', gap: 12,
           }}>
-            <span style={{ fontSize: 32, fontWeight: 800, color: 'var(--primary-600)' }}>{effectivePrice.toLocaleString()}đ</span>
+            <span className="text-2xl md:text-[32px]" style={{ fontWeight: 800, color: 'var(--primary-600)' }}>{effectivePrice.toLocaleString()}đ</span>
             {effectivePrice < originalPrice && (
-              <span style={{ fontSize: 18, color: 'var(--neutral-400)', textDecoration: 'line-through' }}>{originalPrice.toLocaleString()}đ</span>
+              <span className="text-base md:text-lg" style={{ color: 'var(--neutral-400)', textDecoration: 'line-through' }}>{originalPrice.toLocaleString()}đ</span>
             )}
           </div>
 
@@ -242,7 +242,7 @@ export default function ProductDetailPage() {
                       key={val}
                       onClick={() => setSelectedAttrs((prev) => ({ ...prev, [attrKey]: active ? "" : val }))}
                       style={{
-                        padding: '6px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                        padding: '8px 16px', minHeight: 44, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
                         border: active ? '2px solid var(--primary-500)' : '1.5px solid var(--neutral-200)',
                         background: active ? 'var(--primary-50)' : 'white',
                         color: active ? 'var(--primary-700)' : available ? 'var(--neutral-700)' : 'var(--neutral-400)',
@@ -263,7 +263,7 @@ export default function ProductDetailPage() {
 
           {/* Quick info */}
           {!hasVariants && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { l: 'Phân loại', v: product.category_name || 'Chưa phân loại' },
                 { l: 'Dành cho', v: product.target_species?.label || (product.target_species?.species?.join(', ') ?? 'Tất cả') },
@@ -279,7 +279,7 @@ export default function ProductDetailPage() {
           )}
 
           {selectedVariant && Object.keys(selectedVariant.attributes).length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Object.entries(selectedVariant.attributes).map(([k, v]) => (
                 <div key={k} style={{ padding: '12px 16px', borderRadius: 12, border: '1px solid var(--neutral-100)', display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <span style={{ fontSize: 11, color: 'var(--neutral-400)', fontWeight: 600, textTransform: 'uppercase' }}>{k}</span>
@@ -331,7 +331,7 @@ export default function ProductDetailPage() {
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 8 }}>
+          <div className="flex flex-wrap gap-3 md:gap-4 mt-2">
             {[
               { i: <ShieldCheck size={18} />, t: 'Chính hãng 100%' },
               { i: <RefreshCw size={18} />, t: 'Đổi trả 15 ngày' },
@@ -390,7 +390,7 @@ export default function ProductDetailPage() {
           )
         )}
         {activeTab === 'spec' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', rowGap: 16 }}>
+          <div className="grid grid-cols-[120px_1fr] sm:grid-cols-[150px_1fr] gap-x-4 gap-y-4">
             <span style={{ color: 'var(--neutral-500)' }}>Thương hiệu:</span>
             <span style={{ fontWeight: 600 }}>{product.brand || "Local Brand"}</span>
             <span style={{ color: 'var(--neutral-500)' }}>Loại sản phẩm:</span>
