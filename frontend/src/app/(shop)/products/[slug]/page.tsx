@@ -12,6 +12,7 @@ import ReviewSection from '@/components/reviews/ReviewSection';
 import StarRating from '@/components/reviews/StarRating';
 import Image from 'next/image';
 import { Product, Variant, AttrImage } from '@/lib/types';
+import { ProductDetailSkeleton } from "@/components/skeletons/ProductDetailSkeleton";
 
 // Types imported from @/lib/types
 
@@ -140,7 +141,7 @@ export default function ProductDetailPage() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const scrollCarousel = (dir: number) => carouselRef.current?.scrollBy({ left: dir * 400, behavior: 'smooth' });
 
-  if (isLoading) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--neutral-500)' }}>Đang tải...</div>;
+  if (isLoading) return <ProductDetailSkeleton />;
   if (!product) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--danger)' }}>Không tìm thấy sản phẩm</div>;
 
   const discountPct = selectedVariant

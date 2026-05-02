@@ -10,7 +10,7 @@ import { ChevronRight, Star, ShoppingCart, Filter as FilterIcon, Check } from 'l
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import Image from 'next/image';
 import { Product, Category } from '@/lib/types';
-
+import { ProductCardSkeleton } from "@/components/skeletons/ProductCardSkeleton";
 const FilterGroup = ({ title, children }: { title: string, children: React.ReactNode }) => (
   <div style={{ padding: '16px 0', borderBottom: '1px solid var(--neutral-100)' }}>
     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--neutral-800)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>{title}</div>
@@ -271,7 +271,13 @@ function ShopListing() {
     addToCartMutation.mutate(productId);
   };
 
-  if (isLoading) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--neutral-500)' }}>Đang tải sản phẩm...</div>;
+  if (isLoading) return (
+    <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 py-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+        {[...Array(12)].map((_, i) => <ProductCardSkeleton key={i} />)}
+      </div>
+    </div>
+  );
   if (error) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--danger)' }}>Có lỗi khi tải sản phẩm</div>;
 
   return (
