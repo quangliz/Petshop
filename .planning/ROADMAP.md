@@ -105,9 +105,9 @@ _Generated: 2026-05-01_
   3. Navigating to the cart shows skeleton rows for each item slot before cart data arrives
   4. Opening order history shows skeleton rows while the orders request is in flight
 **Plans**: 3 plans
-  - [ ] 04-01-PLAN.md — Install shadcn Skeleton primitive and build 4 page-specific skeleton components (UX-01..UX-04 foundation)
-  - [ ] 04-02-PLAN.md — Replace isLoading guards on shop listing and product detail pages (UX-01, UX-02)
-  - [ ] 04-03-PLAN.md — Replace isLoading guards on cart and orders pages (UX-03, UX-04)
+  - [x] 04-01-PLAN.md — Install shadcn Skeleton primitive and build 4 page-specific skeleton components (UX-01..UX-04 foundation)
+  - [x] 04-02-PLAN.md — Replace isLoading guards on shop listing and product detail pages (UX-01, UX-02)
+  - [x] 04-03-PLAN.md — Replace isLoading guards on cart and orders pages (UX-03, UX-04)
 **UI hint**: yes
 
 ---
@@ -121,7 +121,9 @@ _Generated: 2026-05-01_
   2. An empty cart, no orders, and a no-results search each display a distinct illustration or message with a call-to-action link
   3. API errors (add to cart, checkout, login failures) trigger a visible toast notification with a short error message
   4. Submitting a form with invalid data shows inline error messages beneath the relevant fields without a page reload
-**Plans**: TBD
+**Plans**: 2 plans
+  - [ ] 05-01-PLAN.md — Toast system + Spinner component + Empty states (UX-05, UX-08, UX-09, UX-10, UX-11)
+  - [ ] 05-02-PLAN.md — Form validation with react-hook-form + zod (UX-06, UX-07, UX-12)
 **UI hint**: yes
 
 ---
@@ -144,6 +146,6 @@ _Generated: 2026-05-01_
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 4. Loading States | 0/3 | Not started | - |
-| 5. Feedback & Empty States | 0/TBD | Not started | - |
+| 4. Loading States | 3/3 | Complete | 2026-05-02 |
+| 5. Feedback & Empty States | 0/2 | Planned | - |
 | 6. Responsive Layout | 0/TBD | Not started | - |
