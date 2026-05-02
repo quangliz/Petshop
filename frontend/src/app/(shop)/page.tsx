@@ -72,10 +72,10 @@ const CarouselRow = ({ items }: { items: Product[] }) => {
 
   return (
     <div style={{ position: 'relative' }}>
-      <button onClick={() => scroll(-1)} style={{
+      <button onClick={() => scroll(-1)} className="hidden md:flex" style={{
         position: 'absolute', left: -16, top: '50%', transform: 'translateY(-50%)', zIndex: 2,
         width: 36, height: 36, borderRadius: 18, background: 'white', border: '1px solid var(--neutral-200)',
-        boxShadow: 'var(--shadow-sm)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: 'var(--shadow-sm)', cursor: 'pointer', alignItems: 'center', justifyContent: 'center',
         color: 'var(--neutral-700)',
       }}>
         <ChevronLeft size={18} />
@@ -86,10 +86,10 @@ const CarouselRow = ({ items }: { items: Product[] }) => {
       }}>
         {items.map((p: Product) => <ProductCardSmall key={p.id} product={p} />)}
       </div>
-      <button onClick={() => scroll(1)} style={{
+      <button onClick={() => scroll(1)} className="hidden md:flex" style={{
         position: 'absolute', right: -16, top: '50%', transform: 'translateY(-50%)', zIndex: 2,
         width: 36, height: 36, borderRadius: 18, background: 'white', border: '1px solid var(--neutral-200)',
-        boxShadow: 'var(--shadow-sm)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: 'var(--shadow-sm)', cursor: 'pointer', alignItems: 'center', justifyContent: 'center',
         color: 'var(--neutral-700)',
       }}>
         <ChevronRight size={18} />
@@ -136,10 +136,10 @@ export default function Home() {
         <section className="px-4 md:px-12 pt-12">
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
             <div>
-              <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Gợi ý cho bé của bạn</h2>
+              <h2 className="text-xl md:text-2xl" style={{ fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Gợi ý cho bé của bạn</h2>
               <p style={{ fontSize: 14, color: 'var(--neutral-600)', margin: '4px 0 0' }}>Sản phẩm phù hợp với loài thú cưng bạn đang nuôi</p>
             </div>
-            <Link href="/shop" style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-600)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>Xem tất cả <ArrowRight size={14} /></Link>
+            <Link href="/shop" className="hidden sm:flex" style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-600)', textDecoration: 'none', alignItems: 'center', gap: 4 }}>Xem tất cả <ArrowRight size={14} /></Link>
           </div>
           <CarouselRow items={recommendations.items} />
         </section>
@@ -149,10 +149,10 @@ export default function Home() {
       <section className="px-4 md:px-12 pt-12">
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Bán chạy tuần này</h2>
+            <h2 className="text-xl md:text-2xl" style={{ fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Bán chạy tuần này</h2>
             <p style={{ fontSize: 14, color: 'var(--neutral-600)', margin: '4px 0 0' }}>Những sản phẩm được yêu thích nhất trong 7 ngày qua</p>
           </div>
-          <Link href="/shop" style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-600)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>Xem tất cả <ArrowRight size={14} /></Link>
+          <Link href="/shop" className="hidden sm:flex" style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-600)', textDecoration: 'none', alignItems: 'center', gap: 4 }}>Xem tất cả <ArrowRight size={14} /></Link>
         </div>
         <CarouselRow items={bestSellers?.items || []} />
       </section>
@@ -161,10 +161,10 @@ export default function Home() {
       <section className="px-4 md:px-12 py-12">
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <h2 style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Mới về tuần này</h2>
+            <h2 className="text-xl md:text-2xl" style={{ fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Mới về tuần này</h2>
             <p style={{ fontSize: 14, color: 'var(--neutral-600)', margin: '4px 0 0' }}>Sản phẩm vừa được cập nhật tại cửa hàng trong tuần này</p>
           </div>
-          <Link href="/shop" style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-600)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>Xem tất cả <ArrowRight size={14} /></Link>
+          <Link href="/shop" className="hidden sm:flex" style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-600)', textDecoration: 'none', alignItems: 'center', gap: 4 }}>Xem tất cả <ArrowRight size={14} /></Link>
         </div>
         <CarouselRow items={newArrivals?.items || []} />
       </section>

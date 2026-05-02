@@ -114,4 +114,26 @@
   *::-webkit-scrollbar-track { background: transparent; }
   *::-webkit-scrollbar-thumb { background: var(--neutral-200); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
   *::-webkit-scrollbar-thumb:hover { background: var(--neutral-300); background-clip: padding-box; border: 2px solid transparent; }
+
+  /* Responsive utilities for Phase 6 */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  @media (max-width: 639px) {
+    .mobile-stack {
+      flex-direction: column !important;
+    }
+    .mobile-full {
+      width: 100% !important;
+    }
+    .mobile-hide {
+      display: none !important;
+    }
+    .mobile-padding {
+      padding-left: 16px !important;
+      padding-right: 16px !important;
+    }
+  }
 }

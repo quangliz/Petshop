@@ -267,7 +267,15 @@ export default function Header() {
                 <Link href="/" onClick={() => setMobileMenuOpen(false)}><Logo /></Link>
               </div>
               <div className="flex flex-col py-4 flex-1 overflow-y-auto">
+                 <Link href="/" onClick={() => setMobileMenuOpen(false)} className="px-6 py-3 font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors">Trang chủ</Link>
                  <Link href="/shop" onClick={() => setMobileMenuOpen(false)} className="px-6 py-3 font-semibold text-neutral-800 hover:bg-neutral-50 transition-colors">Cửa hàng</Link>
+                 <Link href="/tra-cuu-don-hang" onClick={() => setMobileMenuOpen(false)} className="px-6 py-3 text-neutral-700 hover:bg-neutral-50 transition-colors">Tra cứu đơn hàng</Link>
+                 <Link href="/cart" onClick={() => setMobileMenuOpen(false)} className="px-6 py-3 text-neutral-700 hover:bg-neutral-50 transition-colors flex items-center justify-between">
+                   Giỏ hàng
+                   {cartItemCount > 0 && (
+                     <span className="bg-primary-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{cartItemCount}</span>
+                   )}
+                 </Link>
                  <div className="h-px bg-neutral-100 my-2 w-full"></div>
                  {user ? (
                     <>
