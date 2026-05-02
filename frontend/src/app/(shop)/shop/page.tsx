@@ -251,6 +251,8 @@ function ShopListing() {
     }
   });
 
+  const [pendingProductId, setPendingProductId] = useState<string | null>(null);
+
   const addToCartMutation = useMutation({
     mutationFn: async (product_id: string) => {
       await api.post('/cart/items', { product_id, quantity: 1 });
@@ -258,9 +260,11 @@ function ShopListing() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
       toast.success("Đã thêm vào giỏ hàng!");
+      setPendingProductId(null);
     },
     onError: (err: { response?: { data?: { detail?: string } } }) => {
       toast.error(err.response?.data?.detail || "Lỗi khi thêm giỏ hàng");
+      setPendingProductId(null);
     }
   });
 
@@ -271,6 +275,7 @@ function ShopListing() {
       toast.success("Đã thêm vào giỏ hàng!");
       return;
     }
+    setPendingProductId(productId);
     addToCartMutation.mutate(productId);
   };
 
@@ -366,7 +371,7 @@ function ShopListing() {
                 key={prod.id} 
                 product={prod} 
                 onAddToCart={handleAddToCart} 
-                isPending={addToCartMutation.isPending} 
+                isPending={pendingProductId === prod.id && addToCartMutation.isPending} 
               />
             ))}
             {data.items.length === 0 && (
