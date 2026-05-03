@@ -18,15 +18,7 @@ const HeaderAuthSection = dynamic(() => import("./HeaderAuthSection"), {
   loading: () => <div className="w-[120px] h-[36px]" />,
 });
 
-const Logo = () => (
-  <div className="flex items-center gap-2.5">
-    <BrandLogo size={32} />
-    <div className="flex flex-col leading-none">
-      <span className="text-[17px] font-extrabold tracking-tight text-neutral-900">ThePawsome</span>
-      {/* <span className="text-[9px] font-bold text-teal-600 tracking-[0.15em] mt-0.5">AI · BETA</span> */}
-    </div>
-  </div>
-);
+const Logo = () => <BrandLogo size={42} />;
 
 export default function Header() {
   const { user, token, setUser, setLoading } = useAuthStore();
@@ -39,7 +31,7 @@ export default function Header() {
         setUser(null);
       });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const router = useRouter();
   const pathname = usePathname();
@@ -100,7 +92,7 @@ export default function Header() {
 
   const serverCartCount = cart?.items?.reduce((acc: number, item: { quantity: number }) => acc + item.quantity, 0) || 0;
   const [guestCartCount, setGuestCartCount] = useState(0);
-  useEffect(() => { 
+  useEffect(() => {
     const count = getGuestCartCount();
     if (guestCartCount !== count) {
       const timer = setTimeout(() => setGuestCartCount(count), 0);
@@ -111,8 +103,8 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 h-[68px] px-4 md:px-8 gap-3 md:gap-7 z-20 flex items-center w-full bg-white/90 backdrop-blur-md border-b border-neutral-100 shadow-sm">
-        <Link href="/" className="cursor-pointer no-underline shrink-0">
+      <header className="sticky top-0 h-[72px] px-4 md:px-8 gap-3 md:gap-7 z-20 flex items-center w-full bg-white/90 backdrop-blur-md border-b border-neutral-100 shadow-sm">
+        <Link href="/" className="cursor-pointer no-underline shrink-0 flex items-center">
           <Logo />
         </Link>
 
@@ -182,8 +174,8 @@ export default function Header() {
                 </>
               ) : (
                 <div className="px-4 py-8 text-[13px] text-neutral-500 flex flex-col items-center justify-center gap-2 text-center">
-                   <PackageSearch className="w-8 h-8 text-neutral-300" />
-                   <div>Không tìm thấy sản phẩm nào phù hợp với &quot;{suggestQ}&quot;.</div>
+                  <PackageSearch className="w-8 h-8 text-neutral-300" />
+                  <div>Không tìm thấy sản phẩm nào phù hợp với &quot;{suggestQ}&quot;.</div>
                 </div>
               )}
             </div>
@@ -282,8 +274,8 @@ export default function Header() {
                   </>
                 ) : (
                   <div className="p-10 flex flex-col items-center justify-center gap-3 text-center">
-                      <PackageSearch className="w-10 h-10 text-neutral-300" />
-                      <div className="text-sm text-neutral-500">Không tìm thấy sản phẩm nào phù hợp với &quot;{suggestQ}&quot;.</div>
+                    <PackageSearch className="w-10 h-10 text-neutral-300" />
+                    <div className="text-sm text-neutral-500">Không tìm thấy sản phẩm nào phù hợp với &quot;{suggestQ}&quot;.</div>
                   </div>
                 )}
               </div>

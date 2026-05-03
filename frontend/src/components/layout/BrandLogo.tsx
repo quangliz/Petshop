@@ -1,15 +1,46 @@
-export default function BrandLogo({ size = 32 }: { size?: number }) {
+"use client";
+
+/**
+ * BrandLogo component
+ * Simplified to display only the brand text "thepawsome".
+ */
+export default function BrandLogo({ 
+  size = 40, 
+  className = ""
+}: { 
+  size?: number; 
+  className?: string;
+  /** @deprecated layout is no longer used as text-only logo is always horizontal */
+  layout?: "horizontal" | "vertical";
+}) {
+  // Horizontal Layout: Text only
+  // "thepawsome" has an aspect ratio of approximately 3.1:1 based on the font
+  const aspectRatio = 155 / 50; 
+  const w = Math.round(size * aspectRatio);
+  
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Paw pad */}
-      <circle cx="22" cy="18" r="6" fill="var(--teal-500)" opacity="0.7" />
-      <circle cx="42" cy="18" r="6" fill="var(--teal-500)" opacity="0.7" />
-      <circle cx="13" cy="30" r="5.5" fill="var(--teal-500)" opacity="0.7" />
-      <circle cx="51" cy="30" r="5.5" fill="var(--teal-500)" opacity="0.7" />
-      {/* Main pad */}
-      <ellipse cx="32" cy="42" rx="16" ry="14" fill="var(--teal-600)" />
-      {/* Shine */}
-      <ellipse cx="28" cy="38" rx="5" ry="4" fill="var(--teal-400)" opacity="0.35" />
+    <svg
+      width={w}
+      height={size}
+      viewBox="0 0 155 50"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      overflow="visible"
+      className={className}
+    >
+      <text
+        x="0"
+        y="50%"
+        dominantBaseline="central"
+        fontFamily="'GoodPawoo', sans-serif"
+        fontSize="32"
+        fontWeight="bold"
+        fill="var(--neutral-900)"
+        style={{ letterSpacing: '0.02em' }}
+      >
+        thepawsome
+      </text>
     </svg>
   );
 }
+
