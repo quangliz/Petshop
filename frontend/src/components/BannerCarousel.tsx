@@ -38,7 +38,7 @@ export default function BannerCarousel() {
   const slide = banners[current];
 
   return (
-    <section className="mx-4 md:mx-8 mt-6 relative overflow-hidden" style={{ borderRadius: 28 }}>
+    <section className="mx-4 md:mx-8 mt-6 relative overflow-hidden rounded-[28px]">
       <div className="relative w-full aspect-[4/3] md:aspect-[16/5]">
         <div
           className="absolute inset-0 transition-opacity duration-700 bg-cover bg-center"

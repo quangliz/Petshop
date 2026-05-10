@@ -123,14 +123,14 @@ export default function AdminBannersPage() {
               <tr key={b.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3">
                   {b.image_url ? (
-                    <Image
-                      src={b.image_url}
-                      alt={b.title ?? ""}
-                      width={120}
-                      height={50}
-                      className="rounded object-cover"
-                      style={{ height: 50 }}
-                    />
+                    <div className="relative w-[120px] h-[50px] rounded overflow-hidden">
+                      <Image
+                        src={b.image_url}
+                        alt={b.title ?? ""}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
                   ) : (
                     <div className="w-[120px] h-[50px] bg-gray-100 rounded flex items-center justify-center text-gray-300">
                       <ImageIcon className="w-5 h-5" />
@@ -195,14 +195,14 @@ export default function AdminBannersPage() {
                   onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
                 />
                 {modal.banner?.image_url && !imageFile && (
-                  <Image
-                    src={modal.banner.image_url}
-                    alt="preview"
-                    width={300}
-                    height={120}
-                    className="mt-2 rounded object-cover"
-                    style={{ height: 120 }}
-                  />
+                  <div className="relative w-full h-[120px] mt-2 rounded overflow-hidden">
+                    <Image
+                      src={modal.banner.image_url}
+                      alt="preview"
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
                 )}
               </div>
               <div>

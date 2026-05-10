@@ -21,50 +21,45 @@ export default function ReviewList({ productId }: { productId: string }) {
     queryFn: () => api.get(`/products/${productId}/reviews`, { params: { page, size } }).then((r) => r.data),
   });
 
-  if (isLoading) return <p style={{ color: "var(--neutral-500)", padding: "16px 0" }}>Đang tải...</p>;
+  if (isLoading) return <p className="text-neutral-500 py-4">Đang tải...</p>;
   if (!data || data.items.length === 0) return null;
 
   const totalPages = Math.ceil(data.total / size);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="flex flex-col gap-4">
       {data.items.map((r) => (
-        <div key={r.id} style={{ padding: "16px 0", borderBottom: "1px solid var(--neutral-100)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: "50%", background: "var(--primary-100)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 14, fontWeight: 700, color: "var(--primary-600)",
-            }}>
+        <div key={r.id} className="py-4 border-b border-neutral-100">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-9 h-9 rounded-full bg-[oklch(0.93_0.06_55)] flex items-center justify-center text-[14px] font-bold text-[oklch(0.61_0.19_46)]">
               {r.user_name.charAt(0).toUpperCase()}
             </div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--neutral-900)" }}>{r.user_name}</div>
-              <div style={{ fontSize: 12, color: "var(--neutral-400)" }}>
+              <div className="text-[14px] font-semibold text-neutral-900">{r.user_name}</div>
+              <div className="text-[12px] text-neutral-400">
                 {new Date(r.created_at).toLocaleDateString("vi-VN")}
               </div>
             </div>
-            <div style={{ marginLeft: "auto" }}>
+            <div className="ml-auto">
               <StarRating value={r.rating} size={14} />
             </div>
           </div>
           {r.comment && (
-            <p style={{ margin: 0, fontSize: 14, color: "var(--neutral-700)", lineHeight: 1.6 }}>{r.comment}</p>
+            <p className="m-0 text-[14px] text-neutral-700 leading-[1.6]">{r.comment}</p>
           )}
         </div>
       ))}
       {totalPages > 1 && (
-        <div style={{ display: "flex", justifyContent: "center", gap: 8, paddingTop: 8 }}>
+        <div className="flex justify-center gap-2 pt-2">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
             <button
               key={p}
               onClick={() => setPage(p)}
-              style={{
-                width: 36, height: 36, borderRadius: 8, border: "1.5px solid var(--neutral-200)",
-                background: p === page ? "var(--primary-500)" : "white",
-                color: p === page ? "white" : "var(--neutral-600)",
-                fontWeight: 600, fontSize: 13, cursor: "pointer",
-              }}
+              className={`w-9 h-9 rounded-[8px] border-[1.5px] border-neutral-200 text-[13px] font-semibold cursor-pointer transition-colors duration-150 ${
+                p === page
+                  ? "bg-[oklch(0.68_0.19_50)] text-white border-[oklch(0.68_0.19_50)]"
+                  : "bg-white text-neutral-600 hover:bg-neutral-50"
+              }`}
             >
               {p}
             </button>

@@ -36,6 +36,9 @@ class ProductResponse(BaseModel):
     attributes: Optional[dict] = None
     variants: Optional[List[Any]] = None
     product_images: Optional[List[Any]] = None
+    avg_rating: Optional[float] = None
+    review_count: Optional[int] = 0
+    sold_count: Optional[int] = 0
 
 
 def _product_dict(p: Product, include_variants: bool = False) -> dict:

@@ -14,27 +14,24 @@ import { ProductCardSkeleton } from "@/components/skeletons/ProductCardSkeleton"
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
+
 const FilterGroup = ({ title, children }: { title: string, children: React.ReactNode }) => (
-  <div style={{ padding: '16px 0', borderBottom: '1px solid var(--neutral-100)' }}>
-    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--neutral-800)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>{title}</div>
+  <div className="py-4 border-b border-neutral-100">
+    <div className="text-[12px] font-bold text-neutral-800 uppercase tracking-[0.06em] mb-3">{title}</div>
     {children}
   </div>
 );
 
 const Checkbox = ({ label, count, checked, onChange, icon }: { label: React.ReactNode, count?: number, checked: boolean, onChange: () => void, icon?: React.ReactNode }) => (
-  <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', cursor: 'pointer', fontSize: 13, color: 'var(--neutral-700)' }}>
-    <span style={{
-      width: 18, height: 18, borderRadius: 5, flexShrink: 0,
-      background: checked ? 'var(--primary-500)' : 'white',
-      border: checked ? 'none' : '1.5px solid var(--neutral-300)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white',
-    }}>
+  <label className="flex items-center gap-2.5 py-1.5 cursor-pointer text-[13px] text-neutral-700">
+    <span className={`w-[18px] h-[18px] rounded-[5px] shrink-0 flex items-center justify-center text-white ${checked ? 'border-none' : 'border-[1.5px] border-neutral-300 bg-white'}`}
+      style={{ background: checked ? 'var(--primary-500)' : undefined }}>
       {checked && <Check size={12} strokeWidth={3} />}
     </span>
-    {icon && <span style={{ fontSize: 15 }}>{icon}</span>}
-    <span style={{ flex: 1 }}>{label}</span>
-    {count != null && <span style={{ fontSize: 11, color: 'var(--neutral-400)', fontFamily: 'var(--font-mono)' }}>{count}</span>}
-    <input type="checkbox" checked={checked} onChange={onChange} style={{ display: 'none' }} />
+    {icon && <span className="text-[15px]">{icon}</span>}
+    <span className="flex-1">{label}</span>
+    {count != null && <span className="text-[11px] text-neutral-400 font-mono">{count}</span>}
+    <input type="checkbox" checked={checked} onChange={onChange} className="hidden" />
   </label>
 );
 
@@ -43,8 +40,7 @@ const FilterSidebar = ({
   categoryFilter, setCategoryFilter,
   brandFilter, setBrandFilter,
   priceRangeFilter, setPriceRangeFilter,
-  setPage,
-  className = "card"
+  setPage, className = "bg-white border border-neutral-100 rounded-[20px] shadow-sm"
 }: {
   categories: Category[];
   brands: string[];
@@ -57,101 +53,88 @@ const FilterSidebar = ({
   setPage: (p: number) => void;
   className?: string;
 }) => {
-  // Use local state for price range while dragging, apply on button click
   const [localPriceRange, setLocalPriceRange] = useState<[number | '', number | '']>(priceRangeFilter);
 
   const toggleCategory = (val: string) => {
     setCategoryFilter(categoryFilter.includes(val) ? categoryFilter.filter(s => s !== val) : [...categoryFilter, val]);
     setPage(1);
   };
-
   const toggleBrand = (val: string) => {
     setBrandFilter(brandFilter.includes(val) ? brandFilter.filter(s => s !== val) : [...brandFilter, val]);
     setPage(1);
   };
-
-  const handleApplyPrice = () => {
-    setPriceRangeFilter(localPriceRange);
-    setPage(1);
-  };
+  const handleApplyPrice = () => { setPriceRangeFilter(localPriceRange); setPage(1); };
 
   return (
-    <div className={className} style={{ padding: '4px 20px 20px', position: 'sticky', top: 84 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 18 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FilterIcon size={14} /> Bộ lọc
-          </div>
-          <button
-            onClick={() => {
-              setCategoryFilter([]);
-              setBrandFilter([]);
-              setPriceRangeFilter(['', '']);
-              setLocalPriceRange(['', '']);
-              setPage(1);
-            }}
-            style={{ fontSize: 11, fontWeight: 600, color: 'var(--primary-600)', background: 'none', border: 'none', cursor: 'pointer' }}
-          >
-            Xoá tất cả
-          </button>
-        </div>
-
-        <FilterGroup title="Danh mục">
-          {categories?.map(c => (
-            <Checkbox key={c.id} label={c.name}
-              checked={categoryFilter.includes(c.slug)} onChange={() => toggleCategory(c.slug)} />
-          ))}
-        </FilterGroup>
-
-        <FilterGroup title="Thương hiệu">
-          {brands?.map(b => (
-            <Checkbox key={b} label={b}
-              checked={brandFilter.includes(b)} onChange={() => toggleBrand(b)} />
-          ))}
-        </FilterGroup>
-
-        <FilterGroup title="Khoảng giá">
-          <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-            <input type="number" min="0" step="1000" placeholder="Từ (₫)"
-              value={localPriceRange[0] === '' ? '' : localPriceRange[0]}
-              onChange={e => setLocalPriceRange([e.target.value === '' ? '' : Math.max(0, Number(e.target.value)), localPriceRange[1]])}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--neutral-200)', borderRadius: '6px', fontSize: 13, outline: 'none' }}
-            />
-            <span style={{ display: 'flex', alignItems: 'center', color: 'var(--neutral-500)' }}>-</span>
-            <input type="number" min={localPriceRange[0] === '' ? 0 : localPriceRange[0]} step="1000" placeholder="Đến (₫)"
-              value={localPriceRange[1] === '' ? '' : localPriceRange[1]}
-              onChange={e => setLocalPriceRange([localPriceRange[0], e.target.value === '' ? '' : Math.max(0, Number(e.target.value))])}
-              style={{ width: '100%', padding: '8px', border: '1px solid var(--neutral-200)', borderRadius: '6px', fontSize: 13, outline: 'none' }}
-            />
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-            <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={handleApplyPrice}>Áp dụng</button>
-          </div>
-        </FilterGroup>
+    <div className={`${className} p-1 px-5 pb-5 sticky top-[84px]`}>
+      <div className="flex items-center justify-between pt-[18px]">
+        <div className="text-[14px] font-bold flex items-center gap-2"><FilterIcon size={14} /> Bộ lọc</div>
+        <button
+          onClick={() => { setCategoryFilter([]); setBrandFilter([]); setPriceRangeFilter(['', '']); setLocalPriceRange(['', '']); setPage(1); }}
+          className="text-[11px] font-semibold bg-none border-none cursor-pointer"
+          style={{ color: 'var(--primary-600)' }}
+        >
+          Xoá tất cả
+        </button>
       </div>
+
+      <FilterGroup title="Danh mục">
+        {categories?.map(c => (
+          <Checkbox key={c.id} label={c.name}
+            checked={categoryFilter.includes(c.slug)} onChange={() => toggleCategory(c.slug)} />
+        ))}
+      </FilterGroup>
+
+      <FilterGroup title="Thương hiệu">
+        {brands?.map(b => (
+          <Checkbox key={b} label={b}
+            checked={brandFilter.includes(b)} onChange={() => toggleBrand(b)} />
+        ))}
+      </FilterGroup>
+
+      <FilterGroup title="Khoảng giá">
+        <div className="flex gap-2.5 mt-2.5">
+          <input type="number" min="0" step="1000" placeholder="Từ (₫)"
+            value={localPriceRange[0] === '' ? '' : localPriceRange[0]}
+            onChange={e => setLocalPriceRange([e.target.value === '' ? '' : Math.max(0, Number(e.target.value)), localPriceRange[1]])}
+            className="w-full p-2 border border-neutral-200 rounded-[6px] text-[13px] outline-none"
+          />
+          <span className="flex items-center text-neutral-500">-</span>
+          <input type="number" min={localPriceRange[0] === '' ? 0 : localPriceRange[0]} step="1000" placeholder="Đến (₫)"
+            value={localPriceRange[1] === '' ? '' : localPriceRange[1]}
+            onChange={e => setLocalPriceRange([localPriceRange[0], e.target.value === '' ? '' : Math.max(0, Number(e.target.value))])}
+            className="w-full p-2 border border-neutral-200 rounded-[6px] text-[13px] outline-none"
+          />
+        </div>
+        <div className="flex gap-2 mt-3.5">
+          <button
+            className="flex-1 h-9 rounded-[8px] text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ background: 'var(--primary-600)' }}
+            onClick={handleApplyPrice}
+          >Áp dụng</button>
+        </div>
+      </FilterGroup>
+    </div>
   );
 };
 
 const Rating = ({ value, size = 12, count }: { value: number, size?: number, count?: number }) => (
-  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: size, color: 'oklch(0.75 0.15 75)' }}>
-    <div style={{ display: 'inline-flex' }}>
+  <div className="inline-flex items-center gap-1" style={{ fontSize: size, color: 'oklch(0.75 0.15 75)' }}>
+    <div className="inline-flex">
       {[0, 1, 2, 3, 4].map(i => (
         <Star key={i} size={size + 2} fill={i < Math.round(value) ? "currentColor" : "none"} />
       ))}
     </div>
-    {count != null && <span style={{ color: 'var(--neutral-500)', fontSize: size }}>({count})</span>}
+    {count != null && <span className="text-neutral-500" style={{ fontSize: size }}>({count})</span>}
   </div>
 );
 
 const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, onAddToCart: (e: React.MouseEvent, id: string, slug: string) => void, isPending: boolean }) => (
-  <Link href={`/products/${product.slug}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-    <div className="card group" style={{
-      cursor: 'pointer', overflow: 'hidden', display: 'flex', flexDirection: 'column',
-      transition: 'transform 160ms ease, box-shadow 160ms ease', height: '100%'
-    }}
-    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
-    onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+  <Link href={`/products/${product.slug}`} className="no-underline text-inherit">
+    <div
+      className="group bg-white border border-neutral-100 rounded-[16px] shadow-xs cursor-pointer overflow-hidden flex flex-col h-full transition-[transform,box-shadow] duration-[160ms] ease-[ease] hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div style={{ position: 'relative', aspectRatio: '1 / 1', background: 'var(--neutral-50)', overflow: 'hidden' }}>
+      <div className="relative aspect-square bg-neutral-50 overflow-hidden">
         {(product.thumbnail_url || product.images?.main) ? (
           <Image
             src={product.thumbnail_url || product.images?.main || ''}
@@ -161,32 +144,29 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, on
             className="object-cover transition-transform duration-300 ease-out group-hover:scale-105"
           />
         ) : (
-          <div style={{ width: '100%', height: '100%', background: 'var(--neutral-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-400)', fontSize: 10 }}>NO IMAGE</div>
+          <div className="w-full h-full bg-neutral-100 flex items-center justify-center text-neutral-400 text-[10px]">NO IMAGE</div>
         )}
-        <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
           {product.sale_price && (
-            <span className="badge badge-sale">-{Math.round((1 - product.sale_price / product.price) * 100)}%</span>
+            <span className="px-1.5 py-0.5 rounded text-[11px] font-bold text-white" style={{ background: 'var(--danger)' }}>
+              -{Math.round((1 - product.sale_price / product.price) * 100)}%
+            </span>
           )}
-          {product.is_new && <span className="badge badge-new">MỚI</span>}
+          {product.is_new && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold text-white" style={{ background: 'var(--teal-600)' }}>MỚI</span>}
         </div>
       </div>
-      <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-        <div style={{ fontSize: 11, color: 'var(--neutral-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{product.brand || "LOCAL BRAND"}</div>
-        <div style={{
-          fontSize: 14, fontWeight: 600, color: 'var(--neutral-800)', lineHeight: 1.35,
-          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          minHeight: 38
-        }}>{product.name}</div>
+      <div className="p-[14px_16px_16px] flex flex-col gap-1.5 flex-1">
+        <div className="text-[11px] text-neutral-500 font-semibold uppercase tracking-[0.04em]">{product.brand || "LOCAL BRAND"}</div>
+        <div className="text-[14px] font-semibold text-neutral-800 leading-[1.35] line-clamp-2 min-h-[38px]">{product.name}</div>
         <Rating value={4.5} count={product.review_count || 0} size={11} />
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 'auto', paddingTop: 6 }}>
-          <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
-          {product.sale_price && <span style={{ fontSize: 12, color: 'var(--neutral-400)', textDecoration: 'line-through' }}>{product.price.toLocaleString()}đ</span>}
+        <div className="flex items-baseline gap-2 mt-auto pt-1.5">
+          <span className="text-[17px] font-bold" style={{ color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
+          {product.sale_price && <span className="text-[12px] text-neutral-400 line-through">{product.price.toLocaleString()}đ</span>}
         </div>
-        <button 
+        <button
           onClick={(e) => onAddToCart(e, product.id, product.slug)}
           disabled={isPending}
-          className="btn btn-outline btn-sm"
-          style={{ width: '100%', marginTop: 12, borderRadius: 10 }}
+          className="w-full mt-3 h-9 rounded-[10px] text-[13px] font-semibold border-[1.5px] border-neutral-200 bg-white text-neutral-700 flex items-center justify-center gap-1.5 transition-colors hover:bg-neutral-50 disabled:opacity-50"
         >
           {isPending ? <Spinner size={14} /> : <ShoppingCart size={14} />} {isPending ? "Đang thêm..." : "Thêm giỏ"}
         </button>
@@ -211,33 +191,15 @@ function ShopListing() {
   const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [brandFilter, setBrandFilter] = useState<string[]>([]);
   const [priceRangeFilter, setPriceRangeFilter] = useState<[number | '', number | '']>(['', '']);
-
-  // Reset page to 1 when search query changes (without useEffect)
   const [prevSearch, setPrevSearch] = useState(search);
-  if (prevSearch !== search) {
-    setPrevSearch(search);
-    if (page !== 1) setPage(1);
-  }
+  if (prevSearch !== search) { setPrevSearch(search); if (page !== 1) setPage(1); }
 
   const size = 12;
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
 
-  const { data: categories } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const res = await api.get('/categories/');
-      return res.data;
-    }
-  });
-
-  const { data: brands } = useQuery({
-    queryKey: ['brands'],
-    queryFn: async () => {
-      const res = await api.get('/products/brands');
-      return res.data;
-    }
-  });
+  const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: async () => (await api.get('/categories/')).data });
+  const { data: brands } = useQuery({ queryKey: ['brands'], queryFn: async () => (await api.get('/products/brands')).data });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['products', page, size, sort, search, categoryFilter, brandFilter, priceRangeFilter],
@@ -256,27 +218,14 @@ function ShopListing() {
   const [pendingProductId, setPendingProductId] = useState<string | null>(null);
 
   const addToCartMutation = useMutation({
-    mutationFn: async (product_id: string) => {
-      await api.post('/cart/items', { product_id, quantity: 1 });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
-      toast.success("Đã thêm vào giỏ hàng!");
-      setPendingProductId(null);
-    },
-    onError: (err: { response?: { data?: { detail?: string } } }) => {
-      toast.error(err.response?.data?.detail || "Lỗi khi thêm giỏ hàng");
-      setPendingProductId(null);
-    }
+    mutationFn: async (product_id: string) => { await api.post('/cart/items', { product_id, quantity: 1 }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['cart'] }); toast.success("Đã thêm vào giỏ hàng!"); setPendingProductId(null); },
+    onError: (err: { response?: { data?: { detail?: string } } }) => { toast.error(err.response?.data?.detail || "Lỗi khi thêm giỏ hàng"); setPendingProductId(null); }
   });
 
   const handleAddToCart = (e: React.MouseEvent, productId: string, slug: string) => {
     e.preventDefault();
-    if (!user) {
-      addToGuestCart(productId, slug);
-      toast.success("Đã thêm vào giỏ hàng!");
-      return;
-    }
+    if (!user) { addToGuestCart(productId, slug); toast.success("Đã thêm vào giỏ hàng!"); return; }
     setPendingProductId(productId);
     addToCartMutation.mutate(productId);
   };
@@ -288,57 +237,48 @@ function ShopListing() {
       </div>
     </div>
   );
-  if (error) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--danger)' }}>Có lỗi khi tải sản phẩm</div>;
+  if (error) return <div className="p-[100px] text-center" style={{ color: 'var(--danger)' }}>Có lỗi khi tải sản phẩm</div>;
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--neutral-500)', marginBottom: 24 }}>
-        <Link href="/" style={{ color: 'inherit', textDecoration: 'none' }}>Trang chủ</Link>
+      <div className="flex items-center gap-2 text-[13px] text-neutral-500 mb-6">
+        <Link href="/" className="text-inherit no-underline hover:text-neutral-900 transition-colors">Trang chủ</Link>
         <ChevronRight size={14} />
-        <span style={{ color: 'var(--neutral-900)', fontWeight: 600 }}>Cửa hàng</span>
+        <span className="text-neutral-900 font-semibold">Cửa hàng</span>
       </div>
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl sm:text-[28px] md:text-[32px]" style={{ fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>
-            {search ? `Kết quả cho “${search}”` : 'Tất cả sản phẩm'}
+          <h1 className="text-2xl sm:text-[28px] md:text-[32px] font-extrabold tracking-[-0.025em] m-0">
+            {search ? `Kết quả cho "${search}"` : 'Tất cả sản phẩm'}
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--neutral-500)', marginTop: 4 }}>Hiển thị {data.items.length} trong số {data.total} sản phẩm</p>
+          <p className="text-[14px] text-neutral-500 mt-1">Hiển thị {data.items.length} trong số {data.total} sản phẩm</p>
         </div>
         <div className="flex gap-3 items-center justify-end">
           <div className="lg:hidden">
             <Sheet>
               <SheetTrigger render={
-                <button className="btn btn-outline flex items-center justify-center gap-2 w-full py-3 lg:hidden">
+                <button className="h-9 px-4 rounded-[10px] border-[1.5px] border-neutral-200 bg-white text-neutral-700 flex items-center justify-center gap-2 text-[13px] font-semibold">
                   <FilterIcon size={16} /> Lọc
                 </button>
               } />
               <SheetContent side="right" className="p-0 overflow-y-auto w-[300px]">
                 <SheetTitle className="sr-only">Bộ lọc</SheetTitle>
-                <FilterSidebar 
-                  className="pb-4"
-                  categories={categories || []}
-                  brands={brands || []}
-                  categoryFilter={categoryFilter} 
-                  setCategoryFilter={setCategoryFilter} 
-                  brandFilter={brandFilter}
-                  setBrandFilter={setBrandFilter}
-                  priceRangeFilter={priceRangeFilter}
-                  setPriceRangeFilter={setPriceRangeFilter}
-                  setPage={setPage} 
+                <FilterSidebar className="pb-4"
+                  categories={categories || []} brands={brands || []}
+                  categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter}
+                  brandFilter={brandFilter} setBrandFilter={setBrandFilter}
+                  priceRangeFilter={priceRangeFilter} setPriceRangeFilter={setPriceRangeFilter}
+                  setPage={setPage}
                 />
               </SheetContent>
             </Sheet>
           </div>
-          <select 
+          <select
             value={sort}
             onChange={e => { setSort(e.target.value); setPage(1); }}
-            style={{ 
-              height: 38, padding: '0 16px', borderRadius: 10, border: '1px solid var(--neutral-100)', 
-              background: 'white', fontSize: 13, fontWeight: 600, color: 'var(--neutral-700)',
-              outline: 'none', cursor: 'pointer'
-            }}
+            className="h-[38px] px-4 rounded-[10px] border border-neutral-100 bg-white text-[13px] font-semibold text-neutral-700 outline-none cursor-pointer"
           >
             <option value="newest">Mới nhất</option>
             <option value="price_asc">Giá thấp đến cao</option>
@@ -349,27 +289,23 @@ function ShopListing() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-8 items-start">
         <aside className="hidden lg:block w-[260px] shrink-0">
-          <FilterSidebar 
-            categories={categories || []}
-            brands={brands || []}
-            categoryFilter={categoryFilter} 
-            setCategoryFilter={setCategoryFilter} 
-            brandFilter={brandFilter}
-            setBrandFilter={setBrandFilter}
-            priceRangeFilter={priceRangeFilter}
-            setPriceRangeFilter={setPriceRangeFilter}
-            setPage={setPage} 
+          <FilterSidebar
+            categories={categories || []} brands={brands || []}
+            categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter}
+            brandFilter={brandFilter} setBrandFilter={setBrandFilter}
+            priceRangeFilter={priceRangeFilter} setPriceRangeFilter={setPriceRangeFilter}
+            setPage={setPage}
           />
         </aside>
 
-        <div style={{ flex: 1 }}>
+        <div className="flex-1">
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {data.items.map((prod: Product) => (
-              <ProductCard 
-                key={prod.id} 
-                product={prod} 
-                onAddToCart={handleAddToCart} 
-                isPending={pendingProductId === prod.id && addToCartMutation.isPending} 
+              <ProductCard
+                key={prod.id}
+                product={prod}
+                onAddToCart={handleAddToCart}
+                isPending={pendingProductId === prod.id && addToCartMutation.isPending}
               />
             ))}
             {data.items.length === 0 && (
@@ -386,34 +322,29 @@ function ShopListing() {
           </div>
 
           {data.pages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 56 }}>
-              <button 
-                className="btn btn-outline touch-target" 
-                disabled={page <= 1} 
+            <div className="flex justify-center gap-2 mt-14">
+              <button
+                className="h-11 px-5 rounded-[10px] border border-neutral-100 bg-white text-neutral-700 text-[13px] font-semibold disabled:opacity-40 cursor-pointer hover:bg-neutral-50 transition-colors"
+                disabled={page <= 1}
                 onClick={() => setPage(p => p - 1)}
-                style={{ padding: '10px 20px' }}
               >
                 Trang trước
               </button>
               {[...Array(data.pages)].map((_, i) => (
-                <button 
+                <button
                   key={i}
                   onClick={() => setPage(i + 1)}
-                  style={{
-                    minWidth: 44, minHeight: 44, borderRadius: 10, border: '1px solid var(--neutral-100)',
-                    background: page === i + 1 ? 'var(--neutral-900)' : 'white',
-                    color: page === i + 1 ? 'white' : 'var(--neutral-700)',
-                    fontWeight: 600, cursor: 'pointer', transition: 'all 120ms ease'
-                  }}
+                  className={`min-w-[44px] min-h-[44px] rounded-[10px] border border-neutral-100 text-[13px] font-semibold cursor-pointer transition-all duration-[120ms] ease-[ease] ${
+                    page === i + 1 ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700 hover:bg-neutral-50'
+                  }`}
                 >
                   {i + 1}
                 </button>
               ))}
-              <button 
-                className="btn btn-outline touch-target" 
-                disabled={page >= data.pages} 
+              <button
+                className="h-11 px-5 rounded-[10px] border border-neutral-100 bg-white text-neutral-700 text-[13px] font-semibold disabled:opacity-40 cursor-pointer hover:bg-neutral-50 transition-colors"
+                disabled={page >= data.pages}
                 onClick={() => setPage(p => p + 1)}
-                style={{ padding: '10px 20px' }}
               >
                 Trang sau
               </button>

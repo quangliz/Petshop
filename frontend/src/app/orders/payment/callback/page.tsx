@@ -14,61 +14,65 @@ function VNPayCallbackContent() {
       try {
         const queryStr = searchParams.toString();
         await api.get(`/payments/vnpay/ipn?${queryStr}`);
-
         const responseCode = searchParams.get('vnp_ResponseCode');
-        if (responseCode === '00') {
-           setStatus("success");
-        } else {
-           setStatus("error");
-        }
+        if (responseCode === '00') { setStatus("success"); } else { setStatus("error"); }
       } catch (err) {
         console.error("Payment verify error:", err);
         setStatus("error");
       }
     };
-
-    if (searchParams.toString()) {
-        notifyIPN();
-    }
+    if (searchParams.toString()) notifyIPN();
   }, [searchParams]);
 
   return (
-    <div style={{
-      minHeight: 'calc(100vh - 300px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '60px 24px'
-    }}>
-      <div className="card" style={{ maxWidth: 480, width: '100%', padding: '48px 40px', textAlign: 'center' }}>
+    <div className="min-h-[calc(100vh-300px)] flex items-center justify-center px-6 py-[60px]">
+      <div className="bg-white border border-neutral-100 rounded-[20px] shadow-sm w-full max-w-[480px] px-10 py-12 text-center">
         {status === 'loading' && (
           <>
-            <Loader2 size={64} style={{ color: 'var(--primary-500)', margin: '0 auto 24px', animation: 'spin 1s linear infinite' }} />
-            <h1 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 8px' }}>Đang xác minh thanh toán...</h1>
-            <p style={{ fontSize: 14, color: 'var(--neutral-500)' }}>Vui lòng chờ trong giây lát</p>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            <Loader2 size={64} className="mx-auto mb-6 animate-spin" style={{ color: 'var(--primary-500)' }} />
+            <h1 className="text-[22px] font-extrabold mb-2">Đang xác minh thanh toán...</h1>
+            <p className="text-[14px] text-neutral-500">Vui lòng chờ trong giây lát</p>
           </>
         )}
 
         {status === 'success' && (
           <>
-            <div style={{ width: 80, height: 80, borderRadius: 40, background: 'var(--success-bg)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>
               <CheckCircle2 size={44} />
             </div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--success)', margin: '0 0 8px' }}>Thanh toán thành công!</h1>
-            <p style={{ fontSize: 14, color: 'var(--neutral-500)', marginBottom: 32 }}>Chân thành cảm ơn bạn đã đặt hàng. Đơn hàng đang được xử lý.</p>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <Link href="/shop" className="btn btn-outline" style={{ flex: 1, height: 48, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Mua tiếp</Link>
-              <Link href="/orders" className="btn btn-primary" style={{ flex: 1, height: 48, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Xem đơn hàng</Link>
+            <h1 className="text-[24px] font-extrabold mb-2" style={{ color: 'var(--success)' }}>Thanh toán thành công!</h1>
+            <p className="text-[14px] text-neutral-500 mb-8">Chân thành cảm ơn bạn đã đặt hàng. Đơn hàng đang được xử lý.</p>
+            <div className="flex gap-3">
+              <Link
+                href="/shop"
+                className="flex-1 h-12 rounded-[14px] border-[1.5px] border-neutral-200 bg-white text-neutral-700 flex items-center justify-center text-[14px] font-semibold hover:bg-neutral-50 transition-colors no-underline"
+              >
+                Mua tiếp
+              </Link>
+              <Link
+                href="/orders"
+                className="flex-1 h-12 rounded-[14px] text-white flex items-center justify-center text-[14px] font-semibold no-underline transition-opacity hover:opacity-90"
+                style={{ background: 'var(--primary-600)' }}
+              >
+                Xem đơn hàng
+              </Link>
             </div>
           </>
         )}
 
         {status === 'error' && (
           <>
-            <div style={{ width: 80, height: 80, borderRadius: 40, background: 'var(--danger-bg)', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>
               <XCircle size={44} />
             </div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--danger)', margin: '0 0 8px' }}>Thanh toán thất bại</h1>
-            <p style={{ fontSize: 14, color: 'var(--neutral-500)', marginBottom: 32 }}>Có lỗi xảy ra hoặc bạn đã hủy giao dịch.</p>
-            <Link href="/orders" className="btn btn-outline" style={{ width: '100%', height: 48, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Về lịch sử đơn hàng</Link>
+            <h1 className="text-[24px] font-extrabold mb-2" style={{ color: 'var(--danger)' }}>Thanh toán thất bại</h1>
+            <p className="text-[14px] text-neutral-500 mb-8">Có lỗi xảy ra hoặc bạn đã hủy giao dịch.</p>
+            <Link
+              href="/orders"
+              className="w-full h-12 rounded-[14px] border-[1.5px] border-neutral-200 bg-white text-neutral-700 flex items-center justify-center text-[14px] font-semibold hover:bg-neutral-50 transition-colors no-underline"
+            >
+              Về lịch sử đơn hàng
+            </Link>
           </>
         )}
       </div>

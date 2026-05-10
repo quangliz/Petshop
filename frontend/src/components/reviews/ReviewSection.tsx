@@ -16,11 +16,11 @@ export default function ReviewSection({ productId }: { productId: string }) {
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    <div className="flex flex-col gap-6">
       <RatingSummary productId={productId} />
       {user && canReviewData?.can_review && <ReviewForm productId={productId} />}
       {user && canReviewData && !canReviewData.can_review && canReviewData.existing_review && (
-        <p style={{ fontSize: 13, color: "var(--neutral-500)", fontStyle: "italic" }}>
+        <p className="text-[13px] text-neutral-500 italic">
           Bạn đã đánh giá sản phẩm này ({canReviewData.existing_review.rating}/5 sao).
         </p>
       )}

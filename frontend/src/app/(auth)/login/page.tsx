@@ -33,16 +33,13 @@ export default function LoginPage() {
       const formData = new URLSearchParams();
       formData.append('username', data.email);
       formData.append('password', data.password);
-      
       const res = await api.post('/auth/login', formData, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
       const token = res.data.access_token;
-      
       const userRes = await api.get('/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
       setAuth(userRes.data, token);
       const guestCart = getGuestCart();
       if (guestCart.length > 0) {
@@ -60,72 +57,77 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-10" style={{ 
-      background: 'radial-gradient(circle at top right, var(--primary-50), transparent), radial-gradient(circle at bottom left, var(--teal-50), transparent)'
-    }}>
-      <div className="card w-full max-w-md mx-auto p-8 md:p-10">
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ width: 64, height: 64, borderRadius: 20, background: 'var(--primary-600)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 8px 16px var(--primary-100)' }}>
+    <div
+      className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-10"
+      style={{ background: 'radial-gradient(circle at top right, var(--primary-50), transparent), radial-gradient(circle at bottom left, var(--teal-50), transparent)' }}
+    >
+      <div className="bg-white border border-neutral-100 rounded-[20px] shadow-sm w-full max-w-md mx-auto p-8 md:p-10">
+        {/* Icon Header */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 rounded-[20px] flex items-center justify-center text-white mx-auto mb-5" style={{ background: 'var(--primary-600)', boxShadow: '0 8px 16px var(--primary-100)' }}>
             <Sparkles size={32} />
           </div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.025em', margin: '0 0 8px' }}>Chào mừng trở lại!</h1>
-          <p style={{ fontSize: 14, color: 'var(--neutral-500)' }}>Đăng nhập để tiếp tục chăm sóc bé pet của bạn</p>
+          <h1 className="text-[28px] font-extrabold tracking-[-0.025em] mb-2">Chào mừng trở lại!</h1>
+          <p className="text-[14px] text-neutral-500">Đăng nhập để tiếp tục chăm sóc bé pet của bạn</p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {serverError && <div style={{ padding: '12px', background: 'var(--danger-bg)', color: 'var(--danger)', borderRadius: 10, fontSize: 13, textAlign: 'center', fontWeight: 600 }}>{serverError}</div>}
-          
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+          {serverError && (
+            <div className="px-3 py-3 rounded-[10px] text-[13px] text-center font-semibold" style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>
+              {serverError}
+            </div>
+          )}
           <div>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Email</label>
-            <div style={{ position: 'relative' }}>
-              <Mail size={18} style={{ position: 'absolute', left: 14, top: 15, color: 'var(--neutral-400)' }} />
-              <input 
+            <label className="block text-[13px] font-bold mb-2">Email</label>
+            <div className="relative">
+              <Mail size={18} className="absolute left-3.5 top-[15px] text-neutral-400" />
+              <input
                 {...register('email')}
                 type="email"
-                style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: 12, border: `1.5px solid ${errors.email ? 'var(--danger)' : 'var(--neutral-200)'}`, outline: 'none' }}
+                className="w-full py-3 pl-[42px] pr-4 rounded-[12px] text-[14px] outline-none transition-colors"
+                style={{ border: `1.5px solid ${errors.email ? 'var(--danger)' : 'var(--neutral-200)'}` }}
                 placeholder="pet@example.com"
               />
             </div>
-            {errors.email && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 6, fontWeight: 600 }}>{errors.email.message}</p>}
+            {errors.email && <p className="text-[12px] font-semibold mt-1.5" style={{ color: 'var(--danger)' }}>{errors.email.message}</p>}
           </div>
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <label style={{ fontSize: 13, fontWeight: 700 }}>Mật khẩu</label>
-              <Link href="/forgot-password" style={{ fontSize: 12, fontWeight: 600, color: 'var(--primary-600)', textDecoration: 'none' }}>Quên mật khẩu?</Link>
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-[13px] font-bold">Mật khẩu</label>
+              <Link href="/forgot-password" className="text-[12px] font-semibold no-underline" style={{ color: 'var(--primary-600)' }}>Quên mật khẩu?</Link>
             </div>
-            <div style={{ position: 'relative' }}>
-              <Lock size={18} style={{ position: 'absolute', left: 14, top: 15, color: 'var(--neutral-400)' }} />
-              <input 
+            <div className="relative">
+              <Lock size={18} className="absolute left-3.5 top-[15px] text-neutral-400" />
+              <input
                 {...register('password')}
                 type="password"
-                style={{ width: '100%', padding: '12px 16px 12px 42px', borderRadius: 12, border: `1.5px solid ${errors.password ? 'var(--danger)' : 'var(--neutral-200)'}`, outline: 'none' }}
+                className="w-full py-3 pl-[42px] pr-4 rounded-[12px] text-[14px] outline-none transition-colors"
+                style={{ border: `1.5px solid ${errors.password ? 'var(--danger)' : 'var(--neutral-200)'}` }}
                 placeholder="••••••••"
               />
             </div>
-            {errors.password && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 6, fontWeight: 600 }}>{errors.password.message}</p>}
+            {errors.password && <p className="text-[12px] font-semibold mt-1.5" style={{ color: 'var(--danger)' }}>{errors.password.message}</p>}
           </div>
-          <button 
-            type="submit" disabled={isSubmitting}
-            className="btn btn-primary btn-lg" 
-            style={{ width: '100%', height: 52, borderRadius: 14, marginTop: 12, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full h-[52px] rounded-[14px] mt-3 text-[15px] font-semibold text-white flex items-center justify-center gap-2 transition-opacity disabled:opacity-70"
+            style={{ background: 'var(--primary-600)' }}
           >
-            {isSubmitting ? <><Spinner size={18} /> Đang đăng nhập...</> : (
-              <>Đăng nhập <ArrowRight size={18} style={{ marginLeft: 8 }} /></>
-            )}
+            {isSubmitting ? <><Spinner size={18} /> Đang đăng nhập...</> : <>Đăng nhập <ArrowRight size={18} /></>}
           </button>
         </form>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '24px 0 0' }}>
-          <div style={{ flex: 1, height: 1, background: 'var(--neutral-200)' }} />
-          <span style={{ fontSize: 12, color: 'var(--neutral-400)', fontWeight: 600 }}>HOẶC</span>
-          <div style={{ flex: 1, height: 1, background: 'var(--neutral-200)' }} />
+        <div className="flex items-center gap-3 mt-6">
+          <div className="flex-1 h-px bg-neutral-200" />
+          <span className="text-[12px] text-neutral-400 font-semibold">HOẶC</span>
+          <div className="flex-1 h-px bg-neutral-200" />
         </div>
-        <div style={{ marginTop: 16 }}>
+        <div className="mt-4">
           <GoogleAuthButton />
         </div>
-
-        <div style={{ textAlign: 'center', marginTop: 28, fontSize: 14, color: 'var(--neutral-500)' }}>
-          Chưa có tài khoản? <Link href="/register" style={{ fontWeight: 700, color: 'var(--primary-600)', textDecoration: 'none' }}>Đăng ký ngay</Link>
+        <div className="text-center mt-7 text-[14px] text-neutral-500">
+          Chưa có tài khoản? <Link href="/register" className="font-bold no-underline" style={{ color: 'var(--primary-600)' }}>Đăng ký ngay</Link>
         </div>
       </div>
     </div>

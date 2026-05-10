@@ -21,10 +21,10 @@ export default function ReviewForm({ productId }: { productId: string }) {
   });
 
   return (
-    <div style={{ padding: "24px", background: "var(--neutral-50)", borderRadius: 16, display: "flex", flexDirection: "column", gap: 16 }}>
-      <h4 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Viết đánh giá</h4>
+    <div className="p-6 bg-neutral-50 rounded-[16px] flex flex-col gap-4">
+      <h4 className="text-[16px] font-bold m-0">Viết đánh giá</h4>
       <div>
-        <div style={{ fontSize: 13, color: "var(--neutral-600)", marginBottom: 6 }}>Đánh giá của bạn</div>
+        <div className="text-[13px] text-neutral-600 mb-1.5">Đánh giá của bạn</div>
         <StarRating value={rating} onChange={setRating} size={28} />
       </div>
       <textarea
@@ -32,22 +32,18 @@ export default function ReviewForm({ productId }: { productId: string }) {
         onChange={(e) => setComment(e.target.value)}
         placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm..."
         rows={3}
-        style={{
-          width: "100%", padding: "12px 16px", borderRadius: 12,
-          border: "1.5px solid var(--neutral-200)", fontSize: 14,
-          resize: "vertical", fontFamily: "inherit",
-        }}
+        className="w-full px-4 py-3 rounded-[12px] border-[1.5px] border-neutral-200 text-[14px] resize-y font-[inherit] outline-none focus:border-neutral-400 transition-colors"
       />
       {mutation.isError && (
-        <p style={{ color: "var(--danger)", fontSize: 13, margin: 0 }}>
+        <p className="text-[13px] font-semibold m-0" style={{ color: "var(--danger)" }}>
           {(mutation.error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Có lỗi xảy ra"}
         </p>
       )}
       <button
         onClick={() => mutation.mutate()}
         disabled={rating === 0 || mutation.isPending}
-        className="btn btn-primary"
-        style={{ alignSelf: "flex-start", borderRadius: 12, padding: "10px 24px" }}
+        className="self-start px-6 py-2.5 rounded-[12px] text-[14px] font-semibold text-white transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ background: "var(--primary-600)" }}
       >
         {mutation.isPending ? "Đang gửi..." : "Gửi đánh giá"}
       </button>

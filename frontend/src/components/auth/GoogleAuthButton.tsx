@@ -36,15 +36,7 @@ export default function GoogleAuthButton({ label = "Tiếp tục với Google" }
       type="button"
       onClick={handleClick}
       disabled={loading}
-      style={{
-        width: "100%", height: 52, borderRadius: 14, fontSize: 15, fontWeight: 600,
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-        background: "white", border: "1.5px solid var(--neutral-200)",
-        cursor: loading ? "not-allowed" : "pointer", color: "var(--neutral-800)",
-        transition: "box-shadow 0.15s, border-color 0.15s",
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "var(--shadow-sm)"; e.currentTarget.style.borderColor = "var(--neutral-300)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = ""; e.currentTarget.style.borderColor = "var(--neutral-200)"; }}
+      className={`w-full h-[52px] rounded-[14px] text-[15px] font-semibold flex items-center justify-center gap-[10px] bg-white border-[1.5px] border-neutral-200 text-neutral-800 transition-shadow duration-150 hover:shadow-sm hover:border-neutral-300 ${loading ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
     >
       {/* Google "G" logo */}
       <svg width="20" height="20" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">

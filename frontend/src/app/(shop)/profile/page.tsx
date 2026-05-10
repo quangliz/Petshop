@@ -8,6 +8,9 @@ import Image from 'next/image';
 import { User, Pet } from '@/lib/types';
 import { VietnamAddressPicker } from '@/components/VietnamAddressPicker';
 
+const inputCls = "w-full px-4 py-3 rounded-[12px] border-[1.5px] border-neutral-200 outline-none text-[14px]";
+const labelCls = "block text-[13px] font-bold mb-2";
+
 const PetCard = ({ pet, onDelete, onEdit }: { pet: Pet, onDelete: (id: string) => void, onEdit: (pet: Pet) => void }) => {
   const speciesColors: Record<string, string> = {
     dog: 'oklch(0.95 0.05 55)',
@@ -18,48 +21,46 @@ const PetCard = ({ pet, onDelete, onEdit }: { pet: Pet, onDelete: (id: string) =
   const emoji: Record<string, string> = { dog: '🐶', cat: '🐱', bird: '🦜', other: '🐾' };
 
   return (
-    <div className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ aspectRatio: '1 / 1', background: speciesColors[pet.species] || speciesColors.other, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 56 }}>
+    <div className="bg-white border border-neutral-100 rounded-[20px] shadow-sm overflow-hidden flex flex-col">
+      <div
+        className="relative flex items-center justify-center text-[56px]"
+        style={{ aspectRatio: '1 / 1', background: speciesColors[pet.species] || speciesColors.other }}
+      >
         {pet.avatar_url ? (
-          <Image 
-            src={pet.avatar_url} 
-            alt={pet.name} 
-            fill 
-            sizes="120px"
-            className="object-cover"
-          />
+          <Image src={pet.avatar_url} alt={pet.name} fill sizes="120px" className="object-cover" />
         ) : emoji[pet.species] || emoji.other}
         <button
           onClick={() => onEdit(pet)}
-          style={{ position: 'absolute', top: 12, right: 48, width: 32, height: 32, borderRadius: 16, background: 'rgba(255,255,255,0.8)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-700)' }}
+          className="absolute top-3 right-12 w-8 h-8 rounded-2xl bg-white/80 border-none cursor-pointer flex items-center justify-center text-neutral-700 hover:bg-white transition-colors"
         >
           <Pencil size={16} />
         </button>
         <button
-          onClick={() => { if(confirm("Xoá hồ sơ này?")) onDelete(pet.id) }}
-          style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: 16, background: 'rgba(255,255,255,0.8)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)' }}
+          onClick={() => { if (confirm("Xoá hồ sơ này?")) onDelete(pet.id) }}
+          className="absolute top-3 right-3 w-8 h-8 rounded-2xl bg-white/80 border-none cursor-pointer flex items-center justify-center hover:bg-white transition-colors"
+          style={{ color: 'var(--danger)' }}
         >
           <Trash2 size={16} />
         </button>
       </div>
-      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="p-5 flex flex-col gap-3">
         <div>
-          <h3 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>{pet.name}</h3>
-          <div style={{ fontSize: 13, color: 'var(--neutral-500)', fontWeight: 500 }}>{pet.breed || pet.species} · {pet.age_months ? `${pet.age_months} tháng` : 'Chưa rõ tuổi'}</div>
+          <h3 className="text-[20px] font-extrabold m-0">{pet.name}</h3>
+          <div className="text-[13px] text-neutral-500 font-medium">{pet.breed || pet.species} · {pet.age_months ? `${pet.age_months} tháng` : 'Chưa rõ tuổi'}</div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div style={{ padding: '8px 12px', background: 'var(--neutral-50)', borderRadius: 10, fontSize: 12 }}>
-            <div style={{ color: 'var(--neutral-400)', fontWeight: 600, fontSize: 10, textTransform: 'uppercase' }}>Cân nặng</div>
-            <div style={{ fontWeight: 700 }}>{pet.weight_kg || '?'} kg</div>
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="px-3 py-2 bg-neutral-50 rounded-[10px] text-[12px]">
+            <div className="text-neutral-400 font-semibold text-[10px] uppercase">Cân nặng</div>
+            <div className="font-bold">{pet.weight_kg || '?'} kg</div>
           </div>
-          <div style={{ padding: '8px 12px', background: 'var(--neutral-50)', borderRadius: 10, fontSize: 12 }}>
-            <div style={{ color: 'var(--neutral-400)', fontWeight: 600, fontSize: 10, textTransform: 'uppercase' }}>Giới tính</div>
-            <div style={{ fontWeight: 700 }}>{pet.gender === 'male' ? 'Đực' : pet.gender === 'female' ? 'Cái' : 'Chưa rõ'}</div>
+          <div className="px-3 py-2 bg-neutral-50 rounded-[10px] text-[12px]">
+            <div className="text-neutral-400 font-semibold text-[10px] uppercase">Giới tính</div>
+            <div className="font-bold">{pet.gender === 'male' ? 'Đực' : pet.gender === 'female' ? 'Cái' : 'Chưa rõ'}</div>
           </div>
         </div>
         {pet.allergies && (
-          <div style={{ background: 'var(--danger-bg)', color: 'var(--danger)', padding: '8px 12px', borderRadius: 10, fontSize: 12, display: 'flex', gap: 8 }}>
-             <ShieldCheck size={14} /> <strong>Dị ứng:</strong> {pet.allergies}
+          <div className="px-3 py-2 rounded-[10px] text-[12px] flex gap-2 items-center" style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>
+            <ShieldCheck size={14} /> <strong>Dị ứng:</strong> {pet.allergies}
           </div>
         )}
       </div>
@@ -70,7 +71,7 @@ const PetCard = ({ pet, onDelete, onEdit }: { pet: Pet, onDelete: (id: string) =
 export default function GeneralProfilePage() {
   const { user, setAuth } = useAuthStore();
   const queryClient = useQueryClient();
-  
+
   const [profileForm, setProfileForm] = useState(() => ({
     full_name: user?.full_name || '',
     phone: user?.phone || '',
@@ -82,63 +83,32 @@ export default function GeneralProfilePage() {
   const [file, setFile] = useState<File | null>(null);
 
   const updateProfileMutation = useMutation({
-      mutationFn: async (data: Partial<User>) => {
-          const res = await api.put('/auth/me', data);
-         return res.data;
-     },
-     onSuccess: (updatedUser) => {
-         const token = localStorage.getItem('token');
-         if (token) setAuth(updatedUser, token);
-         alert("Đã cập nhật thông tin thành công!");
-     }
+    mutationFn: async (data: Partial<User>) => { const res = await api.put('/auth/me', data); return res.data; },
+    onSuccess: (updatedUser) => { const token = localStorage.getItem('token'); if (token) setAuth(updatedUser, token); alert("Đã cập nhật thông tin thành công!"); }
   });
 
   const { data: pets } = useQuery({
     queryKey: ['pets'],
-    queryFn: async () => {
-      const res = await api.get('/pets/');
-      return res.data;
-    },
+    queryFn: async () => { const res = await api.get('/pets/'); return res.data; },
     enabled: !!user,
   });
 
   const createPet = useMutation({
-    mutationFn: async (data: Partial<Pet>) => {
-      const res = await api.post('/pets/', data);
-      return res.data;
-    },
+    mutationFn: async (data: Partial<Pet>) => { const res = await api.post('/pets/', data); return res.data; },
     onSuccess: async (newPet) => {
-      if (file) {
-        const formDataUpload = new FormData();
-        formDataUpload.append("file", file);
-        await api.post(`/pets/${newPet.id}/avatar`, formDataUpload, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
-      }
+      if (file) { const fd = new FormData(); fd.append("file", file); await api.post(`/pets/${newPet.id}/avatar`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }); }
       queryClient.invalidateQueries({ queryKey: ['pets'] });
-      setPetFormVisible(false);
-      setFile(null);
+      setPetFormVisible(false); setFile(null);
       setPetFormData({ name: '', species: 'dog', breed: '', age_months: '', weight_kg: '', gender: 'unknown', health_notes: '', allergies: '' });
     }
   });
 
   const updatePet = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<Pet> }) => {
-      const res = await api.put(`/pets/${id}`, data);
-      return res.data;
-    },
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Pet> }) => { const res = await api.put(`/pets/${id}`, data); return res.data; },
     onSuccess: async (updatedPet) => {
-      if (file) {
-        const formDataUpload = new FormData();
-        formDataUpload.append("file", file);
-        await api.post(`/pets/${updatedPet.id}/avatar`, formDataUpload, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-      }
+      if (file) { const fd = new FormData(); fd.append("file", file); await api.post(`/pets/${updatedPet.id}/avatar`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }); }
       queryClient.invalidateQueries({ queryKey: ['pets'] });
-      setEditingPet(null);
-      setPetFormVisible(false);
-      setFile(null);
+      setEditingPet(null); setPetFormVisible(false); setFile(null);
       setPetFormData({ name: '', species: 'dog', breed: '', age_months: '', weight_kg: '', gender: 'unknown', health_notes: '', allergies: '' });
     }
   });
@@ -148,42 +118,54 @@ export default function GeneralProfilePage() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['pets'] }); }
   });
 
-  if (!user) return <div style={{ padding: 100, textAlign: 'center', color: 'var(--neutral-500)' }}>Vui lòng đăng nhập để xem hồ sơ.</div>;
+  if (!user) return <div className="py-[100px] text-center text-neutral-500">Vui lòng đăng nhập để xem hồ sơ.</div>;
 
   return (
     <div className="max-w-[900px] mx-auto px-4 md:px-6 py-6 md:py-8">
-      {/* Main Content */}
-      <main style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
+      <main className="flex flex-col gap-10">
         {/* Account Section */}
-        <section style={{ padding: 32, borderRadius: 24, border: '1px solid var(--neutral-100)', background: 'white' }}>
-          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24 }}>Thông tin tài khoản</h2>
+        <section className="p-8 rounded-[24px] border border-neutral-100 bg-white">
+          <h2 className="text-[24px] font-extrabold mb-6">Thông tin tài khoản</h2>
           <form onSubmit={(e) => { e.preventDefault(); updateProfileMutation.mutate(profileForm); }} className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Họ và tên</label>
-              <input style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={profileForm.full_name} onChange={e => setProfileForm({...profileForm, full_name: e.target.value})} />
+              <label className={labelCls}>Họ và tên</label>
+              <input className={inputCls} value={profileForm.full_name} onChange={e => setProfileForm({ ...profileForm, full_name: e.target.value })} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Số điện thoại</label>
-              <input style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={profileForm.phone} onChange={e => setProfileForm({...profileForm, phone: e.target.value})} />
+              <label className={labelCls}>Số điện thoại</label>
+              <input className={inputCls} value={profileForm.phone} onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} />
             </div>
             <div className="sm:col-span-2">
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Địa chỉ giao hàng</label>
-              <VietnamAddressPicker value={profileForm.address} onChange={v => setProfileForm({...profileForm, address: v})} />
+              <label className={labelCls}>Địa chỉ giao hàng</label>
+              <VietnamAddressPicker value={profileForm.address} onChange={v => setProfileForm({ ...profileForm, address: v })} />
             </div>
             <div className="sm:col-span-2 flex justify-end mt-2 md:mt-4">
-              <button type="submit" className="btn btn-primary w-full sm:w-auto" disabled={updateProfileMutation.isPending}>{updateProfileMutation.isPending ? "Đang lưu..." : "Cập nhật tài khoản"}</button>
+              <button
+                type="submit"
+                disabled={updateProfileMutation.isPending}
+                className="w-full sm:w-auto h-11 px-6 rounded-[12px] font-semibold text-[14px] text-white transition-opacity disabled:opacity-70"
+                style={{ background: 'var(--primary-600)' }}
+              >
+                {updateProfileMutation.isPending ? "Đang lưu..." : "Cập nhật tài khoản"}
+              </button>
             </div>
           </form>
         </section>
 
         {/* Pets Section */}
         <section>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
+          <div className="flex justify-between items-end mb-6">
             <div>
-              <h2 style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.025em', margin: 0 }}>Hồ sơ thú cưng</h2>
-              <p style={{ fontSize: 14, color: 'var(--neutral-500)', marginTop: 4 }}>Quản lý thông tin sức khoẻ và dinh dưỡng của các bé</p>
+              <h2 className="text-[28px] font-extrabold tracking-[-0.025em] m-0">Hồ sơ thú cưng</h2>
+              <p className="text-[14px] text-neutral-500 mt-1">Quản lý thông tin sức khoẻ và dinh dưỡng của các bé</p>
             </div>
-            <button className="btn btn-primary" onClick={() => setPetFormVisible(true)}><Plus size={18}/> Thêm bé mới</button>
+            <button
+              className="h-10 px-4 rounded-[12px] text-[14px] font-semibold text-white flex items-center gap-1.5 transition-opacity hover:opacity-90"
+              style={{ background: 'var(--primary-600)' }}
+              onClick={() => setPetFormVisible(true)}
+            >
+              <Plus size={18} /> Thêm bé mới
+            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
@@ -194,85 +176,76 @@ export default function GeneralProfilePage() {
                 setPetFormVisible(true);
               }} />
             ))}
-            <div 
+            <div
               onClick={() => setPetFormVisible(true)}
-              style={{
-                borderRadius: 20, border: '2px dashed var(--neutral-200)', display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40, cursor: 'pointer',
-                color: 'var(--neutral-400)', transition: 'all 120ms ease'
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--primary-300)'; e.currentTarget.style.color = 'var(--primary-500)'; e.currentTarget.style.background = 'var(--primary-25)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--neutral-200)'; e.currentTarget.style.color = 'var(--neutral-400)'; e.currentTarget.style.background = 'transparent'; }}
+              className="rounded-[20px] border-2 border-dashed border-neutral-200 flex flex-col items-center justify-center gap-3 p-10 cursor-pointer text-neutral-400 transition-all duration-[120ms] hover:border-[var(--primary-300)] hover:text-[var(--primary-500)] hover:bg-[var(--primary-25)]"
             >
-              <div style={{ width: 48, height: 48, borderRadius: 24, background: 'currentColor', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+              <div className="w-12 h-12 rounded-full bg-current flex items-center justify-center text-white">
                 <Plus size={24} />
               </div>
-              <span style={{ fontWeight: 600 }}>Thêm hồ sơ bé mới</span>
+              <span className="font-semibold">Thêm hồ sơ bé mới</span>
             </div>
           </div>
         </section>
 
-        {/* Pet Form Modal-ish */}
+        {/* Pet Form Modal */}
         {petFormVisible && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(26, 24, 20, 0.4)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-            <div className="card" style={{ width: '100%', maxWidth: 600, maxHeight: '90vh', overflowY: 'auto', padding: 32 }}>
-              <h3 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>{editingPet ? 'Chỉnh sửa hồ sơ' : 'Mở hồ sơ y tế mới'}</h3>
-              <p style={{ fontSize: 14, color: 'var(--neutral-500)', marginBottom: 24 }}>Điền thông tin để AI có thể tư vấn chính xác nhất cho bé</p>
+          <div className="fixed inset-0 bg-[rgba(26,24,20,0.4)] backdrop-blur-[4px] z-[100] flex items-center justify-center p-6">
+            <div className="bg-white border border-neutral-100 rounded-[20px] shadow-xl w-full max-w-[600px] max-h-[90vh] overflow-y-auto p-8">
+              <h3 className="text-[24px] font-extrabold mb-2">{editingPet ? 'Chỉnh sửa hồ sơ' : 'Mở hồ sơ y tế mới'}</h3>
+              <p className="text-[14px] text-neutral-500 mb-6">Điền thông tin để AI có thể tư vấn chính xác nhất cho bé</p>
 
               <form onSubmit={(e) => {
                 e.preventDefault();
-                const payload = {
-                  ...petFormData,
-                  age_months: petFormData.age_months ? Number(petFormData.age_months) : undefined,
-                  weight_kg: petFormData.weight_kg ? Number(petFormData.weight_kg) : undefined,
-                };
-                if (editingPet) {
-                  updatePet.mutate({ id: editingPet.id, data: payload });
-                } else {
-                  createPet.mutate(payload);
-                }
+                const payload = { ...petFormData, age_months: petFormData.age_months ? Number(petFormData.age_months) : undefined, weight_kg: petFormData.weight_kg ? Number(petFormData.weight_kg) : undefined };
+                if (editingPet) { updatePet.mutate({ id: editingPet.id, data: payload }); } else { createPet.mutate(payload); }
               }} className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
                 <div className="sm:col-span-2">
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Tên thú cưng *</label>
-                  <input required style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={petFormData.name} onChange={e => setPetFormData({...petFormData, name: e.target.value})} />
+                  <label className={labelCls}>Tên thú cưng *</label>
+                  <input required className={inputCls} value={petFormData.name} onChange={e => setPetFormData({ ...petFormData, name: e.target.value })} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Loài *</label>
-                  <select style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none', background: 'white' }} value={petFormData.species} onChange={e => setPetFormData({...petFormData, species: e.target.value})}>
+                  <label className={labelCls}>Loài *</label>
+                  <select className={`${inputCls} bg-white`} value={petFormData.species} onChange={e => setPetFormData({ ...petFormData, species: e.target.value })}>
                     <option value="dog">Chó</option><option value="cat">Mèo</option><option value="bird">Chim</option><option value="other">Khác</option>
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Giống</label>
-                  <input style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} placeholder="Poodle, Golden..." value={petFormData.breed} onChange={e => setPetFormData({...petFormData, breed: e.target.value})} />
+                  <label className={labelCls}>Giống</label>
+                  <input className={inputCls} placeholder="Poodle, Golden..." value={petFormData.breed} onChange={e => setPetFormData({ ...petFormData, breed: e.target.value })} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Tuổi (tháng)</label>
-                  <input type="number" style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={petFormData.age_months} onChange={e => setPetFormData({...petFormData, age_months: e.target.value})} />
+                  <label className={labelCls}>Tuổi (tháng)</label>
+                  <input type="number" className={inputCls} value={petFormData.age_months} onChange={e => setPetFormData({ ...petFormData, age_months: e.target.value })} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Cân nặng (kg)</label>
-                  <input type="number" step="0.1" style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={petFormData.weight_kg} onChange={e => setPetFormData({...petFormData, weight_kg: e.target.value})} />
+                  <label className={labelCls}>Cân nặng (kg)</label>
+                  <input type="number" step="0.1" className={inputCls} value={petFormData.weight_kg} onChange={e => setPetFormData({ ...petFormData, weight_kg: e.target.value })} />
                 </div>
                 <div className="sm:col-span-2">
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Dị ứng (quan trọng)</label>
-                  <input placeholder="VD: Dị ứng thịt gà, dị ứng sữa..." style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid var(--neutral-200)', outline: 'none' }} value={petFormData.allergies} onChange={e => setPetFormData({...petFormData, allergies: e.target.value})} />
+                  <label className={labelCls}>Dị ứng (quan trọng)</label>
+                  <input placeholder="VD: Dị ứng thịt gà, dị ứng sữa..." className={inputCls} value={petFormData.allergies} onChange={e => setPetFormData({ ...petFormData, allergies: e.target.value })} />
                 </div>
                 <div className="sm:col-span-2">
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Ảnh thú cưng</label>
-                  <input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} style={{ width: '100%', padding: '8px 0', fontSize: 13 }} />
+                  <label className={labelCls}>Ảnh thú cưng</label>
+                  <input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} className="w-full py-2 text-[13px]" />
                 </div>
                 <div className="sm:col-span-2 flex flex-col sm:flex-row gap-3 mt-3">
-                  <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => { setPetFormVisible(false); setEditingPet(null); setFile(null); setPetFormData({ name: '', species: 'dog', breed: '', age_months: '', weight_kg: '', gender: 'unknown', health_notes: '', allergies: '' }); }}>Huỷ bỏ</button>
-                  <button type="submit" className="btn btn-primary" style={{ flex: 2 }} disabled={createPet.isPending || updatePet.isPending}>{(createPet.isPending || updatePet.isPending) ? "Đang lưu..." : "Lưu hồ sơ"}</button>
+                  <button type="button" onClick={() => { setPetFormVisible(false); setEditingPet(null); setFile(null); setPetFormData({ name: '', species: 'dog', breed: '', age_months: '', weight_kg: '', gender: 'unknown', health_notes: '', allergies: '' }); }}
+                    className="flex-1 h-11 rounded-[12px] border-[1.5px] border-neutral-200 bg-white text-neutral-700 text-[14px] font-semibold cursor-pointer hover:bg-neutral-50 transition-colors">
+                    Huỷ bỏ
+                  </button>
+                  <button type="submit" disabled={createPet.isPending || updatePet.isPending}
+                    className="flex-[2] h-11 rounded-[12px] text-white text-[14px] font-semibold disabled:opacity-70"
+                    style={{ background: 'var(--primary-600)' }}>
+                    {(createPet.isPending || updatePet.isPending) ? "Đang lưu..." : "Lưu hồ sơ"}
+                  </button>
                 </div>
               </form>
             </div>
           </div>
         )}
-
       </main>
     </div>
   );
 }
-

@@ -17,35 +17,34 @@ export default function RatingSummary({ productId }: { productId: string }) {
 
   if (!data || data.total === 0) {
     return (
-      <p style={{ color: "var(--neutral-500)", textAlign: "center", padding: "24px 0" }}>
+      <p className="text-neutral-500 text-center py-6">
         Chưa có đánh giá nào cho sản phẩm này.
       </p>
     );
   }
 
   return (
-    <div style={{ display: "flex", gap: 40, alignItems: "center", padding: "16px 0" }}>
-      <div style={{ textAlign: "center", minWidth: 120 }}>
-        <div style={{ fontSize: 48, fontWeight: 800, color: "var(--neutral-900)", lineHeight: 1 }}>
-          {data.average}
-        </div>
+    <div className="flex gap-10 items-center py-4">
+      <div className="text-center min-w-[120px]">
+        <div className="text-[48px] font-extrabold text-neutral-900 leading-none">{data.average}</div>
         <StarRating value={Math.round(data.average)} size={18} />
-        <div style={{ fontSize: 13, color: "var(--neutral-500)", marginTop: 4 }}>
-          {data.total} đánh giá
-        </div>
+        <div className="text-[13px] text-neutral-500 mt-1">{data.total} đánh giá</div>
       </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="flex-1 flex flex-col gap-1.5">
         {[5, 4, 3, 2, 1].map((star) => {
           const count = data.distribution[String(star)] || 0;
           const pct = data.total > 0 ? (count / data.total) * 100 : 0;
           return (
-            <div key={star} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-              <span style={{ width: 20, textAlign: "right", color: "var(--neutral-600)", fontWeight: 600 }}>{star}</span>
+            <div key={star} className="flex items-center gap-2 text-[13px]">
+              <span className="w-5 text-right text-neutral-600 font-semibold">{star}</span>
               <StarRating value={star} size={12} />
-              <div style={{ flex: 1, height: 8, background: "var(--neutral-100)", borderRadius: 4, overflow: "hidden" }}>
-                <div style={{ width: `${pct}%`, height: "100%", background: "oklch(0.75 0.15 75)", borderRadius: 4, transition: "width 0.3s" }} />
+              <div className="flex-1 h-2 bg-neutral-100 rounded overflow-hidden">
+                <div
+                  className="h-full rounded transition-[width] duration-300"
+                  style={{ width: `${pct}%`, background: "oklch(0.75 0.15 75)" }}
+                />
               </div>
-              <span style={{ width: 28, fontSize: 12, color: "var(--neutral-500)" }}>{count}</span>
+              <span className="w-7 text-[12px] text-neutral-500">{count}</span>
             </div>
           );
         })}

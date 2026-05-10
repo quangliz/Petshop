@@ -30,14 +30,8 @@ function ResetPasswordContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirm) {
-      setError("Mật khẩu xác nhận không khớp");
-      return;
-    }
-    if (password.length < 6) {
-      setError("Mật khẩu phải có ít nhất 6 ký tự");
-      return;
-    }
+    if (password !== confirm) { setError("Mật khẩu xác nhận không khớp"); return; }
+    if (password.length < 6) { setError("Mật khẩu phải có ít nhất 6 ký tự"); return; }
     setLoading(true);
     setError("");
     try {
@@ -55,11 +49,9 @@ function ResetPasswordContent() {
   if (!token) {
     return (
       <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-10">
-        <div className="card w-full max-w-md mx-auto p-8 text-center">
-          <p style={{ color: "var(--danger)", fontWeight: 600 }}>Link không hợp lệ.</p>
-          <Link href="/forgot-password" style={{ fontWeight: 700, color: "var(--primary-600)", textDecoration: "none" }}>
-            Yêu cầu link mới
-          </Link>
+        <div className="bg-white border border-neutral-100 rounded-[20px] shadow-sm w-full max-w-md mx-auto p-8 text-center">
+          <p className="font-semibold" style={{ color: "var(--danger)" }}>Link không hợp lệ.</p>
+          <Link href="/forgot-password" className="font-bold no-underline" style={{ color: "var(--primary-600)" }}>Yêu cầu link mới</Link>
         </div>
       </div>
     );
@@ -68,57 +60,37 @@ function ResetPasswordContent() {
   return (
     <div
       className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-10"
-      style={{
-        background:
-          "radial-gradient(circle at top right, var(--primary-50), transparent), radial-gradient(circle at bottom left, var(--teal-50), transparent)",
-      }}
+      style={{ background: "radial-gradient(circle at top right, var(--primary-50), transparent), radial-gradient(circle at bottom left, var(--teal-50), transparent)" }}
     >
-      <div className="card w-full max-w-md mx-auto p-8 md:p-10">
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div
-            style={{
-              width: 64, height: 64, borderRadius: 20,
-              background: "var(--primary-600)", color: "white",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto 20px", boxShadow: "0 8px 16px var(--primary-100)",
-            }}
-          >
+      <div className="bg-white border border-neutral-100 rounded-[20px] shadow-sm w-full max-w-md mx-auto p-8 md:p-10">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 rounded-[20px] flex items-center justify-center text-white mx-auto mb-5" style={{ background: "var(--primary-600)", boxShadow: "0 8px 16px var(--primary-100)" }}>
             <Lock size={32} />
           </div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.025em", margin: "0 0 8px" }}>
-            Đặt lại mật khẩu
-          </h1>
-          <p style={{ fontSize: 14, color: "var(--neutral-500)" }}>Nhập mật khẩu mới cho tài khoản của bạn</p>
+          <h1 className="text-[28px] font-extrabold tracking-[-0.025em] mb-2">Đặt lại mật khẩu</h1>
+          <p className="text-[14px] text-neutral-500">Nhập mật khẩu mới cho tài khoản của bạn</p>
         </div>
 
         {success ? (
-          <div style={{ textAlign: "center" }}>
-            <CheckCircle size={48} style={{ color: "var(--primary-600)", margin: "0 auto 16px" }} />
-            <p style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>Mật khẩu đã được cập nhật!</p>
-            <p style={{ fontSize: 13, color: "var(--neutral-500)" }}>Đang chuyển hướng đến trang đăng nhập...</p>
+          <div className="text-center">
+            <CheckCircle size={48} className="mx-auto mb-4" style={{ color: "var(--primary-600)" }} />
+            <p className="font-semibold text-[16px] mb-2">Mật khẩu đã được cập nhật!</p>
+            <p className="text-[13px] text-neutral-500">Đang chuyển hướng đến trang đăng nhập...</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             {error && (
-              <div
-                style={{
-                  padding: 12, background: "var(--danger-bg)", color: "var(--danger)",
-                  borderRadius: 10, fontSize: 13, textAlign: "center", fontWeight: 600,
-                }}
-              >
+              <div className="px-3 py-3 rounded-[10px] text-[13px] text-center font-semibold" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}>
                 {error}
               </div>
             )}
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Mật khẩu mới</label>
-              <div style={{ position: "relative" }}>
-                <Lock size={18} style={{ position: "absolute", left: 14, top: 15, color: "var(--neutral-400)" }} />
+              <label className="block text-[13px] font-bold mb-2">Mật khẩu mới</label>
+              <div className="relative">
+                <Lock size={18} className="absolute left-3.5 top-[15px] text-neutral-400" />
                 <input
                   type="password" required
-                  style={{
-                    width: "100%", padding: "12px 16px 12px 42px",
-                    borderRadius: 12, border: "1.5px solid var(--neutral-200)", outline: "none",
-                  }}
+                  className="w-full py-3 pl-[42px] pr-4 rounded-[12px] border-[1.5px] border-neutral-200 text-[14px] outline-none"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -126,15 +98,12 @@ function ResetPasswordContent() {
               </div>
             </div>
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Xác nhận mật khẩu</label>
-              <div style={{ position: "relative" }}>
-                <Lock size={18} style={{ position: "absolute", left: 14, top: 15, color: "var(--neutral-400)" }} />
+              <label className="block text-[13px] font-bold mb-2">Xác nhận mật khẩu</label>
+              <div className="relative">
+                <Lock size={18} className="absolute left-3.5 top-[15px] text-neutral-400" />
                 <input
                   type="password" required
-                  style={{
-                    width: "100%", padding: "12px 16px 12px 42px",
-                    borderRadius: 12, border: "1.5px solid var(--neutral-200)", outline: "none",
-                  }}
+                  className="w-full py-3 pl-[42px] pr-4 rounded-[12px] border-[1.5px] border-neutral-200 text-[14px] outline-none"
                   placeholder="••••••••"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
@@ -142,20 +111,15 @@ function ResetPasswordContent() {
               </div>
             </div>
             <button
-              type="submit" disabled={loading}
-              className="btn btn-primary btn-lg"
-              style={{ width: "100%", height: 52, borderRadius: 14, fontSize: 15 }}
+              type="submit"
+              disabled={loading}
+              className="w-full h-[52px] rounded-[14px] text-[15px] font-semibold text-white transition-opacity disabled:opacity-70"
+              style={{ background: "var(--primary-600)" }}
             >
               {loading ? "Đang xử lý..." : "Đặt lại mật khẩu"}
             </button>
-            <div style={{ textAlign: "center", fontSize: 14 }}>
-              <Link
-                href="/login"
-                style={{
-                  fontWeight: 700, color: "var(--primary-600)",
-                  textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6,
-                }}
-              >
+            <div className="text-center text-[14px]">
+              <Link href="/login" className="font-bold no-underline inline-flex items-center gap-1.5" style={{ color: "var(--primary-600)" }}>
                 <ArrowLeft size={16} /> Quay lại đăng nhập
               </Link>
             </div>

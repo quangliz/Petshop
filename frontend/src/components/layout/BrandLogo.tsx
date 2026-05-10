@@ -35,7 +35,7 @@ export default function BrandLogo({
         fontFamily="'GoodPawoo', sans-serif"
         fontSize="32"
         fontWeight="bold"
-        fill="var(--neutral-900)"
+        fill="currentColor"
         style={{ letterSpacing: '0.02em' }}
       >
         thepawsome

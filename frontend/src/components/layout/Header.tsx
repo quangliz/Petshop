@@ -4,7 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { ShoppingCart, Search, PackageSearch, X, ArrowLeft } from "lucide-react";
+import { ShoppingCart, Search, PackageSearch, X, ArrowLeft, Menu, User, ChevronRight, LogOut, Package, Store, ClipboardList, ShieldCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { getGuestCartCount } from "@/lib/guestCart";
@@ -21,8 +21,16 @@ const HeaderAuthSection = dynamic(() => import("./HeaderAuthSection"), {
 const Logo = () => <BrandLogo size={42} />;
 
 export default function Header() {
-  const { user, token, setUser, setLoading } = useAuthStore();
+  const { user, token, setUser, setLoading, isLoading, logout } = useAuthStore();
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', handleScroll);
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
   useEffect(() => {
     if (token && !user) {
       setLoading(true);
@@ -38,8 +46,8 @@ export default function Header() {
   const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedTerm, setDebouncedTerm] = useState("");
-  const [suggestOpen, setSuggestOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -76,7 +84,6 @@ export default function Header() {
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const q = searchTerm.trim();
-    setSuggestOpen(false);
     setMobileSearchOpen(false);
     router.push(q ? `/shop?q=${encodeURIComponent(q)}` : "/shop");
   };
@@ -101,116 +108,229 @@ export default function Header() {
   }, [guestCartCount]);
   const cartItemCount = user ? serverCartCount : guestCartCount;
 
+  const isSolidBottomBar = isScrolled || isHovered;
+  const isTopBarHidden = isScrolled;
+
   return (
     <>
-      <header className="sticky top-0 h-[72px] px-4 md:px-8 gap-3 md:gap-7 z-20 flex items-center w-full bg-white/90 backdrop-blur-md border-b border-neutral-100 shadow-sm">
-        <Link href="/" className="cursor-pointer no-underline shrink-0 flex items-center">
-          <Logo />
-        </Link>
-
-        <nav className="hidden md:flex gap-1">
-          <Link href="/shop" className="px-3.5 py-2 rounded-lg text-sm font-medium text-neutral-700 no-underline transition-colors hover:bg-neutral-50 hover:text-neutral-900">
-            Cửa hàng
-          </Link>
-          <Link href="/tra-cuu-don-hang" className="px-3.5 py-2 rounded-lg text-sm font-medium text-neutral-700 no-underline transition-colors hover:bg-neutral-50 hover:text-neutral-900">
-            Tra cứu đơn hàng
-          </Link>
-        </nav>
-
-        {/* Desktop Search */}
-        <form onSubmit={submitSearch} className="hidden md:flex flex-1 max-w-[440px] relative ml-auto mr-4">
-          <div className="h-[42px] w-full rounded-xl bg-neutral-50 border border-neutral-100 flex items-center px-3.5 gap-2.5 text-neutral-500 focus-within:bg-white focus-within:border-primary-300 focus-within:ring-4 focus-within:ring-primary-50 transition-all duration-200">
-            <Search size={16} />
-            <input
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setSuggestOpen(true); }}
-              onFocus={() => setSuggestOpen(true)}
-              onBlur={() => setTimeout(() => setSuggestOpen(false), 150)}
-              placeholder="Tìm hạt, đồ chơi, cát vệ sinh..."
-              className="flex-1 border-none outline-none bg-transparent text-[13px] text-neutral-800 placeholder-neutral-400"
-            />
-            <kbd className="font-mono text-[10px] px-1.5 py-0.5 bg-white rounded border border-neutral-200 text-neutral-400 font-medium">⏎</kbd>
-          </div>
-
-          {suggestOpen && suggestQ && (
-            <div className="absolute top-[48px] left-0 right-0 z-30 bg-white border border-neutral-100 rounded-xl shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-              {suggestLoading && !suggestions ? (
-                <div className="px-4 py-3.5 text-[13px] text-neutral-500 flex items-center justify-center">Đang tìm...</div>
-              ) : suggestions?.items?.length ? (
+      <header 
+        className={`fixed top-0 z-20 w-full flex flex-col transition-all duration-300 ${isSolidBottomBar ? 'shadow-sm' : ''}`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {/* Top Orange Bar */}
+        <div className={`bg-surface-invert text-white px-4 md:px-8 flex items-center justify-center md:justify-between font-vnmmono text-[10px] sm:text-[11px] md:text-xs overflow-hidden transition-all duration-300 ${isTopBarHidden ? 'h-0 opacity-0 pointer-events-none' : 'max-md:h-[18px] md:h-[34px] opacity-100'}`}>
+          <div className="tracking-wide text-center w-full md:w-auto">Miễn phí vận chuyển cho đơn từ 300K</div>
+          
+          <div className="hidden md:flex items-center gap-4 md:gap-6">
+            <Link href="/tra-cuu-don-hang" className="hover:text-white/80 transition-colors tracking-wide">
+              TRA CỨU ĐƠN HÀNG
+            </Link>
+            <Link href="/shop" className="hover:text-white/80 transition-colors tracking-wide">
+              CỬA HÀNG
+            </Link>
+            <div className="flex items-center gap-3 text-white">
+              {!isTopBarHidden && (
                 <>
-                  {suggestions.items.map((p: Product) => (
-                    <Link
-                      key={p.id}
-                      href={`/products/${p.slug}`}
-                      onClick={() => setSuggestOpen(false)}
-                      className="flex items-center gap-3 px-3.5 py-2.5 no-underline text-neutral-800 transition-colors hover:bg-neutral-50"
-                    >
-                      <div className="w-10 h-10 rounded-lg bg-neutral-100 shrink-0 overflow-hidden relative border border-neutral-100">
-                        {(p.thumbnail_url || p.images?.main) && (
-                          <Image
-                            src={p.thumbnail_url || p.images?.main || ''}
-                            alt={p.name}
-                            fill
-                            sizes="40px"
-                            className="object-cover"
-                          />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[13px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis">{p.name}</div>
-                        <div className="text-[11px] text-neutral-500 mt-0.5">{p.brand || p.category_name}</div>
-                      </div>
-                      <div className="text-[13px] font-bold text-primary-600">
-                        {(p.sale_price || p.price).toLocaleString()}đ
-                      </div>
-                    </Link>
-                  ))}
-                  <div
-                    onMouseDown={(e) => { e.preventDefault(); submitSearch(e as unknown as React.FormEvent); }}
-                    className="px-3.5 py-2.5 text-xs font-semibold text-primary-600 border-t border-neutral-100 cursor-pointer text-center hover:bg-primary-50 transition-colors"
+                  <HeaderAuthSection />
+                  <button 
+                    className="text-inherit hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-1" 
+                    onClick={() => {
+                      setSearchTerm("");
+                      setMobileSearchOpen(true);
+                    }}
                   >
-                    Xem tất cả kết quả cho “{suggestQ}” →
-                  </div>
+                    <Search size={18} strokeWidth={2} />
+                  </button>
+
+                  <Link href="/cart" className="relative flex items-center text-inherit hover:opacity-80 transition-opacity p-1">
+                    <ShoppingCart size={18} strokeWidth={2} />
+                    {cartItemCount > 0 && (
+                      <div className="absolute top-0 -right-1 min-w-[16px] h-[16px] rounded-full bg-white text-surface-invert text-[10px] font-bold flex items-center justify-center px-1 border border-white">
+                        {cartItemCount > 99 ? '99+' : cartItemCount}
+                      </div>
+                    )}
+                  </Link>
                 </>
-              ) : (
-                <div className="px-4 py-8 text-[13px] text-neutral-500 flex flex-col items-center justify-center gap-2 text-center">
-                  <PackageSearch className="w-8 h-8 text-neutral-300" />
-                  <div>Không tìm thấy sản phẩm nào phù hợp với &quot;{suggestQ}&quot;.</div>
-                </div>
               )}
             </div>
-          )}
-        </form>
-
-        <div className="flex items-center gap-1 md:gap-2 ml-auto md:ml-0">
-          {/* Mobile Search Toggle */}
-          <button className="md:hidden p-2 text-neutral-700 hover:bg-neutral-100 rounded-full transition-colors" onClick={() => {
-            setSearchTerm("");
-            setMobileSearchOpen(true);
-          }}>
-            <Search size={22} />
-          </button>
-
-          {/* Desktop Cart */}
-          <Link href="/cart" className="hidden md:flex p-2 text-neutral-700 relative items-center hover:bg-neutral-100 rounded-full transition-colors">
-            <ShoppingCart size={20} />
-            {cartItemCount > 0 && (
-              <div className="absolute top-0 right-0 min-w-[18px] h-[18px] rounded-full bg-primary-500 text-white text-[10px] font-bold flex items-center justify-center px-1 border-2 border-white">
-                {cartItemCount > 99 ? '99+' : cartItemCount}
-              </div>
-            )}
-          </Link>
-
-          {/* Desktop Auth */}
-          <div className="hidden md:flex items-center gap-2 ml-1">
-            <HeaderAuthSection />
           </div>
+        </div>
+
+        {/* Bottom Bar */}
+        <div className={`${isTopBarHidden ? 'md:h-[49px]' : 'md:h-[73px]'} max-md:h-[65px] max-md:py-2 px-4 md:px-8 flex items-center justify-between border-b transition-all duration-300 ${isSolidBottomBar ? 'bg-[#fffff1] border-surface-invert' : 'max-md:bg-[#fffff1] max-md:border-surface-invert md:bg-transparent md:border-transparent'}`}>
+           <div className="flex items-center gap-6 md:gap-8">
+             <Link href="/" className={`cursor-pointer no-underline shrink-0 flex items-center transition-colors duration-300 text-surface-invert`}>
+               <Logo />
+             </Link>
+
+             {/* <div className={`hidden md:flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity text-surface-invert`}>
+               <span className="font-semibold text-[15px]">Sản phẩm</span>
+               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-inherit">
+                 <path d="m6 9 6 6 6-6"/>
+               </svg>
+             </div> */}
+           </div>
+
+           {/* Mobile Icons */}
+           <div className={`flex md:hidden items-center gap-3 text-surface-invert`}>
+                 <Link href={user ? "/profile" : "/login"} className="text-inherit hover:opacity-80 transition-opacity flex items-center justify-center p-1">
+                   <User size={18} strokeWidth={2} />
+                 </Link>
+                 <button
+                   className="text-inherit hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-1"
+                   onClick={() => {
+                     setSearchTerm("");
+                     setMobileSearchOpen(true);
+                   }}
+                 >
+                   <Search size={18} strokeWidth={2} />
+                 </button>
+
+                 <Link href="/cart" className="relative flex items-center text-inherit hover:opacity-80 transition-opacity p-1">
+                   <ShoppingCart size={18} strokeWidth={2} />
+                   {cartItemCount > 0 && (
+                     <div className="absolute top-0 -right-1 min-w-[16px] h-[16px] rounded-full bg-surface-invert text-white text-[10px] font-bold flex items-center justify-center px-1 border border-surface-invert">
+                       {cartItemCount > 99 ? '99+' : cartItemCount}
+                     </div>
+                   )}
+                 </Link>
+
+                 <button className="text-inherit p-1 cursor-pointer bg-transparent border-none relative w-[28px] h-[28px] flex items-center justify-center" onClick={() => setMobileMenuOpen(o => !o)}>
+                   <Menu size={20} strokeWidth={2} className={`absolute transition-all duration-200 ${mobileMenuOpen ? 'opacity-0 rotate-90 scale-50' : 'opacity-100 rotate-0 scale-100'}`} />
+                   <X size={20} strokeWidth={2} className={`absolute transition-all duration-200 ${mobileMenuOpen ? 'opacity-100 rotate-0 scale-100' : 'opacity-0 -rotate-90 scale-50'}`} />
+                 </button>
+           </div>
+
+           {/* Desktop Icons (Visible only when isTopBarHidden is true) */}
+           <div className={`hidden md:flex items-center gap-3 transition-opacity duration-300 text-surface-invert ${isTopBarHidden ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+             {isTopBarHidden && (
+               <>
+                 <Link href="/shop" className="text-inherit hover:opacity-80 transition-opacity p-1 flex items-center">
+                   <Store size={18} strokeWidth={2} />
+                 </Link>
+                 <HeaderAuthSection />
+                 <button
+                   className="text-inherit hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-1"
+                   onClick={() => {
+                     setSearchTerm("");
+                     setMobileSearchOpen(true);
+                   }}
+                 >
+                   <Search size={18} strokeWidth={2} />
+                 </button>
+
+                 <Link href="/cart" className="relative flex items-center text-inherit hover:opacity-80 transition-opacity p-1">
+                   <ShoppingCart size={18} strokeWidth={2} />
+                   {cartItemCount > 0 && (
+                     <div className="absolute top-0 -right-1 min-w-[16px] h-[16px] rounded-full bg-surface-invert text-white text-[10px] font-bold flex items-center justify-center px-1 border border-surface-invert">
+                       {cartItemCount > 99 ? '99+' : cartItemCount}
+                     </div>
+                   )}
+                 </Link>
+               </>
+             )}
+           </div>
         </div>
       </header>
 
-      {/* Mobile Full-Screen Search Overlay */}
+      {/* Mobile Full-Screen Menu */}
+      {mobileMenuOpen && (
+        <div className="fixed top-[65px] left-0 right-0 bottom-0 z-[90] bg-[#fffff1] flex flex-col animate-in slide-in-from-top-2 duration-300 md:hidden">
+          <div className="flex-1 overflow-y-auto">
+            {/* User Section */}
+            {!isLoading && (
+              user ? (
+                <div className="px-5 py-5 border-b border-neutral-200">
+                  <Link
+                    href="/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 no-underline group"
+                  >
+                    <div className="w-11 h-11 rounded-full bg-surface-invert text-white flex items-center justify-center shrink-0">
+                      <User size={20} strokeWidth={2} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[15px] font-bold text-surface-invert truncate">{user.full_name}</div>
+                      <div className="text-[12px] text-neutral-500 mt-0.5">Xem hồ sơ cá nhân</div>
+                    </div>
+                    <ChevronRight size={18} className="text-neutral-400 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </div>
+              ) : (
+                <div className="px-5 py-5 border-b border-neutral-200 flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-neutral-100 flex items-center justify-center shrink-0">
+                    <User size={20} strokeWidth={2} className="text-neutral-400" />
+                  </div>
+                  <div className="flex gap-3">
+                    <Link
+                      href="/login"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="px-4 py-2 rounded-full bg-surface-invert text-white text-[13px] font-semibold no-underline hover:opacity-90 transition-opacity"
+                    >
+                      Đăng nhập
+                    </Link>
+                    <Link
+                      href="/register"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="px-4 py-2 rounded-full border border-surface-invert text-surface-invert text-[13px] font-semibold no-underline hover:bg-neutral-100 transition-colors"
+                    >
+                      Đăng ký
+                    </Link>
+                  </div>
+                </div>
+              )
+            )}
+
+            {/* Navigation Links */}
+            <nav className="flex flex-col py-2">
+              <Link href="/shop" onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-4 px-5 py-4 no-underline text-surface-invert border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+                <Store size={20} strokeWidth={1.75} className="text-neutral-500 shrink-0" />
+                <span className="text-[15px] font-semibold">Cửa hàng</span>
+              </Link>
+              <Link href="/tra-cuu-don-hang" onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-4 px-5 py-4 no-underline text-surface-invert border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+                <ClipboardList size={20} strokeWidth={1.75} className="text-neutral-500 shrink-0" />
+                <span className="text-[15px] font-semibold">Tra cứu đơn hàng</span>
+              </Link>
+              {user && (
+                <>
+                  <Link href="/orders" onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-4 px-5 py-4 no-underline text-surface-invert border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+                    <Package size={20} strokeWidth={1.75} className="text-neutral-500 shrink-0" />
+                    <span className="text-[15px] font-semibold">Đơn hàng của tôi</span>
+                  </Link>
+                  {user.role === 'admin' && (
+                    <Link href="/admin" onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-4 px-5 py-4 no-underline text-surface-invert border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+                      <ShieldCheck size={20} strokeWidth={1.75} className="text-[oklch(0.61_0.19_46)] shrink-0" />
+                      <span className="text-[15px] font-semibold text-[oklch(0.61_0.19_46)]">Bảng điều khiển Admin</span>
+                    </Link>
+                  )}
+                </>
+              )}
+            </nav>
+
+            {/* Logout */}
+            {user && (
+              <div className="px-5 pt-2 pb-8">
+                <button
+                  onClick={() => { logout(); setMobileMenuOpen(false); }}
+                  className="flex items-center gap-3 text-[14px] font-semibold text-red-500 bg-transparent border-none cursor-pointer p-0 hover:opacity-70 transition-opacity"
+                >
+                  <LogOut size={18} strokeWidth={1.75} />
+                  Đăng xuất
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Search Overlay */}
       {mobileSearchOpen && (
-        <div className="md:hidden fixed inset-0 z-[100] bg-white flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-in fade-in zoom-in-95 duration-200">
           <div className="flex items-center gap-2 p-3 border-b border-neutral-100">
             <button onClick={() => setMobileSearchOpen(false)} className="p-2 text-neutral-500 hover:bg-neutral-100 rounded-full transition-colors border-none bg-transparent">
               <ArrowLeft size={24} />

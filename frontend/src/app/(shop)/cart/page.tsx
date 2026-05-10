@@ -10,6 +10,7 @@ import { getGuestCart, GuestCartItem } from '@/lib/guestCart';
 import Image from 'next/image';
 import { CartRowSkeleton } from "@/components/skeletons/CartRowSkeleton";
 import { EmptyState } from '@/components/ui/empty-state';
+
 interface CartItem {
   id: string;
   product_id: string;
@@ -20,22 +21,16 @@ interface CartItem {
   sale_price?: number;
 }
 
-// ─── Guest cart ───────────────────────────────────────────────────────────────
-
 function GuestCartPage() {
   const router = useRouter();
-  const [guestRaw, setGuestRaw] = useState<GuestCartItem[]>([]);
+  const [guestRaw, setGuestRaw] = useState<GuestCartItem[]>(() => getGuestCart());
   const [products, setProducts] = useState<Record<string, { name: string; price: number; sale_price?: number; image?: string }>>({});
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(getGuestCart().map(i => i.product_id)));
 
   useEffect(() => {
-    const items = getGuestCart();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setGuestRaw(items);
-    setSelectedIds(new Set(items.map(i => i.product_id)));
-    if (items.length === 0) return;
+    if (guestRaw.length === 0) return;
     Promise.all(
-      items.map(i =>
+      guestRaw.map(i =>
         api.get(`/products/${i.slug}`).then(r => ({
           id: i.product_id,
           data: { name: r.data.name, price: r.data.price, sale_price: r.data.sale_price ?? undefined, image: r.data.images?.main },
@@ -46,6 +41,7 @@ function GuestCartPage() {
       results.forEach(r => { map[r.id] = r.data; });
       setProducts(map);
     }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updateQty = (product_id: string, delta: number) => {
@@ -66,25 +62,21 @@ function GuestCartPage() {
   };
 
   const items: CartItem[] = guestRaw.map(i => ({
-    id: i.product_id,
-    product_id: i.product_id,
+    id: i.product_id, product_id: i.product_id,
     product_name: products[i.product_id]?.name ?? '...',
     product_image: products[i.product_id]?.image,
-    quantity: i.quantity,
-    price: products[i.product_id]?.price ?? 0,
+    quantity: i.quantity, price: products[i.product_id]?.price ?? 0,
     sale_price: products[i.product_id]?.sale_price,
   }));
 
   const allSelected = items.length > 0 && items.every(i => selectedIds.has(i.id));
   const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map(i => i.id)));
   const toggleItem = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) { n.delete(id); } else { n.add(id); } return n; });
-
   const selectedItems = items.filter(i => selectedIds.has(i.id));
   const selectedTotal = selectedItems.reduce((sum, i) => sum + (i.sale_price || i.price) * i.quantity, 0);
 
   const handleCheckout = () => {
     if (selectedIds.size === 0) return;
-    // Write only selected items to guest cart before going to checkout
     const selected = guestRaw.filter(i => selectedIds.has(i.product_id));
     localStorage.setItem('guest_cart', JSON.stringify(selected));
     setGuestRaw(selected);
@@ -93,46 +85,42 @@ function GuestCartPage() {
 
   return <CartLayout items={items} selectedIds={selectedIds} selectedTotal={selectedTotal} allSelected={allSelected}
     toggleAll={toggleAll} toggleItem={toggleItem} handleCheckout={handleCheckout}
-    onUpdateQty={(id, delta) => updateQty(id, delta)}
-    onRemove={removeItem} isGuest />;
+    onUpdateQty={(id, delta) => updateQty(id, delta)} onRemove={removeItem} isGuest />;
 }
-
-// ─── Auth cart ────────────────────────────────────────────────────────────────
 
 function AuthCartPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const { data: cart, isLoading } = useQuery({
     queryKey: ['cart'],
-    queryFn: async () => {
-      const res = await api.get('/cart/');
-      return res.data;
-    },
+    queryFn: async () => { const res = await api.get('/cart/'); return res.data; },
   });
 
+  const items: CartItem[] = useMemo(() => cart?.items || [], [cart]);
+
+  // Track manually de-selected IDs; everything else is selected by default.
+  // This avoids calling setState inside a useEffect (cascading renders).
+  const [deselectedIds, setDeselectedIds] = useState<Set<string>>(new Set<string>());
+  const selectedIds: Set<string> = useMemo(
+    () => new Set(items.map(i => i.id).filter(id => !deselectedIds.has(id))),
+    [items, deselectedIds]
+  );
+  const setSelectedIds = (next: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    const resolved = typeof next === 'function' ? next(selectedIds) : next;
+    const newDeselected = new Set(items.map(i => i.id).filter(id => !resolved.has(id)));
+    setDeselectedIds(newDeselected);
+  };
+
   const updateMutation = useMutation({
-    mutationFn: async ({ id, quantity }: { id: string; quantity: number }) => {
-      await api.put(`/cart/items/${id}`, { quantity });
-    },
+    mutationFn: async ({ id, quantity }: { id: string; quantity: number }) => { await api.put(`/cart/items/${id}`, { quantity }); },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cart'] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => { await api.delete(`/cart/items/${id}`); },
-    onSuccess: (_, id) => {
-      setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
-    },
+    onSuccess: (_, id) => { setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; }); queryClient.invalidateQueries({ queryKey: ['cart'] }); },
   });
-
-  const items: CartItem[] = useMemo(() => cart?.items || [], [cart]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (items.length > 0) setSelectedIds(new Set(items.map((i: CartItem) => i.id)));
-  }, [items]);
 
   if (isLoading) return (
     <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8">
@@ -145,7 +133,6 @@ function AuthCartPage() {
   const allSelected = items.length > 0 && items.every(i => selectedIds.has(i.id));
   const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map(i => i.id)));
   const toggleItem = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) { n.delete(id); } else { n.add(id); } return n; });
-
   const selectedItems = items.filter(i => selectedIds.has(i.id));
   const selectedTotal = selectedItems.reduce((sum, i) => sum + (i.sale_price || i.price) * i.quantity, 0);
 
@@ -158,26 +145,15 @@ function AuthCartPage() {
 
   return <CartLayout items={items} selectedIds={selectedIds} selectedTotal={selectedTotal} allSelected={allSelected}
     toggleAll={toggleAll} toggleItem={toggleItem} handleCheckout={handleCheckout}
-    onUpdateQty={(id, delta) => {
-      const item = items.find(i => i.id === id);
-      if (item) updateMutation.mutate({ id, quantity: Math.max(1, item.quantity + delta) });
-    }}
+    onUpdateQty={(id, delta) => { const item = items.find(i => i.id === id); if (item) updateMutation.mutate({ id, quantity: Math.max(1, item.quantity + delta) }); }}
     onRemove={id => deleteMutation.mutate(id)} />;
 }
 
-// ─── Shared layout ────────────────────────────────────────────────────────────
-
 function CartLayout({ items, selectedIds, selectedTotal, allSelected, toggleAll, toggleItem, handleCheckout, onUpdateQty, onRemove, isGuest }: {
-  items: CartItem[];
-  selectedIds: Set<string>;
-  selectedTotal: number;
-  allSelected: boolean;
-  toggleAll: () => void;
-  toggleItem: (id: string) => void;
-  handleCheckout: () => void;
-  onUpdateQty: (id: string, delta: number) => void;
-  onRemove: (id: string) => void;
-  isGuest?: boolean;
+  items: CartItem[]; selectedIds: Set<string>; selectedTotal: number;
+  allSelected: boolean; toggleAll: () => void; toggleItem: (id: string) => void;
+  handleCheckout: () => void; onUpdateQty: (id: string, delta: number) => void;
+  onRemove: (id: string) => void; isGuest?: boolean;
 }) {
   return (
     <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 pb-[280px] md:pb-8 md:py-8">
@@ -187,7 +163,7 @@ function CartLayout({ items, selectedIds, selectedTotal, allSelected, toggleAll,
         <span className="text-neutral-900 font-semibold">Giỏ hàng</span>
       </div>
 
-      <h1 className="text-2xl md:text-[32px] font-extrabold tracking-tight mb-6 md:mb-8">Giỏ hàng của bạn</h1>
+      {/* <h1 className="text-2xl md:text-[32px] font-extrabold tracking-tight mb-6 md:mb-8">Giỏ hàng của bạn</h1> */}
 
       {isGuest && (
         <div className="mb-6 px-4 py-3 rounded-2xl text-sm flex items-center gap-3" style={{ background: 'var(--primary-50)', color: 'var(--primary-700)' }}>
@@ -207,46 +183,46 @@ function CartLayout({ items, selectedIds, selectedTotal, allSelected, toggleAll,
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-10 items-start">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '0 4px' }}>
-              <input type="checkbox" checked={allSelected} onChange={toggleAll}
-                style={{ width: 18, height: 18, accentColor: 'var(--primary-600)', cursor: 'pointer' }} />
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--neutral-700)' }}>Chọn tất cả ({items.length} sản phẩm)</span>
+          <div className="flex flex-col gap-4">
+            <label className="flex items-center gap-2.5 cursor-pointer px-1">
+              <input
+                type="checkbox" checked={allSelected} onChange={toggleAll}
+                className="w-[18px] h-[18px] cursor-pointer"
+                style={{ accentColor: 'var(--primary-600)' }}
+              />
+              <span className="text-[14px] font-semibold text-neutral-700">Chọn tất cả ({items.length} sản phẩm)</span>
             </label>
 
             {items.map((item) => (
-              <div key={item.id} className="card p-3 md:p-5" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleItem(item.id)}
-                  style={{ width: 18, height: 18, accentColor: 'var(--primary-600)', cursor: 'pointer', flexShrink: 0 }} />
-                <div className="w-[70px] h-[70px] md:w-[100px] md:h-[100px]" style={{ borderRadius: 12, background: 'var(--neutral-50)', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+              <div key={item.id} className="bg-white border border-neutral-100 rounded-[20px] shadow-sm p-3 md:p-5 flex gap-3 items-center">
+                <input
+                  type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleItem(item.id)}
+                  className="w-[18px] h-[18px] cursor-pointer shrink-0"
+                  style={{ accentColor: 'var(--primary-600)' }}
+                />
+                <div className="w-[70px] h-[70px] md:w-[100px] md:h-[100px] rounded-[12px] bg-neutral-50 overflow-hidden relative shrink-0">
                   {item.product_image ? (
                     <Image src={item.product_image} alt={item.product_name} fill sizes="100px" className="object-cover" />
                   ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neutral-300)', fontSize: 10 }}>NO IMG</div>
+                    <div className="w-full h-full flex items-center justify-center text-neutral-300 text-[10px]">NO IMG</div>
                   )}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <h3 className="text-sm md:text-base" style={{ fontWeight: 700, margin: 0, color: 'var(--neutral-900)' }}>{item.product_name}</h3>
-                    <button onClick={() => onRemove(item.id)}
-                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--neutral-400)', padding: 4 }}
-                      onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
-                      onMouseLeave={e => e.currentTarget.style.color = 'var(--neutral-400)'}>
+                <div className="flex-1">
+                  <div className="flex justify-between items-start">
+                    <h3 className="text-sm md:text-base font-bold m-0 text-neutral-900">{item.product_name}</h3>
+                    <button
+                      onClick={() => onRemove(item.id)}
+                      className="border-none bg-transparent cursor-pointer text-neutral-400 p-1 hover:text-red-500 transition-colors"
+                    >
                       <Trash2 size={18} />
                     </button>
                   </div>
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-3 md:mt-4">
-                    <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--primary-600)' }}>{(item.sale_price || item.price).toLocaleString()}đ</div>
-                    <div style={{ display: 'flex', alignItems: 'center', background: 'var(--neutral-50)', borderRadius: 10, padding: 2 }}>
-                      <button onClick={() => onUpdateQty(item.id, -1)}
-                        style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Minus size={14} />
-                      </button>
-                      <span style={{ width: 36, textAlign: 'center', fontSize: 14, fontWeight: 700 }}>{item.quantity}</span>
-                      <button onClick={() => onUpdateQty(item.id, 1)}
-                        style={{ width: 36, height: 36, borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Plus size={14} />
-                      </button>
+                    <div className="text-[17px] font-bold" style={{ color: 'var(--primary-600)' }}>{(item.sale_price || item.price).toLocaleString()}đ</div>
+                    <div className="flex items-center bg-neutral-50 rounded-[10px] p-0.5">
+                      <button onClick={() => onUpdateQty(item.id, -1)} className="w-9 h-9 rounded-[8px] border-none bg-transparent cursor-pointer flex items-center justify-center hover:bg-neutral-100 transition-colors"><Minus size={14} /></button>
+                      <span className="w-9 text-center text-[14px] font-bold">{item.quantity}</span>
+                      <button onClick={() => onUpdateQty(item.id, 1)} className="w-9 h-9 rounded-[8px] border-none bg-transparent cursor-pointer flex items-center justify-center hover:bg-neutral-100 transition-colors"><Plus size={14} /></button>
                     </div>
                   </div>
                 </div>
@@ -254,32 +230,36 @@ function CartLayout({ items, selectedIds, selectedTotal, allSelected, toggleAll,
             ))}
           </div>
 
-          <div className="card border-0 md:border md:border-neutral-100 p-5 md:p-7 fixed bottom-[60px] md:bottom-auto left-0 right-0 z-40 md:relative lg:sticky lg:top-24 rounded-t-[24px] rounded-b-none md:rounded-3xl shadow-[0_-12px_40px_rgba(0,0,0,0.08)] md:shadow-none flex flex-col gap-3 md:gap-0">
-            <h3 className="hidden md:block" style={{ fontSize: 20, fontWeight: 800, marginBottom: 24, color: 'var(--neutral-900)' }}>Tổng quan đơn hàng</h3>
-            <div className="hidden md:flex" style={{ flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: 'var(--neutral-600)' }}>
+          {/* Order Summary */}
+          <div className="bg-white border md:border-neutral-100 p-5 md:p-7 fixed bottom-0 md:bottom-auto left-0 right-0 z-40 md:relative lg:sticky lg:top-24 rounded-t-[24px] rounded-b-none md:rounded-3xl shadow-[0_-12px_40px_rgba(0,0,0,0.08)] md:shadow-none flex flex-col gap-3 md:gap-0">
+            <h3 className="hidden md:block text-[20px] font-extrabold mb-6 text-neutral-900">Tổng quan đơn hàng</h3>
+            <div className="hidden md:flex flex-col gap-3.5">
+              <div className="flex justify-between text-[14px] text-neutral-600">
                 <span>Tạm tính ({selectedIds.size} sản phẩm đã chọn)</span>
-                <span style={{ fontWeight: 600, color: 'var(--neutral-900)' }}>{selectedTotal.toLocaleString()}đ</span>
+                <span className="font-semibold text-neutral-900">{selectedTotal.toLocaleString()}đ</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: 'var(--neutral-600)' }}>
+              <div className="flex justify-between text-[14px] text-neutral-600">
                 <span>Phí vận chuyển</span>
-                <span style={{ fontWeight: 600, color: 'var(--success)' }}>30,000đ</span>
+                <span className="font-semibold" style={{ color: 'var(--success)' }}>30,000đ</span>
               </div>
-              <div style={{ height: 1, background: 'var(--neutral-100)', margin: '8px 0' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 16, fontWeight: 700 }}>Tổng cộng</span>
-                <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--primary-600)' }}>{selectedTotal.toLocaleString()}đ</span>
+              <div className="h-px bg-neutral-100 my-2" />
+              <div className="flex justify-between items-baseline">
+                <span className="text-[16px] font-bold">Tổng cộng</span>
+                <span className="text-[24px] font-extrabold" style={{ color: 'var(--primary-600)' }}>{selectedTotal.toLocaleString()}đ</span>
               </div>
             </div>
 
-            <div className="md:hidden flex justify-between items-center" style={{ height: 52 }}>
-              <span style={{ fontSize: 16, fontWeight: 700 }}>Tổng cộng</span>
-              <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--primary-600)' }}>{selectedTotal.toLocaleString()}đ</span>
+            <div className="md:hidden flex justify-between items-center h-[52px]">
+              <span className="text-[16px] font-bold">Tổng cộng</span>
+              <span className="text-[22px] font-extrabold" style={{ color: 'var(--primary-600)' }}>{selectedTotal.toLocaleString()}đ</span>
             </div>
 
-            <button onClick={handleCheckout} disabled={selectedIds.size === 0}
-              className="btn btn-primary btn-lg w-full md:mt-8"
-              style={{ height: 52, borderRadius: 14, opacity: selectedIds.size === 0 ? 0.5 : 1, cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer', fontSize: 16, fontWeight: 700 }}>
+            <button
+              onClick={handleCheckout}
+              disabled={selectedIds.size === 0}
+              className="w-full h-[52px] mt-0 md:mt-8 rounded-[14px] text-[16px] font-bold text-white transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'var(--primary-600)' }}
+            >
               Thanh toán ({selectedIds.size} sản phẩm)
             </button>
           </div>
@@ -288,8 +268,6 @@ function CartLayout({ items, selectedIds, selectedTotal, allSelected, toggleAll,
     </div>
   );
 }
-
-// ─── Entry point ──────────────────────────────────────────────────────────────
 
 export default function CartPage() {
   const { user } = useAuthStore();

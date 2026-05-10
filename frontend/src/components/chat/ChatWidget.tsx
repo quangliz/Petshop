@@ -6,91 +6,68 @@ import CatbotLogo from "./CatbotLogo";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import ReactMarkdown from "react-markdown";
+import Image from 'next/image';
 
 type ChatProduct = { slug: string; name: string; brand?: string | null; price: number; sale_price?: number | null; thumbnail_url?: string | null };
 type ChatMsg = { role: string; content: string; products?: ChatProduct[] };
 type ChatSessionMeta = { id: string; title: string; created_at: string | null };
-import Image from 'next/image';
 
 const PRODUCT_TAG_RE = /<product>\s*([^<>\s]+)\s*<\/product>/gi;
 
 function ProductCard({ pr }: { pr: ChatProduct }) {
   const effectivePrice = pr.sale_price ?? pr.price;
   return (
-    <a href={`/products/${pr.slug}`} target="_blank" rel="noreferrer"
-      style={{
-        display: "inline-flex", gap: 8, alignItems: "center", padding: 8, borderRadius: 10,
-        background: "var(--neutral-50)", border: "1px solid var(--neutral-100)",
-        width: "calc(50% - 4px)", textDecoration: "none", color: "inherit", verticalAlign: "top",
-      }}>
+    <a
+      href={`/products/${pr.slug}`}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex gap-2 items-center p-2 rounded-[10px] bg-neutral-50 border border-neutral-100 no-underline text-inherit align-top"
+      style={{ width: "calc(50% - 4px)" }}
+    >
       {pr.thumbnail_url ? (
-        <div style={{ position: "relative", width: 40, height: 40, flexShrink: 0 }}>
-          <Image src={pr.thumbnail_url} alt={pr.name} fill sizes="40px" style={{ borderRadius: 8, objectFit: "cover" }} />
+        <div className="relative w-10 h-10 shrink-0">
+          <Image src={pr.thumbnail_url} alt={pr.name} fill sizes="40px" className="rounded-lg object-cover" />
         </div>
       ) : (
-        <div style={{ width: 40, height: 40, borderRadius: 8, background: "var(--neutral-100)", flexShrink: 0 }} />
+        <div className="w-10 h-10 rounded-lg bg-neutral-100 shrink-0" />
       )}
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--neutral-800)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {pr.name}
-        </div>
-        <div style={{ fontSize: 11, color: "var(--teal-700)", fontWeight: 700 }}>
-          {effectivePrice.toLocaleString("vi-VN")}đ
-        </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] font-bold text-neutral-800 overflow-hidden text-ellipsis whitespace-nowrap">{pr.name}</div>
+        <div className="text-[11px] font-bold" style={{ color: "var(--teal-700)" }}>{effectivePrice.toLocaleString("vi-VN")}đ</div>
       </div>
     </a>
   );
 }
 
 function renderInlineContent(content: string, products: ChatProduct[] | undefined) {
+  const mdComponents = {
+    p: ({ children }: { children?: React.ReactNode }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p>,
+    ul: ({ children }: { children?: React.ReactNode }) => <ul style={{ margin: "6px 0", paddingLeft: "18px" }}>{children}</ul>,
+    li: ({ children }: { children?: React.ReactNode }) => <li style={{ marginBottom: "3px" }}>{children}</li>,
+  };
   if (!products || products.length === 0) {
-    return <ReactMarkdown components={{
-      p: ({ children }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p>,
-      ul: ({ children }) => <ul style={{ margin: "6px 0", paddingLeft: "18px" }}>{children}</ul>,
-      li: ({ children }) => <li style={{ marginBottom: "3px" }}>{children}</li>,
-    }}>{content}</ReactMarkdown>;
+    return <ReactMarkdown components={mdComponents}>{content}</ReactMarkdown>;
   }
-
   const bySlug = Object.fromEntries(products.map((p) => [p.slug, p]));
   const parts: React.ReactNode[] = [];
   let last = 0;
   let match: RegExpExecArray | null;
   const re = new RegExp(PRODUCT_TAG_RE.source, "gi");
   let idx = 0;
-
   while ((match = re.exec(content)) !== null) {
     const textBefore = content.slice(last, match.index);
-    if (textBefore) {
-      parts.push(
-        <ReactMarkdown key={`t${idx}`} components={{
-          p: ({ children }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p>,
-          ul: ({ children }) => <ul style={{ margin: "6px 0", paddingLeft: "18px" }}>{children}</ul>,
-          li: ({ children }) => <li style={{ marginBottom: "3px" }}>{children}</li>,
-        }}>{textBefore}</ReactMarkdown>
-      );
-    }
-    const slug = match[1];
-    const pr = bySlug[slug];
-    if (pr) {
-      parts.push(<div key={`p${idx}`} style={{ display: "flex", gap: 8, margin: "6px 0" }}><ProductCard pr={pr} /></div>);
-    }
+    if (textBefore) parts.push(<ReactMarkdown key={`t${idx}`} components={mdComponents}>{textBefore}</ReactMarkdown>);
+    const pr = bySlug[match[1]];
+    if (pr) parts.push(<div key={`p${idx}`} style={{ display: "flex", gap: 8, margin: "6px 0" }}><ProductCard pr={pr} /></div>);
     last = match.index + match[0].length;
     idx++;
   }
-
   const remaining = content.slice(last);
-  if (remaining) {
-    parts.push(
-      <ReactMarkdown key={`t${idx}`} components={{
-        p: ({ children }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p>,
-        ul: ({ children }) => <ul style={{ margin: "6px 0", paddingLeft: "18px" }}>{children}</ul>,
-        li: ({ children }) => <li style={{ marginBottom: "3px" }}>{children}</li>,
-      }}>{remaining}</ReactMarkdown>
-    );
-  }
-
+  if (remaining) parts.push(<ReactMarkdown key={`t${idx}`} components={mdComponents}>{remaining}</ReactMarkdown>);
   return <>{parts}</>;
 }
+
+const iconBtnCls = "border-none bg-white/10 text-white w-[30px] h-[30px] rounded-[8px] cursor-pointer flex items-center justify-center shrink-0 hover:bg-white/20 transition-colors";
 
 export default function ChatWidget() {
   const { user } = useAuthStore();
@@ -121,10 +98,7 @@ export default function ChatWidget() {
     enabled: !!user,
   });
 
-  const {
-    data: sessions,
-    refetch: refetchSessions,
-  } = useQuery<ChatSessionMeta[]>({
+  const { data: sessions, refetch: refetchSessions } = useQuery<ChatSessionMeta[]>({
     queryKey: ["chat-sessions"],
     queryFn: async () => (await api.get("/chat/sessions")).data,
     enabled: !!user && isOpen,
@@ -136,30 +110,16 @@ export default function ChatWidget() {
 
   if (!user) return null;
 
-  const startNewChat = () => {
-    setMessages([]);
-    setSessionId(null);
-    setSessionTitle("");
-    setSelectedPet("");
-    setView("chat");
-  };
+  const startNewChat = () => { setMessages([]); setSessionId(null); setSessionTitle(""); setSelectedPet(""); setView("chat"); };
 
   const loadSession = async (sid: string) => {
     try {
       const { data } = await api.get(`/chat/sessions/${sid}/messages`);
       setSessionId(sid);
       setSessionTitle(data.session.title);
-      setMessages(
-        (data.messages as { role: string; content: string; products?: ChatProduct[] }[]).map((m) => ({
-          role: m.role,
-          content: m.content,
-          ...(m.products ? { products: m.products } : {}),
-        }))
-      );
+      setMessages((data.messages as { role: string; content: string; products?: ChatProduct[] }[]).map((m) => ({ role: m.role, content: m.content, ...(m.products ? { products: m.products } : {}) })));
       setView("chat");
-    } catch (e) {
-      console.error("Failed to load session", e);
-    }
+    } catch (e) { console.error("Failed to load session", e); }
   };
 
   const sendMessage = async () => {
@@ -168,38 +128,20 @@ export default function ChatWidget() {
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
     setIsTyping(true);
-
     const backendUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1'}/chat/stream`;
     const token = localStorage.getItem("token");
-
     try {
       const response = await fetch(backendUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          message: userMsg,
-          session_id: sessionId,
-          pet_id: selectedPet || null,
-          product_slug: viewingProduct?.slug || null,
-        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: userMsg, session_id: sessionId, pet_id: selectedPet || null, product_slug: viewingProduct?.slug || null }),
       });
-
-      if (!response.ok) {
-        const errText = await response.text().catch(() => "");
-        console.error("Chat stream error", response.status, errText);
-        throw new Error(`HTTP ${response.status}: ${errText || "Lấy phản hồi thất bại"}`);
-      }
+      if (!response.ok) { const errText = await response.text().catch(() => ""); throw new Error(`HTTP ${response.status}: ${errText || "Lấy phản hồi thất bại"}`); }
       if (!response.body) return;
-
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
-
       let aiContent = "";
       setMessages((prev) => [...prev, { role: "assistant", content: aiContent }]);
-
       let buffer = "";
       const processEvent = (raw: string) => {
         let eventType = "message";
@@ -207,50 +149,25 @@ export default function ChatWidget() {
         for (const rawLine of raw.split(/\r?\n/)) {
           const line = rawLine.replace(/\r$/, "");
           if (!line) continue;
-          if (line.startsWith("event:")) {
-            eventType = line.slice(6).trim();
-          } else if (line.startsWith("data:")) {
-            dataLines.push(line.slice(5).replace(/^ /, ""));
-          }
+          if (line.startsWith("event:")) eventType = line.slice(6).trim();
+          else if (line.startsWith("data:")) dataLines.push(line.slice(5).replace(/^ /, ""));
         }
         if (dataLines.length === 0) return;
-        const dataRaw = dataLines.join("\n");
         let data: { content?: string; items?: ChatProduct[]; session_id?: string };
-        try {
-          data = JSON.parse(dataRaw);
-        } catch (e) {
-          console.error("SSE JSON Parse error", e, dataRaw);
-          return;
-        }
+        try { data = JSON.parse(dataLines.join("\n")); } catch { return; }
         if (eventType === "message" && data.content) {
           aiContent += data.content;
-          setMessages((prev) => {
-            const clone = [...prev];
-            clone[clone.length - 1].content = aiContent;
-            return clone;
-          });
+          setMessages((prev) => { const clone = [...prev]; clone[clone.length - 1].content = aiContent; return clone; });
         } else if (eventType === "products" && Array.isArray(data.items)) {
-          setMessages((prev) => {
-            const clone = [...prev];
-            clone[clone.length - 1].products = data.items;
-            return clone;
-          });
-        } else if (eventType === "done") {
-          if (data.session_id) {
-            if (!sessionId) setSessionId(data.session_id);
-            refetchSessions();
-          }
-        } else if (eventType === "error") {
-          console.error("SSE error event:", data);
+          setMessages((prev) => { const clone = [...prev]; clone[clone.length - 1].products = data.items; return clone; });
+        } else if (eventType === "done" && data.session_id) {
+          if (!sessionId) setSessionId(data.session_id);
+          refetchSessions();
         }
       };
-
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {
-          if (buffer.trim()) processEvent(buffer);
-          break;
-        }
+        if (done) { if (buffer.trim()) processEvent(buffer); break; }
         buffer += decoder.decode(value, { stream: true });
         let sepIdx: number;
         while ((sepIdx = buffer.search(/\r?\n\r?\n/)) !== -1) {
@@ -261,82 +178,59 @@ export default function ChatWidget() {
       }
     } catch (e) {
       console.error("Chat Error:", e);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: `⚠️ Lỗi: ${e instanceof Error ? e.message : "Không thể kết nối tới máy chủ."}` },
-      ]);
-    } finally {
-      setIsTyping(false);
-    }
+      setMessages((prev) => [...prev, { role: "assistant", content: `⚠️ Lỗi: ${e instanceof Error ? e.message : "Không thể kết nối tới máy chủ."}` }]);
+    } finally { setIsTyping(false); }
   };
 
   return (
     <div className="fixed bottom-[76px] right-4 md:bottom-8 md:right-8 z-[1000] flex flex-col items-end gap-4">
       {isOpen && (
-        <div className={`card chat-panel ${isClosing ? "chat-panel-closing" : ""} w-[calc(100vw-2rem)] h-[calc(100dvh-164px)] md:w-[400px] md:h-[600px] flex flex-col overflow-hidden bg-white rounded-2xl`} style={{
-          boxShadow: "0 20px 40px rgba(26, 24, 20, 0.15)",
-        }}>
+        <div
+          className={`chat-panel ${isClosing ? "chat-panel-closing" : ""} w-[calc(100vw-2rem)] h-[calc(100dvh-164px)] md:w-[400px] md:h-[600px] flex flex-col overflow-hidden bg-white rounded-2xl border border-neutral-100`}
+          style={{ boxShadow: "0 20px 40px rgba(26, 24, 20, 0.15)" }}
+        >
           {/* Header */}
-          <div style={{
-            background: "linear-gradient(135deg, var(--teal-600) 0%, var(--teal-700) 100%)",
-            padding: "16px 20px", color: "white", display: "flex", alignItems: "center", gap: 12,
-          }}>
+          <div className="px-5 py-4 text-white flex items-center gap-3" style={{ background: "linear-gradient(135deg, var(--teal-600) 0%, var(--teal-700) 100%)" }}>
             {view === "history" ? (
-              <button onClick={() => setView("chat")} style={iconBtnStyle}>
-                <ArrowLeft size={18} />
-              </button>
+              <button onClick={() => setView("chat")} className={iconBtnCls}><ArrowLeft size={18} /></button>
             ) : (
-              <div style={{ width: 36, height: 36, borderRadius: 12, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <CatbotLogo size={24} />
-              </div>
+              <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center"><CatbotLogo size={24} /></div>
             )}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div className="flex-1 min-w-0">
+              <div className="text-[15px] font-extrabold overflow-hidden text-ellipsis whitespace-nowrap">
                 {view === "history" ? "Lịch sử cuộc trò chuyện" : (sessionTitle || "Catbot")}
               </div>
               {view === "chat" && (
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: 3, background: "#4ade80" }} />
+                <div className="text-[11px] text-white/70 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
                   Trực tuyến · {viewingProduct ? `Đang xem: ${viewingProduct.name.slice(0, 20)}` : selectedPet ? "Hồ sơ pet" : "Tư vấn chung"}
                 </div>
               )}
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              {view === "chat" && (
-                <>
-                  <button onClick={startNewChat} title="Chat mới" style={iconBtnStyle}><Plus size={16} /></button>
-                  <button onClick={() => { setView("history"); refetchSessions(); }} title="Lịch sử" style={iconBtnStyle}><History size={16} /></button>
-                </>
-              )}
-            </div>
+            {view === "chat" && (
+              <div className="flex gap-1.5">
+                <button onClick={startNewChat} title="Chat mới" className={iconBtnCls}><Plus size={16} /></button>
+                <button onClick={() => { setView("history"); refetchSessions(); }} title="Lịch sử" className={iconBtnCls}><History size={16} /></button>
+              </div>
+            )}
           </div>
 
           {/* History view */}
           {view === "history" ? (
-            <div style={{ flex: 1, overflowY: "auto", background: "var(--neutral-25)" }}>
+            <div className="flex-1 overflow-y-auto bg-neutral-25">
               {!sessions || sessions.length === 0 ? (
-                <div style={{ padding: 32, textAlign: "center", color: "var(--neutral-400)", fontSize: 13 }}>
-                  Chưa có cuộc trò chuyện nào
-                </div>
+                <div className="p-8 text-center text-neutral-400 text-[13px]">Chưa có cuộc trò chuyện nào</div>
               ) : (
                 sessions.map((s) => (
                   <button
                     key={s.id}
                     onClick={() => loadSession(s.id)}
-                    style={{
-                      width: "100%", textAlign: "left", padding: "14px 20px",
-                      background: s.id === sessionId ? "var(--teal-50)" : "transparent",
-                      border: "none", borderBottom: "1px solid var(--neutral-100)",
-                      cursor: "pointer", display: "flex", flexDirection: "column", gap: 4,
-                    }}
+                    className="w-full text-left px-5 py-3.5 border-b border-neutral-100 cursor-pointer flex flex-col gap-1 hover:bg-neutral-50 transition-colors"
+                    style={{ background: s.id === sessionId ? "var(--teal-50)" : undefined, border: "none", borderBottom: "1px solid var(--neutral-100)" }}
                   >
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--neutral-800)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>
-                      {s.title}
-                    </span>
+                    <span className="text-[13px] font-semibold text-neutral-800 overflow-hidden text-ellipsis whitespace-nowrap block">{s.title}</span>
                     {s.created_at && (
-                      <span style={{ fontSize: 11, color: "var(--neutral-400)" }}>
-                        {new Date(s.created_at).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" })}
-                      </span>
+                      <span className="text-[11px] text-neutral-400">{new Date(s.created_at).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" })}</span>
                     )}
                   </button>
                 ))
@@ -345,10 +239,11 @@ export default function ChatWidget() {
           ) : (
             <>
               {/* Pet Selector */}
-              <div style={{ background: "var(--neutral-50)", padding: "8px 20px", borderBottom: "1px solid var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--neutral-500)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Đang tư vấn cho:</span>
+              <div className="px-5 py-2 bg-neutral-50 border-b border-neutral-100 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-[0.05em]">Đang tư vấn cho:</span>
                 <select
-                  style={{ border: "none", background: "transparent", fontSize: 12, fontWeight: 700, color: "var(--teal-700)", cursor: "pointer", outline: "none" }}
+                  className="border-none bg-transparent text-[12px] font-bold cursor-pointer outline-none disabled:opacity-60"
+                  style={{ color: "var(--teal-700)" }}
                   value={selectedPet}
                   onChange={(e) => setSelectedPet(e.target.value)}
                   disabled={!!sessionId}
@@ -359,49 +254,47 @@ export default function ChatWidget() {
               </div>
 
               {/* Messages */}
-              <div style={{ flex: 1, padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 16, background: "var(--neutral-25)" }}>
+              <div className="flex-1 p-5 overflow-y-auto flex flex-col gap-4 bg-neutral-25">
                 {messages.length === 0 && (
-                  <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--neutral-500)", fontSize: 14, lineHeight: 1.6 }}>
+                  <div className="text-center py-10 px-5 text-neutral-500 text-[14px] leading-relaxed">
                     Chào <strong>{user.full_name}</strong>! 🐱<br />
                     Mình là <strong>Catbot</strong> — trợ lý AI của ThePawsome. Hỏi mình bất cứ điều gì về sức khoẻ, dinh dưỡng hoặc sản phẩm cho pet nhé!
                   </div>
                 )}
 
                 {messages.map((m, idx) => (
-                  <div key={idx} style={{ display: "flex", gap: 10, flexDirection: m.role === "user" ? "row-reverse" : "row", alignItems: "flex-end" }}>
-                    <div style={{
-                      width: 30, height: 30, borderRadius: 10, flexShrink: 0,
-                      background: m.role === "user" ? "var(--primary-100)" : "var(--teal-100)",
-                      color: m.role === "user" ? "var(--primary-600)" : "var(--teal-600)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}>
+                  <div key={idx} className={`flex gap-2.5 items-end ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                    <div
+                      className="w-[30px] h-[30px] rounded-[10px] shrink-0 flex items-center justify-center"
+                      style={{ background: m.role === "user" ? "var(--primary-100)" : "var(--teal-100)", color: m.role === "user" ? "var(--primary-600)" : "var(--teal-600)" }}
+                    >
                       {m.role === "user" ? <User size={15} /> : <CatbotLogo size={18} />}
                     </div>
-                    <div style={{
-                      maxWidth: "85%", padding: "10px 14px", borderRadius: 14, fontSize: 13, lineHeight: 1.55,
-                      background: m.role === "user" ? "var(--primary-600)" : "white",
-                      color: m.role === "user" ? "white" : "var(--neutral-800)",
-                      boxShadow: m.role === "user" ? "none" : "var(--shadow-sm)",
-                      border: m.role === "user" ? "none" : "1px solid var(--neutral-100)",
-                      borderBottomRightRadius: m.role === "user" ? 4 : 14,
-                      borderBottomLeftRadius: m.role === "user" ? 14 : 4,
-                    }}>
+                    <div
+                      className="max-w-[85%] px-3.5 py-2.5 rounded-[14px] text-[13px] leading-[1.55]"
+                      style={{
+                        background: m.role === "user" ? "var(--primary-600)" : "white",
+                        color: m.role === "user" ? "white" : "var(--neutral-800)",
+                        boxShadow: m.role === "user" ? "none" : "var(--shadow-sm)",
+                        border: m.role === "user" ? "none" : "1px solid var(--neutral-100)",
+                        borderBottomRightRadius: m.role === "user" ? 4 : 14,
+                        borderBottomLeftRadius: m.role === "user" ? 14 : 4,
+                      }}
+                    >
                       {m.role === "assistant"
                         ? renderInlineContent(m.content, m.products)
-                        : <ReactMarkdown components={{
-                            p: ({ children }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p>,
-                          }}>{m.content}</ReactMarkdown>
+                        : <ReactMarkdown components={{ p: ({ children }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p> }}>{m.content}</ReactMarkdown>
                       }
                     </div>
                   </div>
                 ))}
 
-                {isTyping && (
-                  <div style={{ display: "flex", gap: 10 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 10, background: "var(--teal-100)", color: "var(--teal-600)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {isTyping && (messages.length === 0 || messages[messages.length - 1].role !== "assistant" || !messages[messages.length - 1].content) && (
+                  <div className="flex gap-2.5">
+                    <div className="w-[30px] h-[30px] rounded-[10px] flex items-center justify-center" style={{ background: "var(--teal-100)", color: "var(--teal-600)" }}>
                       <CatbotLogo size={18} />
                     </div>
-                    <div style={{ padding: "10px 14px", background: "white", borderRadius: 14, borderBottomLeftRadius: 4, boxShadow: "var(--shadow-sm)", border: "1px solid var(--neutral-100)", display: "flex", gap: 5, alignItems: "center" }}>
+                    <div className="px-3.5 py-2.5 bg-white rounded-[14px] border border-neutral-100 flex gap-1.5 items-center" style={{ boxShadow: "var(--shadow-sm)", borderBottomLeftRadius: 4 }}>
                       <span className="dot-bounce" style={{ animationDelay: "0ms" }} />
                       <span className="dot-bounce" style={{ animationDelay: "160ms" }} />
                       <span className="dot-bounce" style={{ animationDelay: "320ms" }} />
@@ -412,19 +305,20 @@ export default function ChatWidget() {
               </div>
 
               {/* Composer */}
-              <div style={{ padding: "16px 20px", background: "white", borderTop: "1px solid var(--neutral-100)", display: "flex", gap: 10 }}>
+              <div className="px-5 py-4 bg-white border-t border-neutral-100 flex gap-2.5">
                 <input
                   placeholder="Nhập câu hỏi cho AI..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                   disabled={isTyping}
-                  style={{ flex: 1, border: "none", background: "var(--neutral-50)", padding: "10px 14px", borderRadius: 10, fontSize: 13, outline: "none" }}
+                  className="flex-1 border-none bg-neutral-50 px-3.5 py-2.5 rounded-[10px] text-[13px] outline-none disabled:opacity-60"
                 />
                 <button
                   onClick={sendMessage}
                   disabled={!input.trim() || isTyping}
-                  style={{ width: 40, height: 40, borderRadius: 10, background: "var(--teal-600)", color: "white", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                  className="w-10 h-10 rounded-[10px] text-white border-none cursor-pointer flex items-center justify-center shrink-0 disabled:opacity-50 transition-opacity"
+                  style={{ background: "var(--teal-600)" }}
                 >
                   <Send size={16} />
                 </button>
@@ -449,8 +343,8 @@ export default function ChatWidget() {
               <Phone size={18} />
             </a>
             <a href="https://zalo.me/0888987400" target="_blank" rel="noreferrer" aria-label="Zalo"
-              className="contact-btn contact-btn-1 w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white font-extrabold shadow-md transition-transform duration-200 ease-out hover:scale-125 active:scale-95"
-              style={{ background: "linear-gradient(135deg, #2188ff 0%, #0068ff 100%)", fontSize: 14, letterSpacing: "-0.02em" }}>
+              className="contact-btn contact-btn-1 w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white font-extrabold text-[14px] tracking-[-0.02em] shadow-md transition-transform duration-200 ease-out hover:scale-125 active:scale-95"
+              style={{ background: "linear-gradient(135deg, #2188ff 0%, #0068ff 100%)" }}>
               Zalo
             </a>
           </>
@@ -463,84 +357,14 @@ export default function ChatWidget() {
           style={{
             background: isOpen ? "var(--neutral-900)" : "linear-gradient(135deg, var(--teal-500) 0%, var(--teal-600) 100%)",
             boxShadow: "0 12px 24px rgba(13, 148, 136, 0.3)",
-            transform: isOpen ? "rotate(90deg)" : "none",
+            transform: isOpen ? "rotate(90deg)" : undefined,
           }}
-          onMouseEnter={(e) => { if (!isOpen) e.currentTarget.style.transform = "translateY(-4px)"; }}
-          onMouseLeave={(e) => { if (!isOpen) e.currentTarget.style.transform = "none"; }}
+          onMouseEnter={(e) => { if (!isOpen) (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-4px)"; }}
+          onMouseLeave={(e) => { if (!isOpen) (e.currentTarget as HTMLButtonElement).style.transform = "none"; }}
         >
           {isOpen ? <X size={28} /> : <CatbotLogo size={34} />}
         </button>
       </div>
-
-      <style jsx>{`
-        .chat-panel {
-          animation: chat-slide-up 320ms cubic-bezier(0.22, 1, 0.36, 1);
-          will-change: transform, opacity;
-        }
-        .chat-panel.chat-panel-closing {
-          animation: chat-slide-down 280ms cubic-bezier(0.4, 0, 1, 1) forwards;
-        }
-        @keyframes chat-slide-up {
-          from { opacity: 0; transform: translateY(100%); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes chat-slide-down {
-          from { opacity: 1; transform: translateY(0); }
-          to { opacity: 0; transform: translateY(100%); }
-        }
-        @media (min-width: 768px) {
-          .chat-panel {
-            animation: chat-appear 240ms cubic-bezier(0.2, 1, 0.3, 1);
-          }
-          .chat-panel.chat-panel-closing {
-            animation: chat-disappear 200ms cubic-bezier(0.4, 0, 1, 1) forwards;
-          }
-        }
-        @keyframes chat-appear {
-          from { opacity: 0; transform: translateY(20px) scale(0.95); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .contact-btn {
-          animation: contact-slide-in 360ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
-        }
-        .contact-btn-1 { animation-delay: 60ms; }
-        .contact-btn-2 { animation-delay: 140ms; }
-        .contact-btn-3 { animation-delay: 220ms; }
-        @keyframes contact-slide-in {
-          from { opacity: 0; transform: translateX(40px) scale(0.6); }
-          to { opacity: 1; transform: translateX(0) scale(1); }
-        }
-        @keyframes chat-disappear {
-          from { opacity: 1; transform: translateY(0) scale(1); }
-          to { opacity: 0; transform: translateY(20px) scale(0.95); }
-        }
-        .dot-bounce {
-          display: inline-block;
-          width: 7px;
-          height: 7px;
-          border-radius: 50%;
-          background: var(--teal-500);
-          animation: dot-bounce 1.2s ease-in-out infinite both;
-        }
-        @keyframes dot-bounce {
-          0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
-          40% { transform: translateY(-6px); opacity: 1; }
-        }
-      `}</style>
     </div>
   );
 }
-
-const iconBtnStyle: React.CSSProperties = {
-  border: "none",
-  background: "rgba(255,255,255,0.1)",
-  color: "white",
-  width: 30,
-  height: 30,
-  borderRadius: 8,
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  flexShrink: 0,
-};

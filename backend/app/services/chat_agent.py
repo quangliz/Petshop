@@ -13,8 +13,10 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.services.retrieval import search_products, search_knowledge
+from app.services.pets_service import get_pet_profile_cached
 from app.models.commerce import Cart, CartItem
 from app.models.catalog import Product
+from app.models.user import Pet
 
 
 SYSTEM_PROMPT_BASE = (
@@ -27,6 +29,11 @@ SYSTEM_PROMPT_BASE = (
     "GỌI tool `search_knowledge` để tra cứu kho kiến thức trước khi trả lời.\n"
     "- Khi người dùng yêu cầu thêm sản phẩm vào giỏ hàng: GỌI tool `add_to_cart_tool` với slug từ kết quả tìm kiếm.\n"
     "- Khi người dùng hỏi về giỏ hàng của họ: GỌI tool `view_cart_tool`.\n"
+    "- Khi người dùng nhắc đến thú cưng của họ (ví dụ: 'bé Mochi', 'con mèo của tôi', 'chó nhà tôi') "
+    "mà bạn chưa biết hồ sơ: GỌI tool `list_pets_tool` để xem danh sách thú cưng, sau đó "
+    "GỌI `get_pet_detail_tool` với tên hoặc id để lấy hồ sơ chi tiết (tuổi, cân nặng, dị ứng, sức khỏe) "
+    "trước khi đưa lời khuyên cá nhân hoá. Nếu người dùng có nhiều thú cưng và chưa rõ đang nói về con nào, "
+    "hãy hỏi lại để xác nhận.\n"
     "- Khi trả lời dựa trên kết quả `search_knowledge`, hãy trích dẫn tên bài và link Nguồn nếu có.\n"
     "- Có thể gọi cả hai tool nếu câu hỏi vừa cần kiến thức vừa cần gợi ý sản phẩm.\n"
     "- Sau khi có kết quả tool, trả lời ngắn gọn, có dẫn chứng. Khi muốn giới thiệu sản phẩm, "
@@ -163,7 +170,77 @@ def _build_tools(db: AsyncSession, user_id: uuid.UUID):
         lines.append(f"\nTổng cộng: {total:,.0f}đ")
         return "Giỏ hàng của bạn:\n" + "\n".join(lines)
 
-    return [search_products_tool, search_knowledge_tool, add_to_cart_tool, view_cart_tool]
+    @tool
+    async def list_pets_tool() -> str:
+        """Liệt kê tất cả thú cưng của người dùng hiện tại (tên, loài, giống, tuổi).
+
+        Dùng khi người dùng nhắc đến thú cưng nhưng chưa rõ đang nói về con nào, hoặc khi
+        cần biết người dùng có những thú cưng nào trước khi tư vấn.
+
+        Returns: Danh sách thú cưng dạng văn bản tiếng Việt, kèm id để dùng với get_pet_detail_tool.
+        """
+        result = await db.execute(
+            select(Pet).where(Pet.user_id == user_id).order_by(Pet.created_at.asc())
+        )
+        pets = result.scalars().all()
+        if not pets:
+            return "Người dùng chưa thêm thú cưng nào vào hồ sơ."
+        lines = []
+        for p in pets:
+            lines.append(
+                f"- id={p.id} | {p.name} ({p.species.value}"
+                f"{', ' + p.breed if p.breed else ''}"
+                f"{', ' + str(p.age_months) + ' tháng tuổi' if p.age_months else ''})"
+            )
+        return "Danh sách thú cưng:\n" + "\n".join(lines)
+
+    @tool
+    async def get_pet_detail_tool(identifier: str) -> str:
+        """Lấy hồ sơ chi tiết của một thú cưng (tuổi, cân nặng, sức khỏe, dị ứng).
+
+        Args:
+            identifier: Tên thú cưng (ví dụ 'Mochi') hoặc UUID lấy từ list_pets_tool.
+                Nếu truyền tên, khớp không phân biệt hoa thường.
+
+        Returns: Hồ sơ chi tiết dạng văn bản tiếng Việt, hoặc thông báo nếu không tìm thấy.
+        """
+        pet: Optional[Pet] = None
+        try:
+            pet_uuid = uuid.UUID(identifier)
+            result = await db.execute(
+                select(Pet).where(Pet.id == pet_uuid, Pet.user_id == user_id)
+            )
+            pet = result.scalar_one_or_none()
+        except (ValueError, AttributeError):
+            pass
+
+        if not pet:
+            result = await db.execute(
+                select(Pet).where(Pet.user_id == user_id)
+            )
+            pets = result.scalars().all()
+            matches = [p for p in pets if p.name.lower() == identifier.lower().strip()]
+            if not matches:
+                matches = [p for p in pets if identifier.lower().strip() in p.name.lower()]
+            if len(matches) == 1:
+                pet = matches[0]
+            elif len(matches) > 1:
+                names = ", ".join(f"{p.name} (id={p.id})" for p in matches)
+                return f"Có nhiều thú cưng khớp '{identifier}': {names}. Hãy hỏi người dùng để xác nhận."
+
+        if not pet:
+            return f"Không tìm thấy thú cưng '{identifier}' trong hồ sơ của người dùng."
+
+        return await get_pet_profile_cached(pet)
+
+    return [
+        search_products_tool,
+        search_knowledge_tool,
+        add_to_cart_tool,
+        view_cart_tool,
+        list_pets_tool,
+        get_pet_detail_tool,
+    ]
 
 
 def build_agent(db: AsyncSession, user_id: uuid.UUID):
