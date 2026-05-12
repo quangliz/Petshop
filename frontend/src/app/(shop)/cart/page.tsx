@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { Trash2, Plus, Minus, ChevronRight, ShoppingBag } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
-import { getGuestCart, GuestCartItem } from '@/lib/guestCart';
+import { getGuestCart, getGuestCartItemKey, GuestCartItem } from '@/lib/guestCart';
 import Image from 'next/image';
 import { CartRowSkeleton } from "@/components/skeletons/CartRowSkeleton";
 import { EmptyState } from '@/components/ui/empty-state';
@@ -14,60 +14,84 @@ import { EmptyState } from '@/components/ui/empty-state';
 interface CartItem {
   id: string;
   product_id: string;
+  variant_id?: string | null;
   product_name: string;
   product_image?: string;
+  variant_attributes?: Record<string, string> | null;
   quantity: number;
   price: number;
   sale_price?: number;
 }
 
+type ProductForGuestCart = {
+  name: string;
+  price: number;
+  sale_price?: number;
+  image?: string;
+  variant_attributes?: Record<string, string> | null;
+};
+
 function GuestCartPage() {
   const router = useRouter();
   const [guestRaw, setGuestRaw] = useState<GuestCartItem[]>(() => getGuestCart());
-  const [products, setProducts] = useState<Record<string, { name: string; price: number; sale_price?: number; image?: string }>>({});
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(getGuestCart().map(i => i.product_id)));
+  const [products, setProducts] = useState<Record<string, ProductForGuestCart>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(getGuestCart().map(getGuestCartItemKey)));
 
   useEffect(() => {
     if (guestRaw.length === 0) return;
     Promise.all(
       guestRaw.map(i =>
         api.get(`/products/${i.slug}`).then(r => ({
-          id: i.product_id,
-          data: { name: r.data.name, price: r.data.price, sale_price: r.data.sale_price ?? undefined, image: r.data.images?.main },
+          id: getGuestCartItemKey(i),
+          data: (() => {
+            const variant = r.data.variants?.find((v: { id: string }) => v.id === i.variant_id);
+            const variantImage = variant?.images?.find((img: { is_main: boolean }) => img.is_main)?.url ?? variant?.images?.[0]?.url;
+            return {
+              name: r.data.name,
+              price: variant?.price ?? r.data.price,
+              sale_price: variant ? (variant.sale_price ?? undefined) : (r.data.sale_price ?? undefined),
+              image: variantImage ?? r.data.images?.main,
+              variant_attributes: variant?.attributes ?? null,
+            };
+          })(),
         }))
       )
     ).then(results => {
-      const map: Record<string, { name: string; price: number; sale_price?: number; image?: string }> = {};
+      const map: Record<string, ProductForGuestCart> = {};
       results.forEach(r => { map[r.id] = r.data; });
       setProducts(map);
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const updateQty = (product_id: string, delta: number) => {
+  const updateQty = (lineId: string, delta: number) => {
     setGuestRaw(prev => {
-      const next = prev.map(i => i.product_id === product_id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i);
+      const next = prev.map(i => getGuestCartItemKey(i) === lineId ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i);
       localStorage.setItem('guest_cart', JSON.stringify(next));
       return next;
     });
   };
 
-  const removeItem = (product_id: string) => {
+  const removeItem = (lineId: string) => {
     setGuestRaw(prev => {
-      const next = prev.filter(i => i.product_id !== product_id);
+      const next = prev.filter(i => getGuestCartItemKey(i) !== lineId);
       localStorage.setItem('guest_cart', JSON.stringify(next));
-      setSelectedIds(s => { const n = new Set(s); n.delete(product_id); return n; });
+      setSelectedIds(s => { const n = new Set(s); n.delete(lineId); return n; });
       return next;
     });
   };
 
-  const items: CartItem[] = guestRaw.map(i => ({
-    id: i.product_id, product_id: i.product_id,
-    product_name: products[i.product_id]?.name ?? '...',
-    product_image: products[i.product_id]?.image,
-    quantity: i.quantity, price: products[i.product_id]?.price ?? 0,
-    sale_price: products[i.product_id]?.sale_price,
-  }));
+  const items: CartItem[] = guestRaw.map(i => {
+    const lineId = getGuestCartItemKey(i);
+    return {
+      id: lineId, product_id: i.product_id, variant_id: i.variant_id ?? null,
+      product_name: products[lineId]?.name ?? '...',
+      product_image: products[lineId]?.image,
+      variant_attributes: products[lineId]?.variant_attributes,
+      quantity: i.quantity, price: products[lineId]?.price ?? 0,
+      sale_price: products[lineId]?.sale_price,
+    };
+  });
 
   const allSelected = items.length > 0 && items.every(i => selectedIds.has(i.id));
   const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map(i => i.id)));
@@ -77,7 +101,7 @@ function GuestCartPage() {
 
   const handleCheckout = () => {
     if (selectedIds.size === 0) return;
-    const selected = guestRaw.filter(i => selectedIds.has(i.product_id));
+    const selected = guestRaw.filter(i => selectedIds.has(getGuestCartItemKey(i)));
     localStorage.setItem('guest_cart', JSON.stringify(selected));
     setGuestRaw(selected);
     router.push('/checkout');
@@ -217,6 +241,11 @@ function CartLayout({ items, selectedIds, selectedTotal, allSelected, toggleAll,
                       <Trash2 size={18} />
                     </button>
                   </div>
+                  {item.variant_attributes && Object.keys(item.variant_attributes).length > 0 && (
+                    <div className="mt-1 text-[12px] text-neutral-500">
+                      Phân loại: {Object.entries(item.variant_attributes).map(([k, v]) => `${k}: ${v}`).join(" / ")}
+                    </div>
+                  )}
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-3 md:mt-4">
                     <div className="text-[17px] font-bold" style={{ color: 'var(--primary-600)' }}>{(item.sale_price || item.price).toLocaleString()}đ</div>
                     <div className="flex items-center bg-neutral-50 rounded-[10px] p-0.5">

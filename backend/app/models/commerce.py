@@ -47,14 +47,17 @@ class CartItem(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cart_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("carts.id", ondelete="CASCADE"))
     product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"))
+    variant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("product_variants.id", ondelete="CASCADE"), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, default=1)
     added_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     cart = relationship("Cart", back_populates="cart_items")
     product = relationship("Product", back_populates="cart_items")
+    variant = relationship("ProductVariant", back_populates="cart_items")
 
     __table_args__ = (
         Index("ix_cart_items_cart_id", "cart_id"),
+        Index("ix_cart_items_variant_id", "variant_id"),
     )
 
 class Order(Base):
@@ -94,15 +97,20 @@ class OrderItem(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"))
     product_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="SET NULL"), nullable=True)
+    variant_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("product_variants.id", ondelete="SET NULL"), nullable=True)
     product_name_snapshot: Mapped[str] = mapped_column(String)
+    variant_sku_snapshot: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    variant_attributes_snapshot: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     unit_price_snapshot: Mapped[float] = mapped_column(Numeric(10, 2))
     quantity: Mapped[int] = mapped_column(Integer)
 
     order = relationship("Order", back_populates="order_items")
     product = relationship("Product", back_populates="order_items")
+    variant = relationship("ProductVariant", back_populates="order_items")
 
     __table_args__ = (
         Index("ix_order_items_order_id", "order_id"),
+        Index("ix_order_items_variant_id", "variant_id"),
     )
 
 class Payment(Base):

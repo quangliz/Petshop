@@ -91,12 +91,12 @@ async def vnpay_ipn(request: Request, db: SessionDep) -> Any:
             select(OrderItem).where(OrderItem.order_id == order.id)
         )
         order_items = items_result.scalars().all()
-        product_ids = [oi.product_id for oi in order_items]
+        product_ids = [oi.product_id for oi in order_items if oi.product_id]
         if product_ids:
             prods_result = await db.execute(select(Product).where(Product.id.in_(product_ids)))
             prods = {p.id: p for p in prods_result.scalars().all()}
             for oi in order_items:
-                if oi.product_id in prods:
+                if oi.product_id and oi.product_id in prods:
                     prods[oi.product_id].sold_count += oi.quantity
         await db.commit()
         return {"RspCode": "00", "Message": "Confirm Success"}

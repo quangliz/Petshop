@@ -6,6 +6,7 @@ export interface Variant {
   stock_qty: number;
   attributes: Record<string, string>;
   is_active: boolean;
+  images?: ProductImage[];
 }
 
 export interface AttrImage {
@@ -47,6 +48,7 @@ export interface Product {
   };
   variants?: Variant[];
   attr_images?: AttrImage[];
+  has_variants?: boolean;
   attributes?: Record<string, string>;
   category_id?: number;
   is_active?: boolean;

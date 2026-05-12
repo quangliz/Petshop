@@ -103,11 +103,25 @@ def _build_tools(db: AsyncSession, user_id: uuid.UUID):
         """
         # Resolve slug → Product
         result = await db.execute(
-            select(Product).where(Product.slug == slug, Product.is_active)
+            select(Product)
+            .where(Product.slug == slug, Product.is_active)
+            .options(selectinload(Product.variants))
         )
         product = result.scalar_one_or_none()
         if not product:
             return f"Không tìm thấy sản phẩm '{slug}' hoặc sản phẩm không còn bán."
+        active_variants = [v for v in product.variants if v.is_active]
+        if active_variants:
+            options = []
+            for variant in active_variants[:8]:
+                label = " / ".join(f"{k}: {v}" for k, v in (variant.attributes or {}).items())
+                price = float(variant.sale_price if variant.sale_price else variant.price)
+                options.append(f"- {label or variant.sku or variant.id}: {price:,.0f}đ, còn {variant.stock_qty}")
+            return (
+                f"Sản phẩm **{product.name}** có nhiều phân loại. "
+                "Hãy hỏi người dùng chọn một phân loại trước khi thêm vào giỏ:\n"
+                + "\n".join(options)
+            )
 
         # Get or create Cart for this user
         result = await db.execute(select(Cart).where(Cart.user_id == user_id))

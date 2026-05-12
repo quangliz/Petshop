@@ -5,7 +5,7 @@ import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Edit, Trash2, X, ChevronDown, ChevronUp, Plus, Sparkles } from "lucide-react";
+import { PlusCircle, Edit, Trash2, X, ChevronDown, ChevronUp, Plus, Sparkles, Wand2 } from "lucide-react";
 import Image from 'next/image';
 import { Product, Variant, AttrImage } from '@/lib/types';
 
@@ -21,15 +21,101 @@ const emptyForm = {
 };
 
 type AttrRow = { key: string; value: string };
+type OptionGroup = { name: string; values: string };
 type VariantRow = {
   id?: string; sku: string; price: string; sale_price: string;
   stock_qty: string; attrs: AttrRow[]; is_active: boolean;
 };
+type VariantSavePayload = {
+  id?: string;
+  sku: string | null;
+  price: number;
+  sale_price: number | null;
+  stock_qty: number;
+  attributes: Record<string, string>;
+  is_active: boolean;
+};
+type BulkVariantEdit = { price: string; sale_price: string; stock_qty: string; sku_prefix: string };
 
-const emptyVariantRow = (): VariantRow => ({
-  sku: "", price: "", sale_price: "", stock_qty: "0",
-  attrs: [{ key: "", value: "" }], is_active: true,
+const emptyOptionGroup = (): OptionGroup => ({ name: "", values: "" });
+const emptyBulkEdit = (): BulkVariantEdit => ({ price: "", sale_price: "", stock_qty: "", sku_prefix: "" });
+
+const parseOptionValues = (values: string) =>
+  values
+    .split(/[\n,;]+/)
+    .map((v) => v.trim())
+    .filter(Boolean)
+    .filter((v, idx, arr) => arr.findIndex((x) => x.toLowerCase() === v.toLowerCase()) === idx);
+
+const attrsToRecord = (attrs: AttrRow[]) => {
+  const record: Record<string, string> = {};
+  attrs.forEach(({ key, value }) => {
+    const cleanKey = key.trim();
+    const cleanValue = value.trim();
+    if (cleanKey && cleanValue) record[cleanKey] = cleanValue;
+  });
+  return record;
+};
+
+const variantSignature = (attrs: Record<string, string>) =>
+  Object.entries(attrs)
+    .map(([key, value]) => `${key.trim().toLowerCase()}=${value.trim().toLowerCase()}`)
+    .sort()
+    .join("|");
+
+const deriveOptionGroups = (rows: VariantRow[]): OptionGroup[] => {
+  const map = new Map<string, string[]>();
+  rows.forEach((row) => {
+    row.attrs.forEach(({ key, value }) => {
+      const cleanKey = key.trim();
+      const cleanValue = value.trim();
+      if (!cleanKey || !cleanValue) return;
+      const values = map.get(cleanKey) ?? [];
+      if (!values.some((v) => v.toLowerCase() === cleanValue.toLowerCase())) values.push(cleanValue);
+      map.set(cleanKey, values);
+    });
+  });
+  return Array.from(map.entries()).map(([name, values]) => ({ name, values: values.join(", ") }));
+};
+
+const cartesianOptions = (groups: { name: string; values: string[] }[]) =>
+  groups.reduce<Record<string, string>[]>(
+    (acc, group) => acc.flatMap((combo) => group.values.map((value) => ({ ...combo, [group.name]: value }))),
+    [{}]
+  );
+
+const skuPart = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toUpperCase();
+
+const buildSku = (prefix: string, attrs: Record<string, string>) => {
+  const parts = Object.values(attrs).map(skuPart).filter(Boolean);
+  return [prefix.trim(), ...parts].filter(Boolean).join("-");
+};
+
+const toVariantPayload = (variant: VariantRow): VariantSavePayload => ({
+  ...(variant.id ? { id: variant.id } : {}),
+  sku: variant.sku.trim() || null,
+  price: parseFloat(variant.price) || 0,
+  sale_price: variant.sale_price ? parseFloat(variant.sale_price) : null,
+  stock_qty: parseInt(variant.stock_qty) || 0,
+  attributes: attrsToRecord(variant.attrs),
+  is_active: variant.is_active,
 });
+
+const getVariantAttrKeys = (rows: VariantRow[]) =>
+  Array.from(new Set(rows.flatMap((variant) => variant.attrs.map((attr) => attr.key.trim()).filter(Boolean))));
+
+const getVariantAttrValues = (rows: VariantRow[], attrKey: string) =>
+  Array.from(new Set(
+    rows
+      .map((variant) => variant.attrs.find((attr) => attr.key.trim() === attrKey)?.value.trim())
+      .filter((value): value is string => Boolean(value))
+  ));
 
 export default function AdminProductsPage() {
   const queryClient = useQueryClient();
@@ -38,8 +124,11 @@ export default function AdminProductsPage() {
   const [form, setForm] = useState(emptyForm);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [variants, setVariants] = useState<VariantRow[]>([]);
+  const [optionGroups, setOptionGroups] = useState<OptionGroup[]>([emptyOptionGroup()]);
+  const [bulkEdit, setBulkEdit] = useState<BulkVariantEdit>(emptyBulkEdit);
   const [variantSectionOpen, setVariantSectionOpen] = useState(false);
   const [attrImages, setAttrImages] = useState<AttrImageRow[]>([]);
+  const [imageAttrKey, setImageAttrKey] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-products", search],
@@ -57,7 +146,10 @@ export default function AdminProductsPage() {
   const openCreate = () => {
     setForm(emptyForm);
     setVariants([]);
+    setOptionGroups([emptyOptionGroup()]);
+    setBulkEdit(emptyBulkEdit());
     setAttrImages([]);
+    setImageAttrKey("");
     setVariantSectionOpen(false);
     setImageFile(null);
     setModal({ open: true });
@@ -73,6 +165,7 @@ export default function AdminProductsPage() {
     });
     setImageFile(null);
     setAttrImages([]);
+    setImageAttrKey("");
     setModal({ open: true, product: p });
 
     try {
@@ -88,8 +181,12 @@ export default function AdminProductsPage() {
         is_active: v.is_active,
       }));
       setVariants(rows);
+      setOptionGroups(rows.length > 0 ? deriveOptionGroups(rows) : [emptyOptionGroup()]);
+      setBulkEdit(emptyBulkEdit());
       setVariantSectionOpen(rows.length > 0);
       setAttrImages((detail.attr_images ?? []).map((ai) => ({ attr_key: ai.attr_key, attr_value: ai.attr_value, url: ai.url, file: null })));
+      const imageKeys = Array.from(new Set((detail.attr_images ?? []).map((ai) => ai.attr_key).filter(Boolean)));
+      setImageAttrKey(imageKeys[0] ?? deriveOptionGroups(rows)[0]?.name ?? "");
     } catch {
       setVariants([]);
     }
@@ -105,13 +202,14 @@ export default function AdminProductsPage() {
         category_id: form.category_id ? parseInt(form.category_id) : null,
         is_active: form.is_active,
       };
+      const variantPayloads = variants.map(toVariantPayload);
 
       let savedId: string;
       if (modal.product) {
-        await api.put(`/admin/products/${modal.product.id}`, payload);
+        await api.put(`/admin/products/${modal.product.id}/full`, { product: payload, variants: variantPayloads });
         savedId = modal.product.id;
       } else {
-        const res = await api.post("/admin/products", payload);
+        const res = await api.post("/admin/products/full", { product: payload, variants: variantPayloads });
         savedId = res.data.id;
       }
 
@@ -119,24 +217,6 @@ export default function AdminProductsPage() {
         const fd = new FormData();
         fd.append("file", imageFile);
         await api.post(`/admin/products/${savedId}/image`, fd);
-      }
-
-      for (const v of variants) {
-        const attrs: Record<string, string> = {};
-        v.attrs.forEach(({ key, value }) => { if (key.trim()) attrs[key.trim()] = value; });
-        const vPayload = {
-          sku: v.sku || null,
-          price: parseFloat(v.price) || 0,
-          sale_price: v.sale_price ? parseFloat(v.sale_price) : null,
-          stock_qty: parseInt(v.stock_qty) || 0,
-          attributes: attrs,
-          is_active: v.is_active,
-        };
-        if (v.id) {
-          await api.put(`/admin/products/${savedId}/variants/${v.id}`, vPayload);
-        } else {
-          await api.post(`/admin/products/${savedId}/variants`, vPayload);
-        }
       }
 
       for (const ai of attrImages) {
@@ -177,18 +257,9 @@ export default function AdminProductsPage() {
     onError: () => alert("Không thể viết lại mô tả. Vui lòng thử lại sau."),
   });
 
-  const deleteVariantMutation = useMutation({
-    mutationFn: ({ productId, variantId }: { productId: string; variantId: string }) =>
-      api.delete(`/admin/products/${productId}/variants/${variantId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-products"] }),
-  });
-
-  const removeVariantRow = async (idx: number) => {
+  const removeVariantRow = (idx: number) => {
     const v = variants[idx];
-    if (v.id && modal.product) {
-      if (!confirm("Xóa biến thể này?")) return;
-      await deleteVariantMutation.mutateAsync({ productId: modal.product.id, variantId: v.id });
-    }
+    if (v.id && !confirm("Bỏ biến thể này khỏi sản phẩm? Khi lưu, biến thể đã có đơn hàng sẽ được ẩn thay vì xóa.")) return;
     setVariants((prev) => prev.filter((_, i) => i !== idx));
   };
 
@@ -196,15 +267,85 @@ export default function AdminProductsPage() {
     setVariants((prev) => prev.map((v, i) => (i === idx ? { ...v, ...patch } : v)));
   };
 
-  const updateAttr = (vIdx: number, aIdx: number, patch: Partial<AttrRow>) => {
+  const updateOptionGroup = (idx: number, patch: Partial<OptionGroup>) => {
+    setOptionGroups((prev) => prev.map((g, i) => (i === idx ? { ...g, ...patch } : g)));
+  };
+
+  const generateVariantMatrix = () => {
+    const groups = optionGroups
+      .map((group) => ({ name: group.name.trim(), values: parseOptionValues(group.values) }))
+      .filter((group) => group.name || group.values.length > 0);
+
+    if (groups.length === 0) {
+      alert("Vui lòng nhập ít nhất một nhóm thuộc tính.");
+      return;
+    }
+    if (groups.length > 3) {
+      alert("Chỉ nên dùng tối đa 3 nhóm thuộc tính cho một sản phẩm.");
+      return;
+    }
+    if (groups.some((group) => !group.name || group.values.length === 0)) {
+      alert("Mỗi nhóm thuộc tính cần có tên và ít nhất một giá trị.");
+      return;
+    }
+
+    const existing = new Map(variants.map((variant) => [variantSignature(attrsToRecord(variant.attrs)), variant]));
+    const combos = cartesianOptions(groups);
+    const next = combos.map((attrs) => {
+      const matched = existing.get(variantSignature(attrs));
+      if (matched) return matched;
+      return {
+        sku: buildSku(bulkEdit.sku_prefix, attrs),
+        price: bulkEdit.price || form.price || "0",
+        sale_price: bulkEdit.sale_price || form.sale_price || "",
+        stock_qty: bulkEdit.stock_qty || "0",
+        attrs: Object.entries(attrs).map(([key, value]) => ({ key, value })),
+        is_active: true,
+      };
+    });
+
+    setVariants(next);
+    setVariantSectionOpen(true);
+  };
+
+  const applyBulkEdit = (fields: Array<keyof BulkVariantEdit>) => {
     setVariants((prev) =>
-      prev.map((v, i) => {
-        if (i !== vIdx) return v;
-        const attrs = v.attrs.map((a, j) => (j === aIdx ? { ...a, ...patch } : a));
-        return { ...v, attrs };
+      prev.map((variant) => {
+        const patch: Partial<VariantRow> = {};
+        if (fields.includes("price") && bulkEdit.price) patch.price = bulkEdit.price;
+        if (fields.includes("sale_price")) patch.sale_price = bulkEdit.sale_price;
+        if (fields.includes("stock_qty") && bulkEdit.stock_qty) patch.stock_qty = bulkEdit.stock_qty;
+        if (fields.includes("sku_prefix")) patch.sku = buildSku(bulkEdit.sku_prefix, attrsToRecord(variant.attrs));
+        return { ...variant, ...patch };
       })
     );
   };
+
+  const generateAttrImageRows = (attrKey = imageAttrKey) => {
+    if (!attrKey) {
+      alert("Vui lòng chọn thuộc tính dùng cho ảnh.");
+      return;
+    }
+    const values = getVariantAttrValues(variants, attrKey);
+    if (values.length === 0) {
+      alert("Thuộc tính này chưa có giá trị trong bảng biến thể.");
+      return;
+    }
+    setAttrImages((prev) => {
+      const existing = new Map(prev.map((row) => [`${row.attr_key}=${row.attr_value}`, row]));
+      return values.map((value) => existing.get(`${attrKey}=${value}`) ?? { attr_key: attrKey, attr_value: value, file: null });
+    });
+  };
+
+  const updateAttrImageFile = (attrKey: string, attrValue: string, file: File | null) => {
+    setAttrImages((prev) => {
+      const exists = prev.some((row) => row.attr_key === attrKey && row.attr_value === attrValue);
+      if (!exists) return [...prev, { attr_key: attrKey, attr_value: attrValue, file }];
+      return prev.map((row) => row.attr_key === attrKey && row.attr_value === attrValue ? { ...row, file } : row);
+    });
+  };
+
+  const attrKeys = getVariantAttrKeys(variants);
 
   return (
     <div>
@@ -279,7 +420,7 @@ export default function AdminProductsPage() {
 
       {modal.open && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-[95vw] md:max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
+          <div className="bg-white rounded-2xl w-full max-w-[95vw] md:max-w-6xl max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white z-10">
               <h2 className="text-lg font-bold">{modal.product ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm mới"}</h2>
               <Button variant="ghost" size="icon" onClick={() => setModal({ open: false })}><X className="w-4 h-4" /></Button>
@@ -367,103 +508,120 @@ export default function AdminProductsPage() {
 
                 {variantSectionOpen && (
                   <div className="p-4 space-y-4">
-                    <p className="text-xs text-gray-500">Thêm các biến thể như Hương vị, Khối lượng, Màu sắc, Kích thước,... Mỗi biến thể có giá và tồn kho riêng.</p>
-
-                    {variants.map((v, vIdx) => (
-                      <div key={vIdx} className="border rounded-lg p-4 space-y-3 bg-gray-50 relative">
-                        <button
-                          type="button"
-                          className="absolute top-3 right-3 text-red-400 hover:text-red-600"
-                          onClick={() => removeVariantRow(vIdx)}
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="text-xs font-semibold text-gray-600">Biến thể #{vIdx + 1}</div>
-                          {vIdx > 0 && (
-                            <button
-                              type="button"
-                              className="text-xs text-blue-600 hover:underline"
-                              onClick={() => updateVariant(vIdx, { attrs: variants[vIdx - 1].attrs.map((a) => ({ ...a })) })}
-                            >
-                              Sao chép thuộc tính từ #{vIdx}
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Attributes */}
-                        <div>
-                          <Label className="text-xs">Thuộc tính (tên → giá trị)</Label>
-                          <div className="space-y-1.5 mt-1">
-                            {v.attrs.map((a, aIdx) => (
-                              <div key={aIdx} className="flex gap-2 items-center">
-                                <Input
-                                  placeholder="Tên (VD: Khối lượng)"
-                                  value={a.key}
-                                  onChange={(e) => updateAttr(vIdx, aIdx, { key: e.target.value })}
-                                  className="text-xs h-8"
-                                />
-                                <Input
-                                  placeholder="Giá trị (VD: 1kg)"
-                                  value={a.value}
-                                  onChange={(e) => updateAttr(vIdx, aIdx, { value: e.target.value })}
-                                  className="text-xs h-8"
-                                />
-                                <button
-                                  type="button"
-                                  className="text-gray-400 hover:text-red-500 shrink-0"
-                                  onClick={() => updateVariant(vIdx, { attrs: v.attrs.filter((_, j) => j !== aIdx) })}
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ))}
-                            <button
-                              type="button"
-                              className="text-xs text-orange-600 hover:underline flex items-center gap-1"
-                              onClick={() => updateVariant(vIdx, { attrs: [...v.attrs, { key: "", value: "" }] })}
-                            >
-                              <Plus className="w-3 h-3" /> Thêm thuộc tính
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Price / Stock / SKU */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                          <div>
-                            <Label className="text-xs">Giá (đ) *</Label>
-                            <Input type="number" value={v.price} onChange={(e) => updateVariant(vIdx, { price: e.target.value })} className="h-8 text-xs" />
-                          </div>
-                          <div>
-                            <Label className="text-xs">Giá sale (đ)</Label>
-                            <Input type="number" value={v.sale_price} onChange={(e) => updateVariant(vIdx, { sale_price: e.target.value })} className="h-8 text-xs" />
-                          </div>
-                          <div>
-                            <Label className="text-xs">Tồn kho</Label>
-                            <Input type="number" value={v.stock_qty} onChange={(e) => updateVariant(vIdx, { stock_qty: e.target.value })} className="h-8 text-xs" />
-                          </div>
-                          <div>
-                            <Label className="text-xs">SKU</Label>
-                            <Input value={v.sku} onChange={(e) => updateVariant(vIdx, { sku: e.target.value })} className="h-8 text-xs" />
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <input type="checkbox" checked={v.is_active} onChange={(e) => updateVariant(vIdx, { is_active: e.target.checked })} />
-                          <Label className="text-xs">Kích hoạt biến thể</Label>
-                        </div>
+                    <div className="rounded-lg border bg-white p-4 space-y-3">
+                      <div className="flex flex-col gap-1">
+                        <div className="text-sm font-semibold text-gray-800">Nhóm thuộc tính</div>
+                        <p className="text-xs text-gray-500">Nhập các nhóm như Khối lượng, Hương vị, Màu sắc. Giá trị có thể phân cách bằng dấu phẩy hoặc xuống dòng.</p>
                       </div>
-                    ))}
+                      <div className="space-y-2">
+                        {optionGroups.map((group, idx) => (
+                          <div key={idx} className="grid grid-cols-1 md:grid-cols-[180px_1fr_32px] gap-2 items-start">
+                            <Input
+                              placeholder="VD: Khối lượng"
+                              value={group.name}
+                              onChange={(e) => updateOptionGroup(idx, { name: e.target.value })}
+                              className="h-9 text-xs"
+                            />
+                            <Input
+                              placeholder="VD: 400g, 1kg, 2kg"
+                              value={group.values}
+                              onChange={(e) => updateOptionGroup(idx, { values: e.target.value })}
+                              className="h-9 text-xs"
+                            />
+                            <button
+                              type="button"
+                              className="h-9 w-9 flex items-center justify-center text-gray-400 hover:text-red-500"
+                              onClick={() => setOptionGroups((prev) => prev.filter((_, i) => i !== idx))}
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" size="sm" variant="outline" onClick={() => setOptionGroups((prev) => [...prev, emptyOptionGroup()])}>
+                          <Plus className="w-3.5 h-3.5 mr-1" /> Thêm nhóm
+                        </Button>
+                        <Button type="button" size="sm" className="bg-orange-600 hover:bg-orange-700" onClick={generateVariantMatrix}>
+                          <Wand2 className="w-3.5 h-3.5 mr-1" /> Tạo bảng biến thể
+                        </Button>
+                      </div>
+                    </div>
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full border-dashed border-orange-300 text-orange-600 hover:bg-orange-50"
-                      onClick={() => { setVariants((prev) => [...prev, emptyVariantRow()]); setVariantSectionOpen(true); }}
-                    >
-                      <Plus className="w-4 h-4 mr-1" /> Thêm biến thể
-                    </Button>
+                    <div className="rounded-lg border bg-gray-50 p-4 space-y-3">
+                      <div className="text-sm font-semibold text-gray-800">Áp dụng nhanh</div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <Input type="number" placeholder="Giá chung" value={bulkEdit.price} onChange={(e) => setBulkEdit((prev) => ({ ...prev, price: e.target.value }))} className="h-9 text-xs" />
+                        <Input type="number" placeholder="Giá sale chung" value={bulkEdit.sale_price} onChange={(e) => setBulkEdit((prev) => ({ ...prev, sale_price: e.target.value }))} className="h-9 text-xs" />
+                        <Input type="number" placeholder="Tồn kho chung" value={bulkEdit.stock_qty} onChange={(e) => setBulkEdit((prev) => ({ ...prev, stock_qty: e.target.value }))} className="h-9 text-xs" />
+                        <Input placeholder="Tiền tố SKU, VD: RC-CAT" value={bulkEdit.sku_prefix} onChange={(e) => setBulkEdit((prev) => ({ ...prev, sku_prefix: e.target.value }))} className="h-9 text-xs" />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" size="sm" variant="outline" onClick={() => applyBulkEdit(["price"])}>Áp giá</Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => applyBulkEdit(["sale_price"])}>Áp sale</Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => applyBulkEdit(["stock_qty"])}>Áp tồn</Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => applyBulkEdit(["sku_prefix"])}>Tự sinh SKU</Button>
+                      </div>
+                    </div>
+
+                    {variants.length > 0 ? (
+                      <div className="overflow-x-auto border rounded-lg bg-white">
+                        <table className="w-full text-xs" style={{ minWidth: 920 }}>
+                          <thead className="bg-gray-50 text-gray-500 uppercase border-b">
+                            <tr>
+                              <th className="text-left px-3 py-2 w-[260px]">Phân loại</th>
+                              <th className="text-left px-3 py-2">SKU</th>
+                              <th className="text-right px-3 py-2">Giá</th>
+                              <th className="text-right px-3 py-2">Sale</th>
+                              <th className="text-right px-3 py-2">Tồn</th>
+                              <th className="text-center px-3 py-2">Bán</th>
+                              <th className="text-center px-3 py-2 w-[96px]">Thao tác</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {variants.map((v, vIdx) => (
+                              <tr key={`${v.id ?? "new"}-${vIdx}`} className="hover:bg-gray-50">
+                                <td className="px-3 py-2">
+                                  <div className="flex flex-wrap gap-1">
+                                    {v.attrs.map((a, aIdx) => (
+                                      <span key={`${a.key}-${a.value}-${aIdx}`} className="rounded bg-orange-50 px-2 py-1 text-orange-700">
+                                        {a.key}: {a.value}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2">
+                                  <Input value={v.sku} onChange={(e) => updateVariant(vIdx, { sku: e.target.value })} className="h-8 text-xs" />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <Input type="number" value={v.price} onChange={(e) => updateVariant(vIdx, { price: e.target.value })} className="h-8 text-xs text-right" />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <Input type="number" value={v.sale_price} onChange={(e) => updateVariant(vIdx, { sale_price: e.target.value })} className="h-8 text-xs text-right" />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <Input type="number" value={v.stock_qty} onChange={(e) => updateVariant(vIdx, { stock_qty: e.target.value })} className="h-8 text-xs text-right" />
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  <input type="checkbox" checked={v.is_active} onChange={(e) => updateVariant(vIdx, { is_active: e.target.checked })} />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <div className="flex justify-center gap-1">
+                                    <button type="button" className="p-1.5 text-gray-400 hover:text-red-600" onClick={() => removeVariantRow(vIdx)}>
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-sm text-gray-400">
+                        Chưa có biến thể. Nhập nhóm thuộc tính rồi bấm Tạo bảng biến thể.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -477,51 +635,68 @@ export default function AdminProductsPage() {
                       Mỗi dòng = một giá trị thuộc tính (VD: Màu=Đỏ). Nhiều biến thể cùng giá trị sẽ dùng chung ảnh.
                     </p>
                   </div>
-                  <div className="p-4 space-y-2">
-                    {attrImages.map((ai, idx) => (
-                      <div key={idx} className="flex flex-wrap sm:flex-nowrap gap-2 items-center">
-                        <Input
-                          placeholder="Thuộc tính (VD: Màu)"
-                          value={ai.attr_key}
-                          onChange={(e) => setAttrImages((prev) => prev.map((r, i) => i === idx ? { ...r, attr_key: e.target.value } : r))}
-                          className="h-8 text-xs w-32"
-                        />
-                        <Input
-                          placeholder="Giá trị (VD: Đỏ)"
-                          value={ai.attr_value}
-                          onChange={(e) => setAttrImages((prev) => prev.map((r, i) => i === idx ? { ...r, attr_value: e.target.value } : r))}
-                          className="h-8 text-xs w-32"
-                        />
-                        {ai.url && (
-                          <div className="relative w-8 h-8 rounded border overflow-hidden shrink-0">
-                            <Image 
-                              src={ai.url} 
-                              alt="" 
-                              fill 
-                              className="object-cover"
-                            />
-                          </div>
-                        )}
-                        <Input
-                          type="file" accept="image/*" className="h-8 text-xs flex-1"
-                          onChange={(e) => setAttrImages((prev) => prev.map((r, i) => i === idx ? { ...r, file: e.target.files?.[0] ?? null } : r))}
-                        />
-                        <button
-                          type="button"
-                          className="text-gray-400 hover:text-red-500 shrink-0"
-                          onClick={() => setAttrImages((prev) => prev.filter((_, i) => i !== idx))}
+                  <div className="p-4 space-y-4">
+                    <div className="flex flex-col md:flex-row gap-2 md:items-end">
+                      <div className="flex-1">
+                        <Label className="text-xs">Thuộc tính dùng cho ảnh</Label>
+                        <select
+                          className="w-full border rounded p-2 text-sm bg-white h-9"
+                          value={imageAttrKey}
+                          onChange={(e) => {
+                            setImageAttrKey(e.target.value);
+                            if (e.target.value) generateAttrImageRows(e.target.value);
+                          }}
                         >
-                          <X className="w-4 h-4" />
-                        </button>
+                          <option value="">-- Chọn thuộc tính --</option>
+                          {attrKeys.map((key) => <option key={key} value={key}>{key}</option>)}
+                        </select>
                       </div>
-                    ))}
-                    <button
-                      type="button"
-                      className="text-xs text-orange-600 hover:underline flex items-center gap-1"
-                      onClick={() => setAttrImages((prev) => [...prev, { attr_key: "", attr_value: "", file: null }])}
-                    >
-                      <Plus className="w-3 h-3" /> Thêm ảnh theo thuộc tính
-                    </button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => generateAttrImageRows()}>
+                        <Wand2 className="w-3.5 h-3.5 mr-1" /> Tạo dòng ảnh
+                      </Button>
+                    </div>
+
+                    {imageAttrKey && getVariantAttrValues(variants, imageAttrKey).length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {getVariantAttrValues(variants, imageAttrKey).map((value) => {
+                          const row = attrImages.find((img) => img.attr_key === imageAttrKey && img.attr_value === value);
+                          return (
+                            <div key={`${imageAttrKey}-${value}`} className="border rounded-lg bg-white p-3 flex items-center gap-3">
+                              <div className="w-14 h-14 rounded-lg bg-gray-100 border overflow-hidden relative shrink-0">
+                                {row?.url ? (
+                                  <Image src={row.url} alt={value} fill className="object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-300">NO IMG</div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-semibold text-gray-500">{imageAttrKey}</div>
+                                <div className="text-sm font-semibold text-gray-900 truncate">{value}</div>
+                                <Input
+                                  type="file"
+                                  accept="image/*"
+                                  className="h-8 text-xs mt-2"
+                                  onChange={(e) => updateAttrImageFile(imageAttrKey, value, e.target.files?.[0] ?? null)}
+                                />
+                              </div>
+                              {(row?.url || row?.file) && (
+                                <button
+                                  type="button"
+                                  className="text-gray-400 hover:text-red-500 shrink-0"
+                                  onClick={() => setAttrImages((prev) => prev.filter((img) => !(img.attr_key === imageAttrKey && img.attr_value === value)))}
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-400">
+                        Chọn thuộc tính ảnh để hệ thống tự tạo các dòng upload.
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

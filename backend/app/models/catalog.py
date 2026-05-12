@@ -83,6 +83,8 @@ class ProductVariant(Base):
 
     product = relationship("Product", back_populates="variants")
     images = relationship("ProductImage", back_populates="variant", cascade="all, delete-orphan")
+    cart_items = relationship("CartItem", back_populates="variant")
+    order_items = relationship("OrderItem", back_populates="variant")
 
 
 class ProductImage(Base):

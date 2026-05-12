@@ -29,9 +29,23 @@ if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
     )
 
 
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
 pool_args = {
-    "pool_size": 10,
-    "max_overflow": 20,
+    # Keep the dev default conservative. Remote poolers such as Supabase's
+    # transaction pooler can time out when the app opens many connections at once.
+    "pool_size": _env_int("DB_POOL_SIZE", 5),
+    "max_overflow": _env_int("DB_MAX_OVERFLOW", 0),
+    "pool_timeout": _env_int("DB_POOL_TIMEOUT", 30),
+    "pool_recycle": _env_int("DB_POOL_RECYCLE_SECONDS", 1800),
     "pool_pre_ping": True,
 }
 if "pytest" in sys.modules:
@@ -40,7 +54,10 @@ if "pytest" in sys.modules:
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
     echo=False,
-    connect_args={"statement_cache_size": 0},
+    connect_args={
+        "statement_cache_size": 0,
+        "timeout": _env_int("DB_CONNECT_TIMEOUT", 20),
+    },
     **pool_args,
 )
 AsyncSessionLocal = async_sessionmaker(

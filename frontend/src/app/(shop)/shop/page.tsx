@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { addToGuestCart } from '@/lib/guestCart';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { ChevronRight, Star, ShoppingCart, Filter as FilterIcon, Check, SearchX } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
@@ -129,7 +129,7 @@ const Rating = ({ value, size = 12, count }: { value: number, size?: number, cou
   </div>
 );
 
-const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, onAddToCart: (e: React.MouseEvent, id: string, slug: string) => void, isPending: boolean }) => (
+const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, onAddToCart: (e: React.MouseEvent, id: string, slug: string, hasVariants: boolean) => void, isPending: boolean }) => (
   <Link href={`/products/${product.slug}`} className="no-underline text-inherit">
     <div
       className="group bg-white border border-neutral-100 rounded-[16px] shadow-xs cursor-pointer overflow-hidden flex flex-col h-full transition-[transform,box-shadow] duration-[160ms] ease-[ease] hover:-translate-y-0.5 hover:shadow-md"
@@ -164,11 +164,11 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, on
           {product.sale_price && <span className="text-[12px] text-neutral-400 line-through">{product.price.toLocaleString()}đ</span>}
         </div>
         <button
-          onClick={(e) => onAddToCart(e, product.id, product.slug)}
+          onClick={(e) => onAddToCart(e, product.id, product.slug, !!product.has_variants)}
           disabled={isPending}
           className="w-full mt-3 h-9 rounded-[10px] text-[13px] font-semibold border-[1.5px] border-neutral-200 bg-white text-neutral-700 flex items-center justify-center gap-1.5 transition-colors hover:bg-neutral-50 disabled:opacity-50"
         >
-          {isPending ? <Spinner size={14} /> : <ShoppingCart size={14} />} {isPending ? "Đang thêm..." : "Thêm giỏ"}
+          {isPending ? <Spinner size={14} /> : <ShoppingCart size={14} />} {isPending ? "Đang thêm..." : product.has_variants ? "Chọn phân loại" : "Thêm giỏ"}
         </button>
       </div>
     </div>
@@ -195,6 +195,7 @@ function ShopListing() {
   if (prevSearch !== search) { setPrevSearch(search); if (page !== 1) setPage(1); }
 
   const size = 12;
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
 
@@ -223,8 +224,12 @@ function ShopListing() {
     onError: (err: { response?: { data?: { detail?: string } } }) => { toast.error(err.response?.data?.detail || "Lỗi khi thêm giỏ hàng"); setPendingProductId(null); }
   });
 
-  const handleAddToCart = (e: React.MouseEvent, productId: string, slug: string) => {
+  const handleAddToCart = (e: React.MouseEvent, productId: string, slug: string, hasVariants: boolean) => {
     e.preventDefault();
+    if (hasVariants) {
+      router.push(`/products/${slug}`);
+      return;
+    }
     if (!user) { addToGuestCart(productId, slug); toast.success("Đã thêm vào giỏ hàng!"); return; }
     setPendingProductId(productId);
     addToCartMutation.mutate(productId);

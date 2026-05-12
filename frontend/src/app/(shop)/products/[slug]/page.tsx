@@ -52,12 +52,23 @@ export default function ProductDetailPage() {
 
   const [selectedAttrs, setSelectedAttrs] = useState<Record<string, string>>({});
 
+  const defaultVariant = useMemo(() => {
+    if (!hasVariants) return null;
+    return variants.find((v) => v.stock_qty > 0) ?? variants[0] ?? null;
+  }, [hasVariants, variants]);
+
+  const effectiveSelectedAttrs = useMemo(() => {
+    if (!hasVariants) return {};
+    return Object.keys(selectedAttrs).length > 0 ? selectedAttrs : (defaultVariant?.attributes ?? {});
+  }, [defaultVariant, hasVariants, selectedAttrs]);
+
   const selectedVariant: Variant | null = useMemo(() => {
     if (!hasVariants) return null;
     const keys = Object.keys(attrOptions);
     if (keys.length === 0) return variants[0] ?? null;
-    return variants.find((v) => keys.every((k) => !selectedAttrs[k] || v.attributes[k] === selectedAttrs[k])) ?? null;
-  }, [variants, selectedAttrs, attrOptions, hasVariants]);
+    if (!keys.every((k) => effectiveSelectedAttrs[k])) return null;
+    return variants.find((v) => keys.every((k) => v.attributes[k] === effectiveSelectedAttrs[k])) ?? null;
+  }, [variants, effectiveSelectedAttrs, attrOptions, hasVariants]);
 
   const effectivePrice = selectedVariant
     ? (selectedVariant.sale_price ?? selectedVariant.price)
@@ -66,6 +77,8 @@ export default function ProductDetailPage() {
   const effectiveStock = selectedVariant ? selectedVariant.stock_qty : (product?.stock_qty ?? 0);
 
   const mainImage = useMemo(() => {
+    const variantImage = selectedVariant?.images?.find((i) => i.is_main)?.url ?? selectedVariant?.images?.[0]?.url;
+    if (variantImage) return variantImage;
     const attrImages: AttrImage[] = product?.attr_images ?? [];
     if (attrImages.length > 0 && selectedVariant) {
       for (const [key, val] of Object.entries(selectedVariant.attributes)) {
@@ -77,23 +90,53 @@ export default function ProductDetailPage() {
   }, [selectedVariant, product]);
 
   const addToCartMutation = useMutation({
-    mutationFn: async () => { await api.post('/cart/items', { product_id: product!.id, quantity }); },
+    mutationFn: async () => {
+      await api.post('/cart/items', {
+        product_id: product!.id,
+        variant_id: selectedVariant?.id ?? null,
+        quantity,
+      });
+    },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['cart'] }); toast.success("Đã thêm vào giỏ hàng!"); },
     onError: (err: { response?: { data?: { detail?: string } } }) => toast.error(err.response?.data?.detail || "Lỗi khi thêm vào giỏ hàng"),
   });
 
+  const ensureVariantSelected = () => {
+    if (hasVariants && !selectedVariant) {
+      toast.error("Vui lòng chọn phân loại sản phẩm");
+      return false;
+    }
+    return true;
+  };
+
   const handleAddToCart = () => {
-    if (!user) { addToGuestCart(product!.id, product!.slug, quantity); toast.success("Đã thêm vào giỏ hàng!"); return; }
+    if (!ensureVariantSelected()) return;
+    if (!user) {
+      addToGuestCart(product!.id, product!.slug, quantity, selectedVariant?.id ?? null);
+      toast.success("Đã thêm vào giỏ hàng!");
+      return;
+    }
     addToCartMutation.mutate();
   };
 
   const [buyNowLoading, setBuyNowLoading] = useState(false);
   const handleBuyNow = async () => {
-    if (!user) { addToGuestCart(product!.id, product!.slug, quantity); router.push('/checkout'); return; }
+    if (!ensureVariantSelected()) return;
+    if (!user) {
+      addToGuestCart(product!.id, product!.slug, quantity, selectedVariant?.id ?? null);
+      router.push('/checkout');
+      return;
+    }
     setBuyNowLoading(true);
     try {
-      const res = await api.post('/cart/items', { product_id: product!.id, quantity });
-      const cartItem = res.data?.items?.find((i: { product_id: string }) => i.product_id === product!.id);
+      const res = await api.post('/cart/items', {
+        product_id: product!.id,
+        variant_id: selectedVariant?.id ?? null,
+        quantity,
+      });
+      const cartItem = res.data?.items?.find((i: { product_id: string; variant_id?: string | null }) =>
+        i.product_id === product!.id && (i.variant_id ?? null) === (selectedVariant?.id ?? null)
+      );
       queryClient.invalidateQueries({ queryKey: ['cart'] });
       router.push(cartItem?.id ? `/checkout?items=${cartItem.id}` : '/checkout');
     } catch (err: unknown) {
@@ -192,20 +235,20 @@ export default function ProductDetailPage() {
             <div key={attrKey}>
               <div className="text-[13px] font-semibold text-neutral-600 mb-2 capitalize">
                 {attrKey}:
-                {selectedAttrs[attrKey] && <span className="text-neutral-900 ml-1.5">{selectedAttrs[attrKey]}</span>}
+                {effectiveSelectedAttrs[attrKey] && <span className="text-neutral-900 ml-1.5">{effectiveSelectedAttrs[attrKey]}</span>}
               </div>
               <div className="flex flex-wrap gap-2">
                 {values.map((val) => {
-                  const active = selectedAttrs[attrKey] === val;
+                  const active = effectiveSelectedAttrs[attrKey] === val;
                   const matchingVariant = variants.find((v) => {
-                    const testAttrs = { ...selectedAttrs, [attrKey]: val };
+                    const testAttrs = { ...effectiveSelectedAttrs, [attrKey]: val };
                     return Object.entries(testAttrs).every(([k, tv]) => !tv || v.attributes[k] === tv);
                   });
-                  const available = matchingVariant ? matchingVariant.stock_qty > 0 : true;
+                  const available = matchingVariant ? matchingVariant.stock_qty > 0 : false;
                   return (
                     <button
                       key={val}
-                      onClick={() => setSelectedAttrs((prev) => ({ ...prev, [attrKey]: active ? "" : val }))}
+                      onClick={() => setSelectedAttrs((prev) => ({ ...(Object.keys(prev).length > 0 ? prev : effectiveSelectedAttrs), [attrKey]: val }))}
                       className="px-4 py-2 min-h-[44px] rounded-[8px] text-[13px] font-semibold cursor-pointer transition-all"
                       style={{
                         border: active ? '2px solid var(--primary-500)' : '1.5px solid var(--neutral-200)',
@@ -269,7 +312,7 @@ export default function ProductDetailPage() {
               {/* Add to cart */}
               <button
                 onClick={handleAddToCart}
-                disabled={effectiveStock === 0 || addToCartMutation.isPending}
+                disabled={effectiveStock === 0 || addToCartMutation.isPending || (hasVariants && !selectedVariant)}
                 className="flex-1 h-[52px] rounded-[14px] text-[16px] font-semibold text-white flex items-center justify-center gap-2 transition-opacity disabled:opacity-50 border-none cursor-pointer"
                 style={{ background: 'var(--primary-600)' }}
               >
@@ -280,7 +323,7 @@ export default function ProductDetailPage() {
             {/* Buy now */}
             <button
               onClick={handleBuyNow}
-              disabled={effectiveStock === 0 || buyNowLoading}
+              disabled={effectiveStock === 0 || buyNowLoading || (hasVariants && !selectedVariant)}
               className="w-full h-[52px] rounded-[14px] text-[16px] font-bold border-[1.5px] border-neutral-200 bg-white text-neutral-700 flex items-center justify-center gap-2 cursor-pointer hover:bg-neutral-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {buyNowLoading ? <><Spinner size={18} /> Đang xử lý...</> : "Mua ngay"}

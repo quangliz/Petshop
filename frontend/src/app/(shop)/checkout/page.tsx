@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { getGuestCart, clearGuestCart, GuestCartItem } from '@/lib/guestCart';
+import { getGuestCart, clearGuestCart, getGuestCartItemKey, GuestCartItem } from '@/lib/guestCart';
 import { ChevronRight, CreditCard, Truck, ShieldCheck, Phone, User as UserIcon, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { VietnamAddressPicker } from '@/components/VietnamAddressPicker';
@@ -17,8 +17,10 @@ import { Spinner } from '@/components/ui/spinner';
 interface DisplayItem {
   id: string;
   product_id: string;
+  variant_id?: string | null;
   quantity: number;
   product_name: string;
+  variant_attributes?: Record<string, string> | null;
   sale_price?: number;
   price: number;
 }
@@ -68,8 +70,19 @@ function CheckoutPage() {
     Promise.all(
       items.map(i =>
         api.get(`/products/${i.slug}`).then(r => ({
-          id: i.product_id, product_id: i.product_id, quantity: i.quantity,
-          product_name: r.data.name, sale_price: r.data.sale_price ?? undefined, price: r.data.price,
+          id: getGuestCartItemKey(i),
+          product_id: i.product_id,
+          variant_id: i.variant_id ?? null,
+          quantity: i.quantity,
+          ...(() => {
+            const variant = r.data.variants?.find((v: { id: string }) => v.id === i.variant_id);
+            return {
+              product_name: r.data.name,
+              variant_attributes: variant?.attributes ?? null,
+              sale_price: variant ? (variant.sale_price ?? undefined) : (r.data.sale_price ?? undefined),
+              price: variant?.price ?? r.data.price,
+            };
+          })(),
         }))
       )
     ).then(setGuestProducts).catch(() => {});
@@ -239,7 +252,14 @@ function CheckoutPage() {
             <div className={`${isSummaryOpen ? 'flex' : 'hidden'} lg:flex flex-col gap-4 mb-6`}>
               {displayItems.map((item) => (
                 <div key={item.id} className="flex justify-between gap-4">
-                  <span className="text-[13px] text-neutral-600 flex-1">{item.quantity}x {item.product_name}</span>
+                  <span className="text-[13px] text-neutral-600 flex-1">
+                    {item.quantity}x {item.product_name}
+                    {item.variant_attributes && Object.keys(item.variant_attributes).length > 0 && (
+                      <span className="block text-[12px] text-neutral-400">
+                        {Object.entries(item.variant_attributes).map(([k, v]) => `${k}: ${v}`).join(" / ")}
+                      </span>
+                    )}
+                  </span>
                   <span className="text-[13px] font-semibold text-neutral-900">{((item.sale_price || item.price) * item.quantity).toLocaleString()}đ</span>
                 </div>
               ))}

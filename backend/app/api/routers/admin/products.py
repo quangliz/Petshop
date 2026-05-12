@@ -1,10 +1,10 @@
 """Admin products — CRUD, images, variants, attr images, AI rewrite."""
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel
-from sqlalchemy import func, desc, select
+from pydantic import BaseModel, Field
+from sqlalchemy import func, desc, select, delete
 from sqlalchemy.orm import selectinload
 import asyncio
 import json
@@ -12,12 +12,14 @@ import logging
 import uuid
 import cloudinary
 import cloudinary.uploader
+from sqlalchemy.exc import IntegrityError
 
 from app.services.indexing import reindex_one_product
 
 from app.api.deps import SessionDep, AdminUser
 from app.core.config import settings
 from app.models.catalog import Product, ProductVariant, ProductImage
+from app.models.commerce import CartItem, OrderItem
 
 logger = logging.getLogger(__name__)
 
@@ -51,20 +53,40 @@ class ProductUpdate(BaseModel):
 
 class VariantCreate(BaseModel):
     sku: Optional[str] = None
-    price: float
+    price: float = Field(gt=0)
     sale_price: Optional[float] = None
-    stock_qty: int = 0
+    stock_qty: int = Field(default=0, ge=0)
     attributes: Optional[dict] = None
     is_active: bool = True
 
 
 class VariantUpdate(BaseModel):
     sku: Optional[str] = None
-    price: Optional[float] = None
+    price: Optional[float] = Field(default=None, gt=0)
     sale_price: Optional[float] = None
-    stock_qty: Optional[int] = None
+    stock_qty: Optional[int] = Field(default=None, ge=0)
     attributes: Optional[dict] = None
     is_active: Optional[bool] = None
+
+
+class VariantBulkSave(BaseModel):
+    id: Optional[str] = None
+    sku: Optional[str] = None
+    price: float = Field(gt=0)
+    sale_price: Optional[float] = None
+    stock_qty: int = Field(default=0, ge=0)
+    attributes: Optional[dict] = None
+    is_active: bool = True
+
+
+class ProductFullCreate(BaseModel):
+    product: ProductCreate
+    variants: list[VariantBulkSave] = []
+
+
+class ProductFullUpdate(BaseModel):
+    product: ProductUpdate
+    variants: list[VariantBulkSave] = []
 
 
 class RewriteMarkdownRequest(BaseModel):
@@ -99,6 +121,170 @@ def _product_image_dict(img: ProductImage) -> dict:
         "attr_key": img.attr_key,
         "attr_value": img.attr_value,
     }
+
+
+def _normalize_variant_attributes(attrs: Optional[dict]) -> dict[str, str]:
+    if not attrs:
+        raise HTTPException(status_code=400, detail="Biến thể cần ít nhất một thuộc tính")
+    normalized: dict[str, str] = {}
+    for key, value in attrs.items():
+        clean_key = str(key).strip()
+        clean_value = str(value).strip()
+        if not clean_key or not clean_value:
+            raise HTTPException(status_code=400, detail="Tên và giá trị thuộc tính biến thể không được trống")
+        normalized[clean_key] = clean_value
+    if len(normalized) > 3:
+        raise HTTPException(status_code=400, detail="Một sản phẩm chỉ nên có tối đa 3 nhóm thuộc tính biến thể")
+    return normalized
+
+
+def _variant_identity(attrs: dict) -> tuple[tuple[str, str], ...]:
+    return tuple(sorted((str(k).strip().lower(), str(v).strip().lower()) for k, v in attrs.items()))
+
+
+async def _validate_variant_candidate(
+    db: SessionDep,
+    product_id: uuid.UUID,
+    attrs: dict,
+    price: float,
+    sale_price: Optional[float],
+    sku: Optional[str],
+    variant_id: Optional[uuid.UUID] = None,
+) -> dict[str, str]:
+    normalized_attrs = _normalize_variant_attributes(attrs)
+    if sale_price is not None and sale_price >= price:
+        raise HTTPException(status_code=400, detail="Giá sale của biến thể phải nhỏ hơn giá gốc")
+
+    clean_sku = sku.strip() if sku else None
+    if clean_sku:
+        stmt = select(ProductVariant.id).where(ProductVariant.sku == clean_sku)
+        if variant_id:
+            stmt = stmt.where(ProductVariant.id != variant_id)
+        if (await db.execute(stmt)).scalar_one_or_none():
+            raise HTTPException(status_code=409, detail="SKU biến thể đã tồn tại")
+
+    stmt = select(ProductVariant).where(ProductVariant.product_id == product_id)
+    if variant_id:
+        stmt = stmt.where(ProductVariant.id != variant_id)
+    existing_variants = (await db.execute(stmt)).scalars().all()
+    candidate_identity = _variant_identity(normalized_attrs)
+    if any(_variant_identity(v.attributes or {}) == candidate_identity for v in existing_variants):
+        raise HTTPException(status_code=409, detail="Tổ hợp thuộc tính biến thể đã tồn tại")
+    return normalized_attrs
+
+
+async def _sync_parent_variant_stock(db: SessionDep, product_id: uuid.UUID) -> None:
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        return
+    total_stock = (await db.execute(
+        select(func.coalesce(func.sum(ProductVariant.stock_qty), 0)).where(
+            ProductVariant.product_id == product_id,
+            ProductVariant.is_active,
+        )
+    )).scalar_one()
+    active_count = (await db.execute(
+        select(func.count(ProductVariant.id)).where(
+            ProductVariant.product_id == product_id,
+            ProductVariant.is_active,
+        )
+    )).scalar_one()
+    if active_count:
+        product.stock_qty = int(total_stock or 0)
+
+
+async def _ensure_product_slug_available(db: SessionDep, slug: Optional[str], product_id: Optional[uuid.UUID] = None) -> None:
+    if not slug:
+        return
+    stmt = select(Product.id).where(Product.slug == slug)
+    if product_id:
+        stmt = stmt.where(Product.id != product_id)
+    if (await db.execute(stmt)).scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Slug sản phẩm đã tồn tại")
+
+
+def _raise_product_conflict(exc: IntegrityError) -> None:
+    message = str(exc.orig)
+    if "products_slug_key" in message:
+        raise HTTPException(status_code=409, detail="Slug sản phẩm đã tồn tại") from exc
+    raise HTTPException(status_code=409, detail="Dữ liệu sản phẩm bị trùng ràng buộc") from exc
+
+
+async def _prepare_bulk_variants(db: SessionDep, variants: list[VariantBulkSave], allow_ids: bool = True) -> list[dict]:
+    prepared: list[dict] = []
+    identities: set[tuple[tuple[str, str], ...]] = set()
+    skus: set[str] = set()
+    incoming_ids: set[uuid.UUID] = set()
+
+    for item in variants:
+        variant_id = None
+        if item.id:
+            if not allow_ids:
+                raise HTTPException(status_code=400, detail="Không truyền ID biến thể khi tạo sản phẩm mới")
+            try:
+                variant_id = uuid.UUID(item.id)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="ID biến thể không hợp lệ")
+            if variant_id in incoming_ids:
+                raise HTTPException(status_code=409, detail="Danh sách biến thể có ID bị trùng")
+            incoming_ids.add(variant_id)
+
+        attrs = _normalize_variant_attributes(item.attributes or {})
+        identity = _variant_identity(attrs)
+        if identity in identities:
+            raise HTTPException(status_code=409, detail="Tổ hợp thuộc tính biến thể bị trùng")
+        identities.add(identity)
+
+        if item.sale_price is not None and item.sale_price >= item.price:
+            raise HTTPException(status_code=400, detail="Giá sale của biến thể phải nhỏ hơn giá gốc")
+
+        clean_sku = item.sku.strip() if item.sku else None
+        if clean_sku:
+            sku_key = clean_sku.lower()
+            if sku_key in skus:
+                raise HTTPException(status_code=409, detail="SKU biến thể bị trùng")
+            skus.add(sku_key)
+
+        prepared.append({
+            "id": variant_id,
+            "sku": clean_sku,
+            "price": item.price,
+            "sale_price": item.sale_price,
+            "stock_qty": item.stock_qty,
+            "attributes": attrs,
+            "is_active": item.is_active,
+        })
+
+    if skus:
+        stmt = select(ProductVariant.id, ProductVariant.sku).where(ProductVariant.sku.in_([p["sku"] for p in prepared if p["sku"]]))
+        if incoming_ids:
+            stmt = stmt.where(ProductVariant.id.not_in(incoming_ids))
+        conflicts = (await db.execute(stmt)).all()
+        if conflicts:
+            raise HTTPException(status_code=409, detail=f"SKU biến thể đã tồn tại: {conflicts[0].sku}")
+
+    return prepared
+
+
+async def _remove_or_deactivate_variant(db: SessionDep, variant: ProductVariant) -> None:
+    order_refs = (await db.execute(
+        select(func.count(OrderItem.id)).where(OrderItem.variant_id == variant.id)
+    )).scalar_one()
+    await db.execute(delete(CartItem).where(CartItem.variant_id == variant.id))
+    if order_refs:
+        variant.is_active = False
+        variant.stock_qty = 0
+    else:
+        await db.delete(variant)
+
+
+async def _commit_or_raise_conflict(db: SessionDep) -> None:
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        _raise_product_conflict(exc)
 
 
 # ─── Product CRUD ─────────────────────────────────────────────────────────────
@@ -141,9 +327,14 @@ async def admin_list_products(
 
 @router.post("/products")
 async def admin_create_product(product_in: ProductCreate, db: SessionDep, _admin: AdminUser) -> Any:
+    await _ensure_product_slug_available(db, product_in.slug)
     product = Product(**product_in.model_dump())
     db.add(product)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        _raise_product_conflict(exc)
     await db.refresh(product)
     # AI-08: reindex embedding (fire-and-forget, non-blocking)
     asyncio.create_task(_safe_reindex(product))
@@ -157,6 +348,34 @@ async def admin_create_product(product_in: ProductCreate, db: SessionDep, _admin
     }
 
 
+@router.post("/products/full")
+async def admin_create_product_full(body: ProductFullCreate, db: SessionDep, _admin: AdminUser) -> Any:
+    await _ensure_product_slug_available(db, body.product.slug)
+    prepared_variants = await _prepare_bulk_variants(db, body.variants, allow_ids=False)
+
+    product = Product(**body.product.model_dump())
+    db.add(product)
+    await db.flush()
+
+    for variant_data in prepared_variants:
+        variant_data = {k: v for k, v in variant_data.items() if k != "id"}
+        db.add(ProductVariant(product_id=product.id, **variant_data))
+
+    if prepared_variants:
+        await db.flush()
+        await _sync_parent_variant_stock(db, product.id)
+
+    await _commit_or_raise_conflict(db)
+    await db.refresh(product)
+    asyncio.create_task(_safe_reindex(product))
+    return {
+        "id": str(product.id),
+        "name": product.name,
+        "slug": product.slug,
+        "variants_count": len(prepared_variants),
+    }
+
+
 @router.put("/products/{product_id}")
 async def admin_update_product(product_id: str, product_in: ProductUpdate, db: SessionDep, _admin: AdminUser) -> Any:
     result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))
@@ -164,18 +383,78 @@ async def admin_update_product(product_id: str, product_in: ProductUpdate, db: S
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
     update_data = product_in.model_dump(exclude_unset=True)
+    if "slug" in update_data:
+        await _ensure_product_slug_available(db, update_data["slug"], product.id)
     needs_reindex = bool(
         update_data.keys() & {"name", "description", "brand", "target_species"}
     )
     for field, value in update_data.items():
         setattr(product, field, value)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        _raise_product_conflict(exc)
     await db.refresh(product)
     ai_suggestion: dict = {}
     if needs_reindex:
         asyncio.create_task(_safe_reindex(product))
         ai_suggestion = await suggest_product_tags(product.name, product.description or "")
     return {"id": str(product.id), "name": product.name, "ai_suggestion": ai_suggestion}
+
+
+@router.put("/products/{product_id}/full")
+async def admin_update_product_full(product_id: str, body: ProductFullUpdate, db: SessionDep, _admin: AdminUser) -> Any:
+    product_uuid = uuid.UUID(product_id)
+    result = await db.execute(
+        select(Product)
+        .where(Product.id == product_uuid)
+        .options(selectinload(Product.variants))
+    )
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
+
+    update_data = body.product.model_dump(exclude_unset=True)
+    if "slug" in update_data:
+        await _ensure_product_slug_available(db, update_data["slug"], product.id)
+
+    prepared_variants = await _prepare_bulk_variants(db, body.variants)
+    existing_by_id = {v.id: v for v in product.variants}
+    seen_ids: set[uuid.UUID] = set()
+
+    for field, value in update_data.items():
+        setattr(product, field, value)
+
+    for variant_data in prepared_variants:
+        variant_id = variant_data.pop("id")
+        if variant_id:
+            variant = existing_by_id.get(variant_id)
+            if not variant:
+                raise HTTPException(status_code=404, detail="Biến thể không thuộc sản phẩm này")
+            seen_ids.add(variant_id)
+            for field, value in variant_data.items():
+                setattr(variant, field, value)
+        else:
+            db.add(ProductVariant(product_id=product.id, **variant_data))
+
+    for variant in product.variants:
+        if variant.id not in seen_ids:
+            await _remove_or_deactivate_variant(db, variant)
+
+    await db.flush()
+    await _sync_parent_variant_stock(db, product.id)
+    await _commit_or_raise_conflict(db)
+    await db.refresh(product)
+
+    if update_data.keys() & {"name", "description", "brand", "target_species"}:
+        asyncio.create_task(_safe_reindex(product))
+
+    return {
+        "id": str(product.id),
+        "name": product.name,
+        "variants_count": len(prepared_variants),
+    }
 
 
 @router.delete("/products/{product_id}")
@@ -323,8 +602,21 @@ async def admin_create_variant(product_id: str, variant_in: VariantCreate, db: S
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
-    variant = ProductVariant(product_id=product.id, **variant_in.dict())
+    payload = variant_in.model_dump()
+    payload["attributes"] = await _validate_variant_candidate(
+        db=db,
+        product_id=product.id,
+        attrs=payload.get("attributes") or {},
+        price=payload["price"],
+        sale_price=payload.get("sale_price"),
+        sku=payload.get("sku"),
+    )
+    if payload.get("sku"):
+        payload["sku"] = payload["sku"].strip()
+    variant = ProductVariant(product_id=product.id, **payload)
     db.add(variant)
+    await db.flush()
+    await _sync_parent_variant_stock(db, product.id)
     await db.commit()
     # Reload with images relationship for _variant_dict
     result = await db.execute(
@@ -346,8 +638,29 @@ async def admin_update_variant(product_id: str, variant_id: str, variant_in: Var
     variant = result.scalar_one_or_none()
     if not variant:
         raise HTTPException(status_code=404, detail="Không tìm thấy biến thể")
-    for field, value in variant_in.dict(exclude_unset=True).items():
+    update_data = variant_in.model_dump(exclude_unset=True)
+    candidate_attrs = update_data.get("attributes", variant.attributes or {})
+    candidate_price = update_data.get("price", float(variant.price))
+    candidate_sale_price = update_data.get(
+        "sale_price",
+        float(variant.sale_price) if variant.sale_price is not None else None,
+    )
+    candidate_sku = update_data.get("sku", variant.sku)
+    if "attributes" in update_data or "price" in update_data or "sale_price" in update_data or "sku" in update_data:
+        update_data["attributes"] = await _validate_variant_candidate(
+            db=db,
+            product_id=variant.product_id,
+            attrs=candidate_attrs,
+            price=candidate_price,
+            sale_price=candidate_sale_price,
+            sku=candidate_sku,
+            variant_id=variant.id,
+        )
+        if candidate_sku:
+            update_data["sku"] = candidate_sku.strip()
+    for field, value in update_data.items():
         setattr(variant, field, value)
+    await _sync_parent_variant_stock(db, variant.product_id)
     await db.commit()
     return _variant_dict(variant)
 
@@ -363,9 +676,20 @@ async def admin_delete_variant(product_id: str, variant_id: str, db: SessionDep,
     variant = result.scalar_one_or_none()
     if not variant:
         raise HTTPException(status_code=404, detail="Không tìm thấy biến thể")
-    await db.delete(variant)
+    order_refs = (await db.execute(
+        select(func.count(OrderItem.id)).where(OrderItem.variant_id == variant.id)
+    )).scalar_one()
+    await db.execute(delete(CartItem).where(CartItem.variant_id == variant.id))
+    if order_refs:
+        variant.is_active = False
+        variant.stock_qty = 0
+        message = "Biến thể đã có đơn hàng nên được ẩn thay vì xóa"
+    else:
+        await db.delete(variant)
+        message = "Đã xóa"
+    await _sync_parent_variant_stock(db, uuid.UUID(product_id))
     await db.commit()
-    return {"message": "Đã xóa"}
+    return {"message": message}
 
 
 @router.post("/products/{product_id}/variants/{variant_id}/image")
@@ -403,8 +727,10 @@ async def admin_upload_variant_image(product_id: str, variant_id: str, db: Sessi
 @router.post("/products/{product_id}/attr-images")
 async def admin_upload_attr_image(
     product_id: str, db: SessionDep, _admin: AdminUser,
-    attr_key: str = "", attr_value: str = "", file: UploadFile = File(...),
+    attr_key: str = Form(""), attr_value: str = Form(""), file: UploadFile = File(...),
 ) -> Any:
+    attr_key = attr_key.strip()
+    attr_value = attr_value.strip()
     if not attr_key or not attr_value:
         raise HTTPException(status_code=400, detail="attr_key và attr_value là bắt buộc")
     result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))

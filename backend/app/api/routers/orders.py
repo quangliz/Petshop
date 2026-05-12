@@ -2,13 +2,13 @@ from typing import Any, List
 from fastapi import APIRouter, HTTPException
 import uuid
 import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import SessionDep, CurrentUser, OptionalUser
 from app.models.commerce import Cart, CartItem, Order, OrderItem, OrderStatusEnum, PaymentMethodEnum, PaymentStatusEnum
-from app.models.catalog import Product
+from app.models.catalog import Product, ProductVariant
 
 router = APIRouter()
 
@@ -24,7 +24,8 @@ class CheckoutRequest(BaseModel):
 
 class GuestCartItem(BaseModel):
     product_id: str
-    quantity: int
+    variant_id: str | None = None
+    quantity: int = Field(ge=1)
 
 
 class GuestCheckoutRequest(BaseModel):
@@ -51,12 +52,86 @@ def generate_order_code() -> str:
     return "ORD-" + uuid.uuid4().hex[:12].upper()
 
 
+def _variant_label(attrs: dict | None) -> str:
+    if not attrs:
+        return ""
+    return " / ".join(f"{k}: {v}" for k, v in attrs.items())
+
+
+def _snapshot_name(product: Product, variant: ProductVariant | None) -> str:
+    label = _variant_label(variant.attributes if variant else None)
+    return f"{product.name} ({label})" if label else product.name
+
+
+def _line_price(product: Product, variant: ProductVariant | None) -> float:
+    if variant:
+        return float(variant.sale_price if variant.sale_price else variant.price)
+    return float(product.sale_price if product.sale_price else product.price)
+
+
+def _item_response(oi: OrderItem) -> dict:
+    return {
+        "product_name": oi.product_name_snapshot,
+        "product_id": str(oi.product_id) if oi.product_id else None,
+        "variant_id": str(oi.variant_id) if oi.variant_id else None,
+        "variant_sku": oi.variant_sku_snapshot,
+        "variant_attributes": oi.variant_attributes_snapshot,
+        "quantity": oi.quantity,
+        "price": float(oi.unit_price_snapshot),
+    }
+
+
+async def _load_locked_products_and_variants(db, product_ids: list[uuid.UUID], variant_ids: list[uuid.UUID]) -> tuple[dict, dict]:
+    result = await db.execute(
+        select(Product)
+        .where(Product.id.in_(product_ids))
+        .options(selectinload(Product.variants))
+        .with_for_update()
+    )
+    products = result.scalars().all()
+    product_map = {p.id: p for p in products}
+
+    variant_map = {}
+    if variant_ids:
+        result = await db.execute(
+            select(ProductVariant)
+            .where(ProductVariant.id.in_(variant_ids))
+            .with_for_update()
+        )
+        variant_map = {v.id: v for v in result.scalars().all()}
+    return product_map, variant_map
+
+
+def _resolve_order_line(product: Product | None, variant: ProductVariant | None, quantity: int) -> tuple[Product, ProductVariant | None, float]:
+    if quantity <= 0:
+        raise HTTPException(status_code=400, detail="Số lượng không hợp lệ")
+    if not product or not product.is_active:
+        raise HTTPException(status_code=400, detail="Sản phẩm không còn bán.")
+    active_variants = [v for v in product.variants if v.is_active]
+    if active_variants and not variant:
+        raise HTTPException(status_code=400, detail=f"Vui lòng chọn phân loại cho {product.name}.")
+    if variant:
+        if variant.product_id != product.id or not variant.is_active:
+            raise HTTPException(status_code=400, detail=f"Biến thể của {product.name} không còn bán.")
+        if quantity > variant.stock_qty:
+            raise HTTPException(status_code=400, detail=f"Sản phẩm {product.name} không đủ tồn kho.")
+        variant.stock_qty -= quantity
+    else:
+        if quantity > product.stock_qty:
+            raise HTTPException(status_code=400, detail=f"Sản phẩm {product.name} không đủ tồn kho.")
+        product.stock_qty -= quantity
+    return product, variant, _line_price(product, variant)
+
+
 @router.post("/checkout", response_model=OrderResponseLocal)
 async def checkout(req: CheckoutRequest, db: SessionDep, current_user: CurrentUser) -> Any:
     result = await db.execute(
         select(Cart)
         .where(Cart.user_id == current_user.id)
-        .options(selectinload(Cart.cart_items).selectinload(CartItem.product))
+        .options(
+            selectinload(Cart.cart_items).selectinload(CartItem.product).selectinload(Product.variants),
+            selectinload(Cart.cart_items).selectinload(CartItem.variant),
+        )
     )
     cart = result.scalar_one_or_none()
     if not cart or not cart.cart_items:
@@ -74,28 +149,22 @@ async def checkout(req: CheckoutRequest, db: SessionDep, current_user: CurrentUs
     subtotal = 0.0
     order_items_to_create = []
 
-    product_ids = [item.product_id for item in selected_items]
-    result = await db.execute(
-        select(Product).where(Product.id.in_(product_ids)).with_for_update()
-    )
-    products = result.scalars().all()
-    product_map = {p.id: p for p in products}
+    product_ids = list({item.product_id for item in selected_items})
+    variant_ids = list({item.variant_id for item in selected_items if item.variant_id})
+    product_map, variant_map = await _load_locked_products_and_variants(db, product_ids, variant_ids)
 
     for item in selected_items:
         prod = product_map.get(item.product_id)
-        if not prod or not prod.is_active:
-            raise HTTPException(status_code=400, detail=f"Sản phẩm {item.product.name} không còn bán.")
-        if item.quantity > prod.stock_qty:
-            raise HTTPException(status_code=400, detail=f"Sản phẩm {prod.name} không đủ tồn kho.")
-
-        prod.stock_qty -= item.quantity
-
-        price = float(prod.sale_price if prod.sale_price else prod.price)
+        variant = variant_map.get(item.variant_id) if item.variant_id else None
+        prod, variant, price = _resolve_order_line(prod, variant, item.quantity)
         subtotal += price * item.quantity
 
         order_items_to_create.append(OrderItem(
             product_id=prod.id,
-            product_name_snapshot=prod.name,
+            variant_id=variant.id if variant else None,
+            product_name_snapshot=_snapshot_name(prod, variant),
+            variant_sku_snapshot=variant.sku if variant else None,
+            variant_attributes_snapshot=variant.attributes if variant else None,
             unit_price_snapshot=price,
             quantity=item.quantity,
         ))
@@ -143,12 +212,9 @@ async def guest_checkout(req: GuestCheckoutRequest, db: SessionDep) -> Any:
     if not req.items:
         raise HTTPException(status_code=400, detail="Không có sản phẩm nào")
 
-    product_ids = [uuid.UUID(i.product_id) for i in req.items]
-    result = await db.execute(
-        select(Product).where(Product.id.in_(product_ids)).with_for_update()
-    )
-    products = result.scalars().all()
-    product_map = {p.id: p for p in products}
+    product_ids = list({uuid.UUID(i.product_id) for i in req.items})
+    variant_ids = list({uuid.UUID(i.variant_id) for i in req.items if i.variant_id})
+    product_map, variant_map = await _load_locked_products_and_variants(db, product_ids, variant_ids)
 
     pm = PaymentMethodEnum.vnpay if req.payment_method == 'vnpay' else PaymentMethodEnum.cod
     subtotal = 0.0
@@ -157,17 +223,15 @@ async def guest_checkout(req: GuestCheckoutRequest, db: SessionDep) -> Any:
     for item in req.items:
         pid = uuid.UUID(item.product_id)
         prod = product_map.get(pid)
-        if not prod or not prod.is_active:
-            raise HTTPException(status_code=400, detail="Sản phẩm không còn bán.")
-        if item.quantity > prod.stock_qty:
-            raise HTTPException(status_code=400, detail=f"Sản phẩm {prod.name} không đủ tồn kho.")
-
-        prod.stock_qty -= item.quantity
-        price = float(prod.sale_price if prod.sale_price else prod.price)
+        variant = variant_map.get(uuid.UUID(item.variant_id)) if item.variant_id else None
+        prod, variant, price = _resolve_order_line(prod, variant, item.quantity)
         subtotal += price * item.quantity
         order_items_to_create.append(OrderItem(
             product_id=prod.id,
-            product_name_snapshot=prod.name,
+            variant_id=variant.id if variant else None,
+            product_name_snapshot=_snapshot_name(prod, variant),
+            variant_sku_snapshot=variant.sku if variant else None,
+            variant_attributes_snapshot=variant.attributes if variant else None,
             unit_price_snapshot=price,
             quantity=item.quantity,
         ))
@@ -257,14 +321,7 @@ async def guest_order_lookup(
             detail="Không tìm thấy đơn hàng với thông tin đã nhập."
         )
 
-    items = [
-        {
-            "product_name": oi.product_name_snapshot,
-            "quantity": oi.quantity,
-            "price": float(oi.unit_price_snapshot),
-        }
-        for oi in order.order_items
-    ]
+    items = [_item_response(oi) for oi in order.order_items]
 
     return {
         "id": str(order.id),
@@ -299,14 +356,7 @@ async def get_order_detail(order_id: str, db: SessionDep, current_user: Optional
         if current_user is None or order.user_id != current_user.id:
             raise HTTPException(status_code=404, detail="Không tìm thấy")
 
-    items = [
-        {
-            "product_name": oi.product_name_snapshot,
-            "quantity": oi.quantity,
-            "price": float(oi.unit_price_snapshot),
-        }
-        for oi in order.order_items
-    ]
+    items = [_item_response(oi) for oi in order.order_items]
 
     return {
         "id": str(order.id),
@@ -339,18 +389,33 @@ async def cancel_order(order_id: str, db: SessionDep, current_user: CurrentUser)
     if order.status != OrderStatusEnum.pending:
         raise HTTPException(status_code=400, detail="Chỉ có thể huỷ đơn hàng đang chờ xử lý")
 
-    product_ids = [oi.product_id for oi in order.order_items]
+    product_ids = [oi.product_id for oi in order.order_items if oi.product_id]
+    variant_ids = [oi.variant_id for oi in order.order_items if oi.variant_id]
     if product_ids:
         result = await db.execute(
             select(Product).where(Product.id.in_(product_ids)).with_for_update()
         )
         products = result.scalars().all()
         product_map = {p.id: p for p in products}
+    else:
+        product_map = {}
 
-        for oi in order.order_items:
-            prod = product_map.get(oi.product_id)
-            if prod:
-                prod.stock_qty += oi.quantity
+    if variant_ids:
+        result = await db.execute(
+            select(ProductVariant).where(ProductVariant.id.in_(variant_ids)).with_for_update()
+        )
+        variant_map = {v.id: v for v in result.scalars().all()}
+    else:
+        variant_map = {}
+
+    for oi in order.order_items:
+        variant = variant_map.get(oi.variant_id)
+        if variant:
+            variant.stock_qty += oi.quantity
+            continue
+        prod = product_map.get(oi.product_id)
+        if prod:
+            prod.stock_qty += oi.quantity
 
     order.status = OrderStatusEnum.cancelled
     await db.commit()

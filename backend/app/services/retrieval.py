@@ -4,6 +4,7 @@ from typing import List, Optional
 from app.services.embeddings import embed_query_cached
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.models.catalog import Product
 from app.services.embeddings import get_products_store, get_knowledge_store
@@ -53,7 +54,9 @@ async def search_products(
         return []
 
     result = await db.execute(
-        select(Product).where(Product.slug.in_(ordered_slugs), Product.is_active)
+        select(Product)
+        .where(Product.slug.in_(ordered_slugs), Product.is_active)
+        .options(selectinload(Product.variants))
     )
     products = result.scalars().all()
     by_slug = {p.slug: p for p in products}
@@ -62,6 +65,7 @@ async def search_products(
         p = by_slug.get(slug)
         if not p:
             continue
+        active_variants = [v for v in p.variants if v.is_active]
         out.append({
             "id": str(p.id),
             "slug": p.slug,
@@ -69,6 +73,8 @@ async def search_products(
             "brand": p.brand,
             "price": float(p.price),
             "sale_price": float(p.sale_price) if p.sale_price else None,
+            "stock_qty": sum(v.stock_qty for v in active_variants) if active_variants else p.stock_qty,
+            "has_variants": bool(active_variants),
             "thumbnail_url": p.images.get("main") if p.images else None,
             "target_species": p.target_species,
             "score": score_by_slug.get(slug),
