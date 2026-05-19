@@ -22,7 +22,12 @@ router = APIRouter()
 async def list_banners(db: SessionDep) -> Any:
     result = await db.execute(
         select(Banner)
-        .where(Banner.is_active, Banner.image_url != "")
+        .where(
+            Banner.is_active,
+            (Banner.desktop_image_url != "")
+            | (Banner.mobile_image_url != "")
+            | (Banner.image_url != ""),
+        )
         .order_by(Banner.sort_order)
     )
     banners = result.scalars().all()
@@ -30,7 +35,9 @@ async def list_banners(db: SessionDep) -> Any:
         "items": [
             {
                 "id": b.id,
-                "image_url": b.image_url,
+                "image_url": b.desktop_image_url or b.mobile_image_url or b.image_url,
+                "desktop_image_url": b.desktop_image_url or b.image_url or b.mobile_image_url,
+                "mobile_image_url": b.mobile_image_url or b.desktop_image_url or b.image_url,
                 "title": b.title,
                 "subtitle": b.subtitle,
                 "link_url": b.link_url,

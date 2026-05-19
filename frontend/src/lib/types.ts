@@ -96,6 +96,8 @@ export interface Order {
 export interface Banner {
   id: number;
   image_url: string;
+  desktop_image_url?: string | null;
+  mobile_image_url?: string | null;
   title?: string | null;
   subtitle?: string | null;
   link_url?: string | null;

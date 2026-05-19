@@ -24,6 +24,8 @@ class Banner(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     image_url: Mapped[str] = mapped_column(String)
+    desktop_image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    mobile_image_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     title: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     subtitle: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     link_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)

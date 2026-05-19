@@ -14,7 +14,8 @@ import { AdminTableRowsSkeleton } from "@/components/skeletons/AdminSkeletons";
 export default function AdminBannersPage() {
   const queryClient = useQueryClient();
   const [modal, setModal] = useState<{ open: boolean; banner?: Banner }>({ open: false });
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [desktopImageFile, setDesktopImageFile] = useState<File | null>(null);
+  const [mobileImageFile, setMobileImageFile] = useState<File | null>(null);
   const [form, setForm] = useState({
     title: "",
     subtitle: "",
@@ -33,7 +34,8 @@ export default function AdminBannersPage() {
 
   const openCreate = () => {
     setForm({ title: "", subtitle: "", link_url: "", sort_order: 0, is_active: true });
-    setImageFile(null);
+    setDesktopImageFile(null);
+    setMobileImageFile(null);
     setModal({ open: true });
   };
 
@@ -45,28 +47,28 @@ export default function AdminBannersPage() {
       sort_order: b.sort_order ?? 0,
       is_active: b.is_active ?? true,
     });
-    setImageFile(null);
+    setDesktopImageFile(null);
+    setMobileImageFile(null);
     setModal({ open: true, banner: b });
   };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload = { ...form };
+      const uploadImage = async (bannerId: number, file: File, kind: "desktop" | "mobile") => {
+        const fd = new FormData();
+        fd.append("file", file);
+        await api.post(`/admin/banners/${bannerId}/image?kind=${kind}`, fd);
+      };
       if (modal.banner) {
         await api.put(`/admin/banners/${modal.banner.id}`, payload);
-        if (imageFile) {
-          const fd = new FormData();
-          fd.append("file", imageFile);
-          await api.post(`/admin/banners/${modal.banner.id}/image`, fd);
-        }
+        if (desktopImageFile) await uploadImage(modal.banner.id, desktopImageFile, "desktop");
+        if (mobileImageFile) await uploadImage(modal.banner.id, mobileImageFile, "mobile");
       } else {
         const res = await api.post("/admin/banners", payload);
         const bannerId = res.data.id;
-        if (imageFile) {
-          const fd = new FormData();
-          fd.append("file", imageFile);
-          await api.post(`/admin/banners/${bannerId}/image`, fd);
-        }
+        if (desktopImageFile) await uploadImage(bannerId, desktopImageFile, "desktop");
+        if (mobileImageFile) await uploadImage(bannerId, mobileImageFile, "mobile");
       }
     },
     onSuccess: () => {
@@ -117,14 +119,24 @@ export default function AdminBannersPage() {
             {banners.map((b) => (
               <tr key={b.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3">
-                  {b.image_url ? (
-                    <div className="relative w-[120px] h-[50px] rounded overflow-hidden">
-                      <Image
-                        src={b.image_url}
-                        alt={b.title ?? ""}
-                        fill
-                        className="object-cover"
-                      />
+                  {(b.desktop_image_url || b.mobile_image_url || b.image_url) ? (
+                    <div className="flex gap-2">
+                      <div className="relative w-[96px] h-[25px] rounded overflow-hidden bg-gray-100">
+                        <Image
+                          src={b.desktop_image_url || b.mobile_image_url || b.image_url}
+                          alt={b.title ?? ""}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="relative w-[44px] h-[33px] rounded overflow-hidden bg-gray-100">
+                        <Image
+                          src={b.mobile_image_url || b.desktop_image_url || b.image_url}
+                          alt={b.title ?? ""}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
                     </div>
                   ) : (
                     <div className="w-[120px] h-[50px] bg-gray-100 rounded flex items-center justify-center text-gray-300">
@@ -183,16 +195,36 @@ export default function AdminBannersPage() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <Label>Ảnh banner</Label>
+                <Label>Ảnh desktop 19:5</Label>
                 <Input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) => setDesktopImageFile(e.target.files?.[0] ?? null)}
                 />
-                {modal.banner?.image_url && !imageFile && (
-                  <div className="relative w-full h-[120px] mt-2 rounded overflow-hidden">
+                <p className="mt-1 text-xs text-gray-500">Dùng cho tablet/desktop. Nếu thiếu, hệ thống dùng ảnh 4:3.</p>
+                {modal.banner?.desktop_image_url && !desktopImageFile && (
+                  <div className="relative w-full aspect-[19/5] mt-2 rounded overflow-hidden bg-gray-100">
                     <Image
-                      src={modal.banner.image_url}
+                      src={modal.banner.desktop_image_url}
+                      alt="preview desktop"
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+              </div>
+              <div>
+                <Label>Ảnh mobile 4:3</Label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setMobileImageFile(e.target.files?.[0] ?? null)}
+                />
+                <p className="mt-1 text-xs text-gray-500">Dùng cho màn hình nhỏ. Nếu thiếu, hệ thống dùng ảnh 19:5.</p>
+                {modal.banner?.mobile_image_url && !mobileImageFile && (
+                  <div className="relative w-full max-w-[240px] aspect-[4/3] mt-2 rounded overflow-hidden bg-gray-100">
+                    <Image
+                      src={modal.banner.mobile_image_url}
                       alt="preview"
                       fill
                       className="object-cover"

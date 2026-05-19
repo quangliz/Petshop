@@ -23,6 +23,7 @@ coverage.xml
 *.egg-info/
 dist/
 build/
+scripts/
 
 # ── Node / Next.js ─────────────────────────────
 node_modules/

@@ -35,6 +35,8 @@ def _banner_dict(b: Banner) -> dict:
     return {
         "id": b.id,
         "image_url": b.image_url,
+        "desktop_image_url": b.desktop_image_url,
+        "mobile_image_url": b.mobile_image_url,
         "title": b.title,
         "subtitle": b.subtitle,
         "link_url": b.link_url,
@@ -97,17 +99,29 @@ async def admin_delete_banner(
 @router.post("/banners/{banner_id}/image")
 async def admin_upload_banner_image(
     banner_id: int, db: SessionDep, _admin: AdminUser,
+    kind: str = "desktop",
     file: UploadFile = File(...),
 ) -> Any:
     result = await db.execute(select(Banner).where(Banner.id == banner_id))
     banner = result.scalar_one_or_none()
     if not banner:
         raise HTTPException(status_code=404, detail="Không tìm thấy banner")
+    if kind not in {"desktop", "mobile"}:
+        raise HTTPException(status_code=400, detail="Loại ảnh banner không hợp lệ")
     try:
         upload_result = cloudinary.uploader.upload(file.file, folder="petshop/banners")
         url = upload_result.get("secure_url")
-        banner.image_url = url
+        if kind == "mobile":
+            banner.mobile_image_url = url
+        else:
+            banner.desktop_image_url = url
+        banner.image_url = banner.desktop_image_url or banner.mobile_image_url or url
         await db.commit()
-        return {"id": banner.id, "image_url": url}
+        return {
+            "id": banner.id,
+            "image_url": banner.image_url,
+            "desktop_image_url": banner.desktop_image_url,
+            "mobile_image_url": banner.mobile_image_url,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
