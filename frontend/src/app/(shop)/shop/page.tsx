@@ -6,7 +6,7 @@ import { addToGuestCart } from '@/lib/guestCart';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
-import { ChevronRight, Star, ShoppingCart, Filter as FilterIcon, Check, SearchX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Star, ShoppingCart, Filter as FilterIcon, Check, SearchX } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import Image from 'next/image';
 import { Product, Category } from '@/lib/types';
@@ -20,28 +20,25 @@ type BrandFacet = { name: string; product_count: number };
 type PaginationItem = number | "ellipsis-start" | "ellipsis-end";
 
 const getPaginationItems = (currentPage: number, totalPages: number): PaginationItem[] => {
-  if (totalPages <= 7) {
+  if (totalPages <= 6) {
     return Array.from({ length: totalPages }, (_, i) => i + 1);
   }
 
-  const pages = new Set([1, totalPages, currentPage, currentPage - 1, currentPage + 1]);
-  if (currentPage <= 4) {
-    [2, 3, 4, 5].forEach(page => pages.add(page));
-  }
-  if (currentPage >= totalPages - 3) {
-    [totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1].forEach(page => pages.add(page));
+  const pages = new Set([1, totalPages]);
+  for (let page = currentPage - 1; page <= currentPage + 1; page += 1) {
+    if (page >= 1 && page <= totalPages) pages.add(page);
   }
 
   const sortedPages = Array.from(pages)
     .filter(page => page >= 1 && page <= totalPages)
     .sort((a, b) => a - b);
 
-  return sortedPages.flatMap((page, index) => {
+  return sortedPages.flatMap((pageNumber, index) => {
     const previous = sortedPages[index - 1];
-    if (previous && page - previous > 1) {
-      return [page < currentPage ? "ellipsis-start" : "ellipsis-end", page] as PaginationItem[];
+    if (previous && pageNumber - previous > 1) {
+      return [pageNumber < currentPage ? "ellipsis-start" : "ellipsis-end", pageNumber] as PaginationItem[];
     }
-    return [page];
+    return [pageNumber];
   });
 };
 
@@ -275,7 +272,7 @@ function ShopListing() {
   const paginationItems = getPaginationItems(page, data.pages);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 py-8">
+    <div className="w-full max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 py-8 overflow-x-hidden">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-[13px] text-neutral-500 mb-6">
         <Link href="/" className="text-inherit no-underline hover:text-neutral-900 transition-colors">Trang chủ</Link>
@@ -298,7 +295,7 @@ function ShopListing() {
                   <FilterIcon size={16} /> Lọc
                 </button>
               } />
-              <SheetContent side="right" className="p-0 overflow-y-auto w-[300px]">
+              <SheetContent side="right" className="p-0 overflow-y-auto w-[300px] max-w-[calc(100vw-24px)]">
                 <SheetTitle className="sr-only">Bộ lọc</SheetTitle>
                 <FilterSidebar className="pb-4"
                   categories={facets?.categories || []} brands={facets?.brands || []}
@@ -333,7 +330,7 @@ function ShopListing() {
           />
         </aside>
 
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {data.items.map((prod: Product) => (
               <ProductCard
@@ -357,20 +354,22 @@ function ShopListing() {
           </div>
 
           {data.pages > 1 && (
-            <div className="flex justify-center gap-2 mt-14">
+            <div className="flex flex-nowrap justify-center gap-1 sm:gap-2 mt-14 max-w-full overflow-hidden">
               <button
-                className="h-11 px-5 rounded-[10px] border border-neutral-100 bg-white text-neutral-700 text-[13px] font-semibold disabled:opacity-40 cursor-pointer hover:bg-neutral-50 transition-colors"
+                className="h-9 w-8 sm:h-11 sm:w-auto sm:px-5 rounded-[10px] border border-neutral-100 bg-white text-neutral-700 text-[12px] sm:text-[13px] font-semibold disabled:opacity-40 cursor-pointer hover:bg-neutral-50 transition-colors inline-flex items-center justify-center gap-1 shrink-0"
                 disabled={page <= 1}
                 onClick={() => setPage(p => p - 1)}
+                aria-label="Trang trước"
               >
-                Trang trước
+                <ChevronLeft size={15} />
+                <span className="hidden sm:inline">Trang trước</span>
               </button>
               {paginationItems.map(item => (
                 typeof item === "number" ? (
                   <button
                     key={item}
                     onClick={() => setPage(item)}
-                    className={`min-w-[44px] min-h-[44px] rounded-[10px] border border-neutral-100 text-[13px] font-semibold cursor-pointer transition-all duration-[120ms] ease-[ease] ${
+                    className={`min-w-8 min-h-9 sm:min-w-[44px] sm:min-h-[44px] rounded-[10px] border border-neutral-100 text-[12px] sm:text-[13px] font-semibold cursor-pointer transition-all duration-[120ms] ease-[ease] shrink-0 ${
                       page === item ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700 hover:bg-neutral-50'
                     }`}
                   >
@@ -379,18 +378,20 @@ function ShopListing() {
                 ) : (
                   <span
                     key={item}
-                    className="min-w-[32px] h-11 flex items-center justify-center text-[13px] font-semibold text-neutral-400"
+                    className="min-w-3 sm:min-w-[32px] h-9 sm:h-11 flex items-center justify-center text-[12px] sm:text-[13px] font-semibold text-neutral-400 shrink-0"
                   >
                     ...
                   </span>
                 )
               ))}
               <button
-                className="h-11 px-5 rounded-[10px] border border-neutral-100 bg-white text-neutral-700 text-[13px] font-semibold disabled:opacity-40 cursor-pointer hover:bg-neutral-50 transition-colors"
+                className="h-9 w-8 sm:h-11 sm:w-auto sm:px-5 rounded-[10px] border border-neutral-100 bg-white text-neutral-700 text-[12px] sm:text-[13px] font-semibold disabled:opacity-40 cursor-pointer hover:bg-neutral-50 transition-colors inline-flex items-center justify-center gap-1 shrink-0"
                 disabled={page >= data.pages}
                 onClick={() => setPage(p => p + 1)}
+                aria-label="Trang sau"
               >
-                Trang sau
+                <span className="hidden sm:inline">Trang sau</span>
+                <ChevronRight size={15} />
               </button>
             </div>
           )}
