@@ -5,7 +5,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import jwt, JWTError
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 
 from app.api.deps import SessionDep, CurrentUser
@@ -28,8 +28,8 @@ REFRESH_COOKIE_MAX_AGE = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
 
 class UserRegister(BaseModel):
     email: EmailStr
-    password: str
-    full_name: str
+    password: str = Field(min_length=8, max_length=128)
+    full_name: str = Field(min_length=1, max_length=100)
 
 
 class Token(BaseModel):
@@ -47,9 +47,9 @@ class UserResponse(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    full_name: Optional[str] = None
-    phone: Optional[str] = None
-    address: Optional[str] = None
+    full_name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    phone: Optional[str] = Field(default=None, max_length=30)
+    address: Optional[str] = Field(default=None, max_length=500)
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -58,12 +58,12 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(min_length=8, max_length=128)
 
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
-    new_password: str
+    new_password: str = Field(min_length=8, max_length=128)
 
 
 def _user_response(user: User) -> dict:
@@ -108,7 +108,7 @@ async def login(request: Request, response: Response, db: SessionDep, form_data:
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,
+        secure=settings.refresh_cookie_secure,
         samesite="lax",
         max_age=REFRESH_COOKIE_MAX_AGE,
         path="/api/v1/auth",
@@ -130,7 +130,7 @@ async def refresh(request: Request, db: SessionDep) -> Any:
         user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=401, detail="Người dùng không tồn tại")
-    except JWTError:
+    except (JWTError, ValueError):
         raise HTTPException(status_code=401, detail="Token không hợp lệ")
     new_access = create_access_token(subject=str(user.id))
     return {"access_token": new_access, "token_type": "bearer"}
@@ -250,7 +250,7 @@ async def google_login(body: GoogleAuthRequest, response: Response, db: SessionD
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,
+        secure=settings.refresh_cookie_secure,
         samesite="lax",
         max_age=REFRESH_COOKIE_MAX_AGE,
         path="/api/v1/auth",

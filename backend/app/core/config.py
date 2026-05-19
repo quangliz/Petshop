@@ -1,15 +1,18 @@
-import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "ThePawsome"
     API_V1_STR: str = "/api/v1"
-    
-    # Ở production, bạn nên override biến này trong file .env
-    SECRET_KEY: str = os.getenv("SECRET_KEY")
+
+    ENVIRONMENT: str = "development"
+    AUTO_CREATE_TABLES: bool = False
+
+    # Must be supplied by the runtime environment.
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    COOKIE_SECURE: bool = False
 
     # Email (Gmail SMTP)
     MAIL_USERNAME: str = ""
@@ -25,6 +28,14 @@ class Settings(BaseSettings):
     def allowed_origins_list(self) -> list[str]:
         """Parse ALLOWED_ORIGINS comma-separated string into a list."""
         return [s.strip() for s in self.ALLOWED_ORIGINS.split(",") if s.strip()]
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.lower() in {"production", "prod"}
+
+    @property
+    def refresh_cookie_secure(self) -> bool:
+        return self.COOKIE_SECURE or self.is_production
 
     # Google OAuth
     GOOGLE_CLIENT_ID: str = ""

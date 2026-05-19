@@ -27,10 +27,19 @@ def _resolve_client_ip(request: Request) -> str:
     return "127.0.0.1"
 
 
+def _parse_vnpay_amount(raw_amount: str | None) -> int | None:
+    try:
+        return int(raw_amount or "")
+    except ValueError:
+        return None
+
+
 @router.post("/vnpay/create/{order_id}", response_model=PaymentUrlResponse)
-async def create_payment_url(order_id: str, request: Request, db: SessionDep, current_user: CurrentUser) -> Any:
+async def create_payment_url(
+    order_id: uuid.UUID, request: Request, db: SessionDep, current_user: CurrentUser
+) -> Any:
     result = await db.execute(
-        select(Order).where(Order.id == uuid.UUID(order_id), Order.user_id == current_user.id)
+        select(Order).where(Order.id == order_id, Order.user_id == current_user.id)
     )
     order = result.scalar_one_or_none()
     if not order:
@@ -63,16 +72,24 @@ async def vnpay_ipn(request: Request, db: SessionDep) -> Any:
     vnp_TransactionNo = params.get('vnp_TransactionNo')
     vnp_Amount = params.get('vnp_Amount')
 
-    result = await db.execute(select(Order).where(Order.order_code == order_code))
+    result = await db.execute(select(Order).where(Order.order_code == order_code).with_for_update())
     order = result.scalar_one_or_none()
     if not order:
         return {"RspCode": "01", "Message": "Order Not Found"}
 
     if order.payment_status == PaymentStatusEnum.paid:
-        return {"RspCode": "02", "Message": "Order already confirmed"}
+        return {"RspCode": "00", "Message": "Order already confirmed"}
 
-    if int(vnp_Amount) != int(order.total) * 100:
+    amount = _parse_vnpay_amount(vnp_Amount)
+    if amount is None or amount != int(order.total) * 100:
         return {"RspCode": "04", "Message": "Invalid Amount"}
+
+    if vnp_TransactionNo:
+        existing_payment = await db.execute(
+            select(Payment).where(Payment.external_txn_id == vnp_TransactionNo)
+        )
+        if existing_payment.scalar_one_or_none():
+            return {"RspCode": "00", "Message": "Transaction already recorded"}
 
     new_payment = Payment(
         order_id=order.id,

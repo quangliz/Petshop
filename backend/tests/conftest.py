@@ -17,6 +17,7 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
+from sqlalchemy.orm import sessionmaker as sessionmaker_cls  # noqa: E402
 
 from app.main import app  # noqa: E402
 from app.database import Base  # noqa: E402
@@ -33,15 +34,25 @@ if not _SYNC_URL:
     _SYNC_URL = f"postgresql://{_u}:{_pw}@{_h}:{_p}/{_d}"
 else:
     _SYNC_URL = _SYNC_URL.replace("postgresql+asyncpg://", "postgresql://")
-_sync_engine = create_engine(_SYNC_URL)
-_SyncSession = sessionmaker(bind=_sync_engine)
+_sync_engine = None
+_SyncSession: sessionmaker_cls | None = None
 
-Base.metadata.create_all(bind=_sync_engine)
+
+def _ensure_test_schema() -> sessionmaker_cls:
+    """Create the test schema lazily, only for tests that actually use the DB."""
+    global _sync_engine, _SyncSession
+    if _sync_engine is None:
+        _sync_engine = create_engine(_SYNC_URL)
+        _SyncSession = sessionmaker(bind=_sync_engine)
+        Base.metadata.create_all(bind=_sync_engine)
+    assert _SyncSession is not None
+    return _SyncSession
 
 
 # ── Shared client ─────────────────────────────────────────────────────────────
 @pytest.fixture(scope="session")
 def client():
+    _ensure_test_schema()
     return TestClient(app)
 
 
@@ -86,7 +97,7 @@ def admin_token(client: TestClient) -> str:
     })
 
     # Use sync engine to set admin role — avoids event loop conflicts with TestClient
-    db = _SyncSession()
+    db = _ensure_test_schema()()
     try:
         user = db.query(User).filter(User.email == TEST_ADMIN_EMAIL).first()
         if user and user.role != RoleEnum.admin:

@@ -1,9 +1,9 @@
 """Admin products — CRUD, images, variants, attr images, AI rewrite."""
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import func, desc, select, delete
 from sqlalchemy.orm import selectinload
 import asyncio
@@ -25,58 +25,98 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+NameStr = Annotated[str, Field(min_length=1, max_length=255)]
+SlugStr = Annotated[str, Field(min_length=1, max_length=255, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")]
+
 
 # ─── Schemas ──────────────────────────────────────────────────────────────────
 class ProductCreate(BaseModel):
-    name: str
-    slug: str
-    price: float
-    sale_price: Optional[float] = None
-    stock_qty: int = 0
-    brand: Optional[str] = None
-    description: Optional[str] = None
+    name: NameStr
+    slug: SlugStr
+    price: float = Field(gt=0)
+    sale_price: Optional[float] = Field(default=None, gt=0)
+    stock_qty: int = Field(default=0, ge=0)
+    brand: Optional[str] = Field(default=None, max_length=100)
+    description: Optional[str] = Field(default=None, max_length=10000)
     category_id: Optional[int] = None
     is_active: bool = True
 
+    @field_validator("name", "slug", "brand", mode="before")
+    @classmethod
+    def _strip_text(cls, value: Optional[str]) -> Optional[str]:
+        return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _validate_prices(self) -> "ProductCreate":
+        _validate_price_pair(self.price, self.sale_price)
+        return self
+
 
 class ProductUpdate(BaseModel):
-    name: Optional[str] = None
-    slug: Optional[str] = None
-    price: Optional[float] = None
-    sale_price: Optional[float] = None
-    stock_qty: Optional[int] = None
-    brand: Optional[str] = None
-    description: Optional[str] = None
+    name: Optional[NameStr] = None
+    slug: Optional[SlugStr] = None
+    price: Optional[float] = Field(default=None, gt=0)
+    sale_price: Optional[float] = Field(default=None, gt=0)
+    stock_qty: Optional[int] = Field(default=None, ge=0)
+    brand: Optional[str] = Field(default=None, max_length=100)
+    description: Optional[str] = Field(default=None, max_length=10000)
     category_id: Optional[int] = None
     is_active: Optional[bool] = None
 
+    @field_validator("name", "slug", "brand", mode="before")
+    @classmethod
+    def _strip_text(cls, value: Optional[str]) -> Optional[str]:
+        return value.strip() if isinstance(value, str) else value
+
+    @model_validator(mode="after")
+    def _validate_prices_when_complete(self) -> "ProductUpdate":
+        if self.price is not None and self.sale_price is not None:
+            _validate_price_pair(self.price, self.sale_price)
+        return self
+
 
 class VariantCreate(BaseModel):
-    sku: Optional[str] = None
+    sku: Optional[str] = Field(default=None, max_length=100)
     price: float = Field(gt=0)
-    sale_price: Optional[float] = None
+    sale_price: Optional[float] = Field(default=None, gt=0)
     stock_qty: int = Field(default=0, ge=0)
     attributes: Optional[dict] = None
     is_active: bool = True
 
+    @model_validator(mode="after")
+    def _validate_prices(self) -> "VariantCreate":
+        _validate_price_pair(self.price, self.sale_price)
+        return self
+
 
 class VariantUpdate(BaseModel):
-    sku: Optional[str] = None
+    sku: Optional[str] = Field(default=None, max_length=100)
     price: Optional[float] = Field(default=None, gt=0)
-    sale_price: Optional[float] = None
+    sale_price: Optional[float] = Field(default=None, gt=0)
     stock_qty: Optional[int] = Field(default=None, ge=0)
     attributes: Optional[dict] = None
     is_active: Optional[bool] = None
 
+    @model_validator(mode="after")
+    def _validate_prices_when_complete(self) -> "VariantUpdate":
+        if self.price is not None and self.sale_price is not None:
+            _validate_price_pair(self.price, self.sale_price)
+        return self
+
 
 class VariantBulkSave(BaseModel):
     id: Optional[str] = None
-    sku: Optional[str] = None
+    sku: Optional[str] = Field(default=None, max_length=100)
     price: float = Field(gt=0)
-    sale_price: Optional[float] = None
+    sale_price: Optional[float] = Field(default=None, gt=0)
     stock_qty: int = Field(default=0, ge=0)
     attributes: Optional[dict] = None
     is_active: bool = True
+
+    @model_validator(mode="after")
+    def _validate_prices(self) -> "VariantBulkSave":
+        _validate_price_pair(self.price, self.sale_price)
+        return self
 
 
 class ProductFullCreate(BaseModel):
@@ -90,10 +130,22 @@ class ProductFullUpdate(BaseModel):
 
 
 class RewriteMarkdownRequest(BaseModel):
-    text: str
+    text: str = Field(max_length=10000)
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
+def _validate_price_pair(price: float, sale_price: Optional[float]) -> None:
+    if sale_price is not None and sale_price >= price:
+        raise ValueError("Giá sale phải nhỏ hơn giá gốc")
+
+
+def _clean_optional_text(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
+
+
 def _variant_dict(v: ProductVariant) -> dict:
     return {
         "id": str(v.id),
@@ -155,7 +207,7 @@ async def _validate_variant_candidate(
     if sale_price is not None and sale_price >= price:
         raise HTTPException(status_code=400, detail="Giá sale của biến thể phải nhỏ hơn giá gốc")
 
-    clean_sku = sku.strip() if sku else None
+    clean_sku = _clean_optional_text(sku)
     if clean_sku:
         stmt = select(ProductVariant.id).where(ProductVariant.sku == clean_sku)
         if variant_id:
@@ -204,6 +256,18 @@ async def _ensure_product_slug_available(db: SessionDep, slug: Optional[str], pr
         raise HTTPException(status_code=409, detail="Slug sản phẩm đã tồn tại")
 
 
+def _validate_product_update_prices(product: Product, update_data: dict) -> None:
+    candidate_price = update_data.get("price", float(product.price))
+    candidate_sale_price = update_data.get(
+        "sale_price",
+        float(product.sale_price) if product.sale_price is not None else None,
+    )
+    try:
+        _validate_price_pair(candidate_price, candidate_sale_price)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 def _raise_product_conflict(exc: IntegrityError) -> None:
     message = str(exc.orig)
     if "products_slug_key" in message:
@@ -239,7 +303,7 @@ async def _prepare_bulk_variants(db: SessionDep, variants: list[VariantBulkSave]
         if item.sale_price is not None and item.sale_price >= item.price:
             raise HTTPException(status_code=400, detail="Giá sale của biến thể phải nhỏ hơn giá gốc")
 
-        clean_sku = item.sku.strip() if item.sku else None
+        clean_sku = _clean_optional_text(item.sku)
         if clean_sku:
             sku_key = clean_sku.lower()
             if sku_key in skus:
@@ -377,12 +441,13 @@ async def admin_create_product_full(body: ProductFullCreate, db: SessionDep, _ad
 
 
 @router.put("/products/{product_id}")
-async def admin_update_product(product_id: str, product_in: ProductUpdate, db: SessionDep, _admin: AdminUser) -> Any:
-    result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))
+async def admin_update_product(product_id: uuid.UUID, product_in: ProductUpdate, db: SessionDep, _admin: AdminUser) -> Any:
+    result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
     update_data = product_in.model_dump(exclude_unset=True)
+    _validate_product_update_prices(product, update_data)
     if "slug" in update_data:
         await _ensure_product_slug_available(db, update_data["slug"], product.id)
     needs_reindex = bool(
@@ -404,8 +469,8 @@ async def admin_update_product(product_id: str, product_in: ProductUpdate, db: S
 
 
 @router.put("/products/{product_id}/full")
-async def admin_update_product_full(product_id: str, body: ProductFullUpdate, db: SessionDep, _admin: AdminUser) -> Any:
-    product_uuid = uuid.UUID(product_id)
+async def admin_update_product_full(product_id: uuid.UUID, body: ProductFullUpdate, db: SessionDep, _admin: AdminUser) -> Any:
+    product_uuid = product_id
     result = await db.execute(
         select(Product)
         .where(Product.id == product_uuid)
@@ -416,6 +481,7 @@ async def admin_update_product_full(product_id: str, body: ProductFullUpdate, db
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
 
     update_data = body.product.model_dump(exclude_unset=True)
+    _validate_product_update_prices(product, update_data)
     if "slug" in update_data:
         await _ensure_product_slug_available(db, update_data["slug"], product.id)
 
@@ -458,8 +524,8 @@ async def admin_update_product_full(product_id: str, body: ProductFullUpdate, db
 
 
 @router.delete("/products/{product_id}")
-async def admin_delete_product(product_id: str, db: SessionDep, _admin: AdminUser) -> Any:
-    result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))
+async def admin_delete_product(product_id: uuid.UUID, db: SessionDep, _admin: AdminUser) -> Any:
+    result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
@@ -470,8 +536,10 @@ async def admin_delete_product(product_id: str, db: SessionDep, _admin: AdminUse
 
 # ─── Product Images ───────────────────────────────────────────────────────────
 @router.post("/products/{product_id}/image")
-async def admin_upload_product_image(product_id: str, db: SessionDep, _admin: AdminUser, file: UploadFile = File(...)) -> Any:
-    result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))
+async def admin_upload_product_image(
+    product_id: uuid.UUID, db: SessionDep, _admin: AdminUser, file: UploadFile = File(...)
+) -> Any:
+    result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
@@ -494,14 +562,15 @@ async def admin_upload_product_image(product_id: str, db: SessionDep, _admin: Ad
         await db.commit()
         return {"image_url": url}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning("Product image upload failed for %s", product.id, exc_info=True)
+        raise HTTPException(status_code=502, detail="Không thể upload ảnh sản phẩm") from e
 
 
 @router.get("/products/{product_id}/detail")
-async def admin_get_product_detail(product_id: str, db: SessionDep, _admin: AdminUser) -> Any:
+async def admin_get_product_detail(product_id: uuid.UUID, db: SessionDep, _admin: AdminUser) -> Any:
     result = await db.execute(
         select(Product)
-        .where(Product.id == uuid.UUID(product_id))
+        .where(Product.id == product_id)
         .options(
             selectinload(Product.product_images),
             selectinload(Product.variants).selectinload(ProductVariant.images),
@@ -531,16 +600,19 @@ async def admin_get_product_detail(product_id: str, db: SessionDep, _admin: Admi
 
 @router.post("/products/{product_id}/images")
 async def admin_upload_product_image_v2(
-    product_id: str, db: SessionDep, _admin: AdminUser,
+    product_id: uuid.UUID, db: SessionDep, _admin: AdminUser,
     file: UploadFile = File(...),
     variant_id: Optional[str] = None,
     is_main: bool = False,
 ) -> Any:
-    result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))
+    result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
-    vid = uuid.UUID(variant_id) if variant_id else None
+    try:
+        vid = uuid.UUID(variant_id) if variant_id else None
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Biến thể không hợp lệ") from exc
     if vid:
         result = await db.execute(
             select(ProductVariant).where(
@@ -576,15 +648,18 @@ async def admin_upload_product_image_v2(
         await db.refresh(img)
         return _product_image_dict(img)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning("Product image upload failed for %s", product.id, exc_info=True)
+        raise HTTPException(status_code=502, detail="Không thể upload ảnh sản phẩm") from e
 
 
 @router.delete("/products/{product_id}/images/{image_id}")
-async def admin_delete_product_image(product_id: str, image_id: str, db: SessionDep, _admin: AdminUser) -> Any:
+async def admin_delete_product_image(
+    product_id: uuid.UUID, image_id: uuid.UUID, db: SessionDep, _admin: AdminUser
+) -> Any:
     result = await db.execute(
         select(ProductImage).where(
-            ProductImage.id == uuid.UUID(image_id),
-            ProductImage.product_id == uuid.UUID(product_id),
+            ProductImage.id == image_id,
+            ProductImage.product_id == product_id,
         )
     )
     img = result.scalar_one_or_none()
@@ -597,8 +672,8 @@ async def admin_delete_product_image(product_id: str, image_id: str, db: Session
 
 # ─── Variants ─────────────────────────────────────────────────────────────────
 @router.post("/products/{product_id}/variants")
-async def admin_create_variant(product_id: str, variant_in: VariantCreate, db: SessionDep, _admin: AdminUser) -> Any:
-    result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))
+async def admin_create_variant(product_id: uuid.UUID, variant_in: VariantCreate, db: SessionDep, _admin: AdminUser) -> Any:
+    result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
@@ -611,8 +686,7 @@ async def admin_create_variant(product_id: str, variant_in: VariantCreate, db: S
         sale_price=payload.get("sale_price"),
         sku=payload.get("sku"),
     )
-    if payload.get("sku"):
-        payload["sku"] = payload["sku"].strip()
+    payload["sku"] = _clean_optional_text(payload.get("sku"))
     variant = ProductVariant(product_id=product.id, **payload)
     db.add(variant)
     await db.flush()
@@ -629,10 +703,12 @@ async def admin_create_variant(product_id: str, variant_in: VariantCreate, db: S
 
 
 @router.put("/products/{product_id}/variants/{variant_id}")
-async def admin_update_variant(product_id: str, variant_id: str, variant_in: VariantUpdate, db: SessionDep, _admin: AdminUser) -> Any:
+async def admin_update_variant(
+    product_id: uuid.UUID, variant_id: uuid.UUID, variant_in: VariantUpdate, db: SessionDep, _admin: AdminUser
+) -> Any:
     result = await db.execute(
         select(ProductVariant)
-        .where(ProductVariant.id == uuid.UUID(variant_id), ProductVariant.product_id == uuid.UUID(product_id))
+        .where(ProductVariant.id == variant_id, ProductVariant.product_id == product_id)
         .options(selectinload(ProductVariant.images))
     )
     variant = result.scalar_one_or_none()
@@ -656,8 +732,7 @@ async def admin_update_variant(product_id: str, variant_id: str, variant_in: Var
             sku=candidate_sku,
             variant_id=variant.id,
         )
-        if candidate_sku:
-            update_data["sku"] = candidate_sku.strip()
+        update_data["sku"] = _clean_optional_text(candidate_sku)
     for field, value in update_data.items():
         setattr(variant, field, value)
     await _sync_parent_variant_stock(db, variant.product_id)
@@ -666,11 +741,11 @@ async def admin_update_variant(product_id: str, variant_id: str, variant_in: Var
 
 
 @router.delete("/products/{product_id}/variants/{variant_id}")
-async def admin_delete_variant(product_id: str, variant_id: str, db: SessionDep, _admin: AdminUser) -> Any:
+async def admin_delete_variant(product_id: uuid.UUID, variant_id: uuid.UUID, db: SessionDep, _admin: AdminUser) -> Any:
     result = await db.execute(
         select(ProductVariant).where(
-            ProductVariant.id == uuid.UUID(variant_id),
-            ProductVariant.product_id == uuid.UUID(product_id),
+            ProductVariant.id == variant_id,
+            ProductVariant.product_id == product_id,
         )
     )
     variant = result.scalar_one_or_none()
@@ -687,17 +762,19 @@ async def admin_delete_variant(product_id: str, variant_id: str, db: SessionDep,
     else:
         await db.delete(variant)
         message = "Đã xóa"
-    await _sync_parent_variant_stock(db, uuid.UUID(product_id))
+    await _sync_parent_variant_stock(db, product_id)
     await db.commit()
     return {"message": message}
 
 
 @router.post("/products/{product_id}/variants/{variant_id}/image")
-async def admin_upload_variant_image(product_id: str, variant_id: str, db: SessionDep, _admin: AdminUser, file: UploadFile = File(...)) -> Any:
+async def admin_upload_variant_image(
+    product_id: uuid.UUID, variant_id: uuid.UUID, db: SessionDep, _admin: AdminUser, file: UploadFile = File(...)
+) -> Any:
     result = await db.execute(
         select(ProductVariant).where(
-            ProductVariant.id == uuid.UUID(variant_id),
-            ProductVariant.product_id == uuid.UUID(product_id),
+            ProductVariant.id == variant_id,
+            ProductVariant.product_id == product_id,
         )
     )
     variant = result.scalar_one_or_none()
@@ -720,20 +797,21 @@ async def admin_upload_variant_image(product_id: str, variant_id: str, db: Sessi
         await db.refresh(img)
         return {"id": str(img.id), "url": url}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning("Variant image upload failed for %s", variant.id, exc_info=True)
+        raise HTTPException(status_code=502, detail="Không thể upload ảnh biến thể") from e
 
 
 # ─── Attribute Images ─────────────────────────────────────────────────────────
 @router.post("/products/{product_id}/attr-images")
 async def admin_upload_attr_image(
-    product_id: str, db: SessionDep, _admin: AdminUser,
+    product_id: uuid.UUID, db: SessionDep, _admin: AdminUser,
     attr_key: str = Form(""), attr_value: str = Form(""), file: UploadFile = File(...),
 ) -> Any:
     attr_key = attr_key.strip()
     attr_value = attr_value.strip()
     if not attr_key or not attr_value:
         raise HTTPException(status_code=400, detail="attr_key và attr_value là bắt buộc")
-    result = await db.execute(select(Product).where(Product.id == uuid.UUID(product_id)))
+    result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=404, detail="Không tìm thấy sản phẩm")
@@ -758,15 +836,16 @@ async def admin_upload_attr_image(
         await db.refresh(img)
         return _product_image_dict(img)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning("Attribute image upload failed for %s", product.id, exc_info=True)
+        raise HTTPException(status_code=502, detail="Không thể upload ảnh thuộc tính") from e
 
 
 # ─── Sync Thumbnail ───────────────────────────────────────────────────────────
 @router.post("/products/{product_id}/sync-thumbnail")
-async def admin_sync_thumbnail(product_id: str, db: SessionDep, _admin: AdminUser) -> Any:
+async def admin_sync_thumbnail(product_id: uuid.UUID, db: SessionDep, _admin: AdminUser) -> Any:
     result = await db.execute(
         select(Product)
-        .where(Product.id == uuid.UUID(product_id))
+        .where(Product.id == product_id)
         .options(selectinload(Product.variants).selectinload(ProductVariant.images))
     )
     product = result.scalar_one_or_none()
@@ -793,6 +872,8 @@ async def suggest_product_tags(name: str, description: str) -> dict:
     Returns empty dict on any failure.
     Inputs truncated to 500 chars each to prevent prompt injection.
     """
+    if not settings.OPENAI_API_KEY:
+        return {}
     llm = ChatOpenAI(
         model=settings.CHAT_MODEL,
         api_key=settings.OPENAI_API_KEY,
@@ -824,6 +905,8 @@ async def _safe_reindex(product: Product) -> None:
 async def admin_rewrite_markdown(body: RewriteMarkdownRequest, _admin: AdminUser) -> Any:
     if not body.text.strip():
         return {"result": ""}
+    if not settings.OPENAI_API_KEY:
+        raise HTTPException(status_code=503, detail="AI rewrite chưa được cấu hình")
 
     llm = ChatOpenAI(
         model=settings.CHAT_MODEL,

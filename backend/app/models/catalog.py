@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String, Text, Numeric, DateTime, Boolean, func, Index
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import uuid
@@ -63,6 +63,10 @@ class Product(Base):
     reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan")
 
     __table_args__ = (
+        CheckConstraint("price > 0", name="ck_products_price_positive"),
+        CheckConstraint("sale_price IS NULL OR sale_price > 0", name="ck_products_sale_price_positive"),
+        CheckConstraint("sale_price IS NULL OR sale_price < price", name="ck_products_sale_price_lt_price"),
+        CheckConstraint("stock_qty >= 0", name="ck_products_stock_nonnegative"),
         Index("ix_products_category_id", "category_id"),
         Index("ix_products_is_active", "is_active"),
     )
@@ -85,6 +89,15 @@ class ProductVariant(Base):
     images = relationship("ProductImage", back_populates="variant", cascade="all, delete-orphan")
     cart_items = relationship("CartItem", back_populates="variant")
     order_items = relationship("OrderItem", back_populates="variant")
+
+    __table_args__ = (
+        CheckConstraint("price > 0", name="ck_product_variants_price_positive"),
+        CheckConstraint("sale_price IS NULL OR sale_price > 0", name="ck_product_variants_sale_price_positive"),
+        CheckConstraint("sale_price IS NULL OR sale_price < price", name="ck_product_variants_sale_price_lt_price"),
+        CheckConstraint("stock_qty >= 0", name="ck_product_variants_stock_nonnegative"),
+        UniqueConstraint("sku", name="uq_product_variants_sku"),
+        Index("ix_product_variants_product_id", "product_id"),
+    )
 
 
 class ProductImage(Base):

@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String, Text, Numeric, DateTime, Enum as SQLEnum, func, Index
+from sqlalchemy import CheckConstraint, DateTime, Enum as SQLEnum, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import uuid
@@ -56,6 +56,7 @@ class CartItem(Base):
     variant = relationship("ProductVariant", back_populates="cart_items")
 
     __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_cart_items_quantity_positive"),
         Index("ix_cart_items_cart_id", "cart_id"),
         Index("ix_cart_items_variant_id", "variant_id"),
     )
@@ -85,6 +86,9 @@ class Order(Base):
     payments = relationship("Payment", back_populates="order", cascade="all, delete-orphan")
 
     __table_args__ = (
+        CheckConstraint("subtotal >= 0", name="ck_orders_subtotal_nonnegative"),
+        CheckConstraint("shipping_fee >= 0", name="ck_orders_shipping_fee_nonnegative"),
+        CheckConstraint("total >= 0", name="ck_orders_total_nonnegative"),
         Index("ix_orders_user_id", "user_id"),
         Index("ix_orders_status", "status"),
         Index("ix_orders_order_code", "order_code", unique=True),
@@ -109,6 +113,8 @@ class OrderItem(Base):
     variant = relationship("ProductVariant", back_populates="order_items")
 
     __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_order_items_quantity_positive"),
+        CheckConstraint("unit_price_snapshot > 0", name="ck_order_items_unit_price_positive"),
         Index("ix_order_items_order_id", "order_id"),
         Index("ix_order_items_variant_id", "variant_id"),
     )
@@ -126,3 +132,9 @@ class Payment(Base):
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     order = relationship("Order", back_populates="payments")
+
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_payments_amount_positive"),
+        UniqueConstraint("external_txn_id", name="uq_payments_external_txn_id"),
+        Index("ix_payments_order_id", "order_id"),
+    )

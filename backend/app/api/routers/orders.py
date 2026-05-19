@@ -2,7 +2,7 @@ from typing import Any, List
 from fastapi import APIRouter, HTTPException
 import uuid
 import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 
@@ -14,27 +14,27 @@ router = APIRouter()
 
 
 class CheckoutRequest(BaseModel):
-    ship_name: str
-    ship_phone: str
-    ship_address: str
-    payment_method: str
-    note: str | None = None
-    item_ids: list[str] | None = None
+    ship_name: str = Field(min_length=1, max_length=100)
+    ship_phone: str = Field(min_length=8, max_length=20, pattern=r"^[0-9+()\-\s]+$")
+    ship_address: str = Field(min_length=10, max_length=500)
+    payment_method: PaymentMethodEnum
+    note: str | None = Field(default=None, max_length=500)
+    item_ids: list[uuid.UUID] | None = None
 
 
 class GuestCartItem(BaseModel):
-    product_id: str
-    variant_id: str | None = None
+    product_id: uuid.UUID
+    variant_id: uuid.UUID | None = None
     quantity: int = Field(ge=1)
 
 
 class GuestCheckoutRequest(BaseModel):
-    ship_name: str
-    ship_phone: str
-    ship_address: str
-    payment_method: str
-    note: str | None = None
-    guest_email: str | None = None
+    ship_name: str = Field(min_length=1, max_length=100)
+    ship_phone: str = Field(min_length=8, max_length=20, pattern=r"^[0-9+()\-\s]+$")
+    ship_address: str = Field(min_length=10, max_length=500)
+    payment_method: PaymentMethodEnum
+    note: str | None = Field(default=None, max_length=500)
+    guest_email: EmailStr | None = None
     items: list[GuestCartItem]
 
 
@@ -140,11 +140,11 @@ async def checkout(req: CheckoutRequest, db: SessionDep, current_user: CurrentUs
     selected_items = cart.cart_items
     if req.item_ids is not None:
         id_set = set(req.item_ids)
-        selected_items = [i for i in cart.cart_items if str(i.id) in id_set]
+        selected_items = [i for i in cart.cart_items if i.id in id_set]
     if not selected_items:
         raise HTTPException(status_code=400, detail="Không có sản phẩm nào được chọn")
 
-    pm = PaymentMethodEnum.vnpay if req.payment_method == 'vnpay' else PaymentMethodEnum.cod
+    pm = req.payment_method
 
     subtotal = 0.0
     order_items_to_create = []
@@ -212,18 +212,18 @@ async def guest_checkout(req: GuestCheckoutRequest, db: SessionDep) -> Any:
     if not req.items:
         raise HTTPException(status_code=400, detail="Không có sản phẩm nào")
 
-    product_ids = list({uuid.UUID(i.product_id) for i in req.items})
-    variant_ids = list({uuid.UUID(i.variant_id) for i in req.items if i.variant_id})
+    product_ids = list({i.product_id for i in req.items})
+    variant_ids = list({i.variant_id for i in req.items if i.variant_id})
     product_map, variant_map = await _load_locked_products_and_variants(db, product_ids, variant_ids)
 
-    pm = PaymentMethodEnum.vnpay if req.payment_method == 'vnpay' else PaymentMethodEnum.cod
+    pm = req.payment_method
     subtotal = 0.0
     order_items_to_create = []
 
     for item in req.items:
-        pid = uuid.UUID(item.product_id)
+        pid = item.product_id
         prod = product_map.get(pid)
-        variant = variant_map.get(uuid.UUID(item.variant_id)) if item.variant_id else None
+        variant = variant_map.get(item.variant_id) if item.variant_id else None
         prod, variant, price = _resolve_order_line(prod, variant, item.quantity)
         subtotal += price * item.quantity
         order_items_to_create.append(OrderItem(
@@ -341,10 +341,10 @@ async def guest_order_lookup(
 
 
 @router.get("/{order_id}", response_model=dict)
-async def get_order_detail(order_id: str, db: SessionDep, current_user: OptionalUser) -> Any:
+async def get_order_detail(order_id: uuid.UUID, db: SessionDep, current_user: OptionalUser) -> Any:
     result = await db.execute(
         select(Order)
-        .where(Order.id == uuid.UUID(order_id))
+        .where(Order.id == order_id)
         .options(selectinload(Order.order_items))
     )
     order = result.scalar_one_or_none()
@@ -376,10 +376,10 @@ async def get_order_detail(order_id: str, db: SessionDep, current_user: Optional
 
 
 @router.put("/{order_id}/cancel")
-async def cancel_order(order_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+async def cancel_order(order_id: uuid.UUID, db: SessionDep, current_user: CurrentUser) -> Any:
     result = await db.execute(
         select(Order)
-        .where(Order.id == uuid.UUID(order_id), Order.user_id == current_user.id)
+        .where(Order.id == order_id, Order.user_id == current_user.id)
         .options(selectinload(Order.order_items))
     )
     order = result.scalar_one_or_none()
