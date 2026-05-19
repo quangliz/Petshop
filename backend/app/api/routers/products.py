@@ -110,13 +110,21 @@ async def read_products(
     page: int = Query(1, ge=1),
     size: int = Query(12, ge=1, le=100),
 ) -> Any:
-    # AI-01: Semantic search branch — activates when q is present and non-empty
+    # AI-01: Hybrid search branch — activates when q is present and non-empty
     if q and q.strip():
         q_clean = q.strip()[:500]  # ASVS V5: truncate oversized input
-        semantic_items = await search_products(db, query=q_clean, limit=size)
+        search_items = await search_products(
+            db,
+            query=q_clean,
+            limit=size,
+            category_slugs=category_slug,
+            brands=brand,
+            min_price=min_price,
+            max_price=max_price,
+        )
         return {
-            "items": semantic_items,
-            "total": len(semantic_items),
+            "items": search_items,
+            "total": len(search_items),
             "page": page,
             "size": size,
             "pages": 1,
