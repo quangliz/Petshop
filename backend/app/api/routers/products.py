@@ -43,6 +43,24 @@ class ProductResponse(BaseModel):
     sold_count: Optional[int] = 0
 
 
+class ProductCategoryFacet(BaseModel):
+    id: int
+    name: str
+    slug: str
+    parent_id: Optional[int] = None
+    product_count: int
+
+
+class ProductBrandFacet(BaseModel):
+    name: str
+    product_count: int
+
+
+class ProductFacetsResponse(BaseModel):
+    categories: List[ProductCategoryFacet]
+    brands: List[ProductBrandFacet]
+
+
 def _product_dict(p: Product, include_variants: bool = False) -> dict:
     target_species = p.target_species
     if isinstance(target_species, list):
@@ -184,6 +202,59 @@ async def read_brands(db: SessionDep) -> Any:
         select(Product.brand).where(Product.brand.isnot(None)).distinct()
     )
     return [row[0] for row in result.all() if row[0]]
+
+
+@router.get("/facets", response_model=ProductFacetsResponse)
+async def read_product_facets(
+    db: SessionDep,
+    categories_limit: int = Query(5, ge=1, le=50),
+    brands_limit: int = Query(5, ge=1, le=50),
+) -> Any:
+    category_rows = (
+        await db.execute(
+            select(
+                Category.id,
+                Category.name,
+                Category.slug,
+                Category.parent_id,
+                func.count(Product.id).label("product_count"),
+            )
+            .join(Product, Product.category_id == Category.id)
+            .where(Product.is_active)
+            .group_by(Category.id, Category.name, Category.slug, Category.parent_id)
+            .order_by(desc("product_count"), asc(Category.name))
+            .limit(categories_limit)
+        )
+    ).all()
+    brand_rows = (
+        await db.execute(
+            select(Product.brand, func.count(Product.id).label("product_count"))
+            .where(
+                Product.is_active,
+                Product.brand.isnot(None),
+                func.length(func.trim(Product.brand)) > 0,
+            )
+            .group_by(Product.brand)
+            .order_by(desc("product_count"), asc(Product.brand))
+            .limit(brands_limit)
+        )
+    ).all()
+    return {
+        "categories": [
+            {
+                "id": row.id,
+                "name": row.name,
+                "slug": row.slug,
+                "parent_id": row.parent_id,
+                "product_count": row.product_count,
+            }
+            for row in category_rows
+        ],
+        "brands": [
+            {"name": row.brand, "product_count": row.product_count}
+            for row in brand_rows
+        ],
+    }
 
 
 @router.get("/best-sellers", response_model=dict)

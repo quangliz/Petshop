@@ -65,6 +65,19 @@ class TestProductList:
             assert "target_species" in item, "Missing target_species field"
             assert "attributes" in item, "Missing attributes field"
 
+    def test_facets_include_counts(self, client):
+        res = client.get("/api/v1/products/facets?categories_limit=5&brands_limit=5")
+        assert res.status_code == 200
+        data = res.json()
+        assert "categories" in data
+        assert "brands" in data
+        if data["categories"]:
+            assert "slug" in data["categories"][0]
+            assert "product_count" in data["categories"][0]
+        if data["brands"]:
+            assert "name" in data["brands"][0]
+            assert "product_count" in data["brands"][0]
+
 
 class TestProductDetail:
     """GET /api/v1/products/{slug}"""

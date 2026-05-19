@@ -15,6 +15,36 @@ import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
 
+type CategoryFacet = Category & { parent_id?: number | null; product_count: number };
+type BrandFacet = { name: string; product_count: number };
+type PaginationItem = number | "ellipsis-start" | "ellipsis-end";
+
+const getPaginationItems = (currentPage: number, totalPages: number): PaginationItem[] => {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  const pages = new Set([1, totalPages, currentPage, currentPage - 1, currentPage + 1]);
+  if (currentPage <= 4) {
+    [2, 3, 4, 5].forEach(page => pages.add(page));
+  }
+  if (currentPage >= totalPages - 3) {
+    [totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1].forEach(page => pages.add(page));
+  }
+
+  const sortedPages = Array.from(pages)
+    .filter(page => page >= 1 && page <= totalPages)
+    .sort((a, b) => a - b);
+
+  return sortedPages.flatMap((page, index) => {
+    const previous = sortedPages[index - 1];
+    if (previous && page - previous > 1) {
+      return [page < currentPage ? "ellipsis-start" : "ellipsis-end", page] as PaginationItem[];
+    }
+    return [page];
+  });
+};
+
 const FilterGroup = ({ title, children }: { title: string, children: React.ReactNode }) => (
   <div className="py-4 border-b border-neutral-100">
     <div className="text-[12px] font-bold text-neutral-800 uppercase tracking-[0.06em] mb-3">{title}</div>
@@ -42,8 +72,8 @@ const FilterSidebar = ({
   priceRangeFilter, setPriceRangeFilter,
   setPage, className = "bg-white border border-neutral-100 rounded-[20px] shadow-sm"
 }: {
-  categories: Category[];
-  brands: string[];
+  categories: CategoryFacet[];
+  brands: BrandFacet[];
   categoryFilter: string[];
   setCategoryFilter: (c: string[]) => void;
   brandFilter: string[];
@@ -66,7 +96,7 @@ const FilterSidebar = ({
   const handleApplyPrice = () => { setPriceRangeFilter(localPriceRange); setPage(1); };
 
   return (
-    <div className={`${className} p-1 px-5 pb-5 sticky top-[84px]`}>
+    <div className={`${className} p-1 px-5 pb-5`}>
       <div className="flex items-center justify-between pt-[18px]">
         <div className="text-[14px] font-bold flex items-center gap-2"><FilterIcon size={14} /> Bộ lọc</div>
         <button
@@ -81,14 +111,16 @@ const FilterSidebar = ({
       <FilterGroup title="Danh mục">
         {categories?.map(c => (
           <Checkbox key={c.id} label={c.name}
+            count={c.product_count}
             checked={categoryFilter.includes(c.slug)} onChange={() => toggleCategory(c.slug)} />
         ))}
       </FilterGroup>
 
       <FilterGroup title="Thương hiệu">
         {brands?.map(b => (
-          <Checkbox key={b} label={b}
-            checked={brandFilter.includes(b)} onChange={() => toggleBrand(b)} />
+          <Checkbox key={b.name} label={b.name}
+            count={b.product_count}
+            checked={brandFilter.includes(b.name)} onChange={() => toggleBrand(b.name)} />
         ))}
       </FilterGroup>
 
@@ -199,8 +231,10 @@ function ShopListing() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
 
-  const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: async () => (await api.get('/categories/')).data });
-  const { data: brands } = useQuery({ queryKey: ['brands'], queryFn: async () => (await api.get('/products/brands')).data });
+  const { data: facets } = useQuery({
+    queryKey: ['product-facets'],
+    queryFn: async () => (await api.get('/products/facets')).data as { categories: CategoryFacet[]; brands: BrandFacet[] }
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['products', page, size, sort, search, categoryFilter, brandFilter, priceRangeFilter],
@@ -244,6 +278,8 @@ function ShopListing() {
   );
   if (error) return <div className="p-[100px] text-center" style={{ color: 'var(--danger)' }}>Có lỗi khi tải sản phẩm</div>;
 
+  const paginationItems = getPaginationItems(page, data.pages);
+
   return (
     <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
@@ -271,7 +307,7 @@ function ShopListing() {
               <SheetContent side="right" className="p-0 overflow-y-auto w-[300px]">
                 <SheetTitle className="sr-only">Bộ lọc</SheetTitle>
                 <FilterSidebar className="pb-4"
-                  categories={categories || []} brands={brands || []}
+                  categories={facets?.categories || []} brands={facets?.brands || []}
                   categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter}
                   brandFilter={brandFilter} setBrandFilter={setBrandFilter}
                   priceRangeFilter={priceRangeFilter} setPriceRangeFilter={setPriceRangeFilter}
@@ -293,9 +329,9 @@ function ShopListing() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 lg:gap-8 items-start">
-        <aside className="hidden lg:block w-[260px] shrink-0">
+        <aside className="hidden lg:block w-[260px] shrink-0 sticky top-[84px] max-h-[calc(100vh-104px)] overflow-y-auto">
           <FilterSidebar
-            categories={categories || []} brands={brands || []}
+            categories={facets?.categories || []} brands={facets?.brands || []}
             categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter}
             brandFilter={brandFilter} setBrandFilter={setBrandFilter}
             priceRangeFilter={priceRangeFilter} setPriceRangeFilter={setPriceRangeFilter}
@@ -335,16 +371,25 @@ function ShopListing() {
               >
                 Trang trước
               </button>
-              {[...Array(data.pages)].map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setPage(i + 1)}
-                  className={`min-w-[44px] min-h-[44px] rounded-[10px] border border-neutral-100 text-[13px] font-semibold cursor-pointer transition-all duration-[120ms] ease-[ease] ${
-                    page === i + 1 ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700 hover:bg-neutral-50'
-                  }`}
-                >
-                  {i + 1}
-                </button>
+              {paginationItems.map(item => (
+                typeof item === "number" ? (
+                  <button
+                    key={item}
+                    onClick={() => setPage(item)}
+                    className={`min-w-[44px] min-h-[44px] rounded-[10px] border border-neutral-100 text-[13px] font-semibold cursor-pointer transition-all duration-[120ms] ease-[ease] ${
+                      page === item ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700 hover:bg-neutral-50'
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ) : (
+                  <span
+                    key={item}
+                    className="min-w-[32px] h-11 flex items-center justify-center text-[13px] font-semibold text-neutral-400"
+                  >
+                    ...
+                  </span>
+                )
               ))}
               <button
                 className="h-11 px-5 rounded-[10px] border border-neutral-100 bg-white text-neutral-700 text-[13px] font-semibold disabled:opacity-40 cursor-pointer hover:bg-neutral-50 transition-colors"
