@@ -88,6 +88,10 @@
   body {
     font-family: 'VNMMono', monospace;
     background-color: var(--neutral-50);
+    background-image: url('./paw-pattern.svg');
+    background-repeat: repeat;
+    background-size: 160px 160px;
+    background-attachment: fixed;
     color: var(--neutral-800);
     -webkit-font-smoothing: antialiased;
   }
