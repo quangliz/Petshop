@@ -161,7 +161,7 @@ const Rating = ({ value, size = 12, count }: { value: number, size?: number, cou
 const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, onAddToCart: (e: React.MouseEvent, id: string, slug: string, hasVariants: boolean) => void, isPending: boolean }) => (
   <Link href={`/products/${product.slug}`} className="no-underline text-inherit">
     <div
-      className="group bg-white border border-neutral-100 rounded-[16px] shadow-xs cursor-pointer overflow-hidden flex flex-col h-full transition-[transform,box-shadow] duration-[160ms] ease-[ease] hover:-translate-y-0.5 hover:shadow-md"
+      className="card-hover group bg-white border border-neutral-100 rounded-[16px] shadow-xs cursor-pointer overflow-hidden flex flex-col h-full"
     >
       <div className="relative aspect-square bg-neutral-50 overflow-hidden">
         {(product.thumbnail_url || product.images?.main) ? (
@@ -173,7 +173,7 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, on
             className="object-cover transition-transform duration-300 ease-out group-hover:scale-105"
           />
         ) : (
-          <div className="w-full h-full bg-neutral-100 flex items-center justify-center text-neutral-400 text-[10px]">NO IMAGE</div>
+          <div className="w-full h-full flex items-center justify-center text-4xl" style={{ background: 'linear-gradient(135deg, var(--neutral-50), var(--neutral-100))' }}>🐾</div>
         )}
         <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
           {product.sale_price && (
@@ -182,6 +182,18 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, on
             </span>
           )}
           {product.is_new && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold text-white" style={{ background: 'var(--teal-600)' }}>MỚI</span>}
+        </div>
+        {/* Slide-up add-to-cart overlay */}
+        <div className="absolute bottom-0 left-0 right-0 p-2.5 translate-y-full group-hover:translate-y-0 transition-transform duration-200 ease-out"
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.4), transparent)' }}>
+          <button
+            onClick={(e) => onAddToCart(e, product.id, product.slug, !!product.has_variants)}
+            disabled={isPending}
+            className="w-full h-8 rounded-[10px] text-[12px] font-bold flex items-center justify-center gap-1.5 border-none cursor-pointer disabled:opacity-50"
+            style={{ background: 'white', color: 'var(--neutral-800)', backdropFilter: 'blur(8px)' }}
+          >
+            {isPending ? <Spinner size={13} /> : <ShoppingCart size={13} />} {isPending ? "Đang thêm..." : product.has_variants ? "Chọn phân loại" : "Thêm vào giỏ"}
+          </button>
         </div>
       </div>
       <div className="p-[14px_16px_16px] flex flex-col gap-1.5 flex-1">
@@ -192,13 +204,7 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, on
           <span className="text-[17px] font-bold" style={{ color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
           {product.sale_price && <span className="text-[12px] text-neutral-400 line-through">{product.price.toLocaleString()}đ</span>}
         </div>
-        <button
-          onClick={(e) => onAddToCart(e, product.id, product.slug, !!product.has_variants)}
-          disabled={isPending}
-          className="w-full mt-3 h-9 rounded-[10px] text-[13px] font-semibold border-[1.5px] border-neutral-200 bg-white text-neutral-700 flex items-center justify-center gap-1.5 transition-colors hover:bg-neutral-50 disabled:opacity-50"
-        >
-          {isPending ? <Spinner size={14} /> : <ShoppingCart size={14} />} {isPending ? "Đang thêm..." : product.has_variants ? "Chọn phân loại" : "Thêm giỏ"}
-        </button>
+
       </div>
     </div>
   </Link>
