@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { Order } from "@/lib/types";
+import { AdminTableRowsSkeleton } from "@/components/skeletons/AdminSkeletons";
 
 const ALL_STATUSES = ["all", "pending", "confirmed", "shipping", "completed", "cancelled"];
 
@@ -67,9 +68,7 @@ export default function AdminOrdersPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {isLoading && (
-              <tr><td colSpan={7} className="text-center py-10 text-gray-400">Đang tải...</td></tr>
-            )}
+            {isLoading && <AdminTableRowsSkeleton columns={7} rows={6} imageColumn={false} />}
             {data?.items?.map((o: Order) => (
               <tr key={o.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3 font-mono font-semibold text-xs">{o.order_code}</td>

@@ -5,7 +5,7 @@ import api from '@/lib/api';
 import Link from 'next/link';
 import { LucideIcon, ChevronRight, Package, Clock, Truck, CheckCircle, XCircle } from 'lucide-react';
 import { Order } from '@/lib/types';
-import { OrderRowSkeleton } from "@/components/skeletons/OrderRowSkeleton";
+import { OrdersPageSkeleton } from "@/components/skeletons/OrderRowSkeleton";
 import { EmptyState } from '@/components/ui/empty-state';
 
 const statusConfig: Record<string, { label: string, color: string, bg: string, icon: LucideIcon }> = {
@@ -22,13 +22,7 @@ export default function OrdersPage() {
     queryFn: async () => { const res = await api.get('/orders/'); return res.data; }
   });
 
-  if (isLoading) return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8">
-      <div className="flex flex-col gap-3 sm:gap-4">
-        {[...Array(3)].map((_, i) => <OrderRowSkeleton key={i} />)}
-      </div>
-    </div>
-  );
+  if (isLoading) return <OrdersPageSkeleton />;
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8">

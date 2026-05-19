@@ -5,6 +5,7 @@ import api from '@/lib/api';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRight, Clock, Truck, CheckCircle, XCircle, Package, CreditCard, MapPin, Phone, User } from 'lucide-react';
+import { OrderDetailSkeleton } from '@/components/skeletons/OrderRowSkeleton';
 
 const statusConfig: Record<string, { label: string, color: string, bg: string, icon: typeof Clock }> = {
   pending: { label: 'Chờ xử lý', color: 'var(--primary-600)', bg: 'var(--primary-50)', icon: Clock },
@@ -31,7 +32,7 @@ export default function OrderDetailPage() {
     onError: (err: unknown) => { const e = err as { response?: { data?: { detail?: string } } }; alert(e.response?.data?.detail || "Lỗi huỷ đơn"); }
   });
 
-  if (isLoading) return <div className="py-24 text-center text-neutral-500">Đang tải...</div>;
+  if (isLoading) return <OrderDetailSkeleton />;
   if (!order) return <div className="py-24 text-center" style={{ color: 'var(--danger)' }}>Không tìm thấy đơn hàng.</div>;
 
   const st = statusConfig[order.status] || statusConfig.pending;

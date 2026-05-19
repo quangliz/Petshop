@@ -4,14 +4,36 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import api from "@/lib/api";
 import { Lock, ArrowLeft, CheckCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function ResetPasswordSkeleton() {
+  return (
+    <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-10">
+      <div className="bg-white border border-neutral-100 rounded-[20px] shadow-sm w-full max-w-md mx-auto p-8 md:p-10">
+        <div className="flex flex-col items-center mb-8">
+          <Skeleton className="w-16 h-16 rounded-[20px] mb-5" />
+          <Skeleton className="h-8 w-56 rounded-lg mb-3" />
+          <Skeleton className="h-4 w-64 rounded-full" />
+        </div>
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-28 rounded-full" />
+            <Skeleton className="h-[50px] w-full rounded-[12px]" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-36 rounded-full" />
+            <Skeleton className="h-[50px] w-full rounded-[12px]" />
+          </div>
+          <Skeleton className="h-[52px] w-full rounded-[14px]" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-[calc(100vh-200px)] flex items-center justify-center">
-        <p>Đang tải...</p>
-      </div>
-    }>
+    <Suspense fallback={<ResetPasswordSkeleton />}>
       <ResetPasswordContent />
     </Suspense>
   );

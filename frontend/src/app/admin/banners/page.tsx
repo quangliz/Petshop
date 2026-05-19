@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Edit, Trash2, X, ImageIcon } from "lucide-react";
 import Image from "next/image";
+import { AdminTableRowsSkeleton } from "@/components/skeletons/AdminSkeletons";
 
 export default function AdminBannersPage() {
   const queryClient = useQueryClient();
@@ -105,13 +106,7 @@ export default function AdminBannersPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {isLoading && (
-              <tr>
-                <td colSpan={6} className="text-center py-10 text-gray-400">
-                  Đang tải...
-                </td>
-              </tr>
-            )}
+            {isLoading && <AdminTableRowsSkeleton columns={6} rows={4} imageColumn />}
             {!isLoading && banners.length === 0 && (
               <tr>
                 <td colSpan={6} className="text-center py-10 text-gray-400">

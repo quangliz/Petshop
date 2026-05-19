@@ -10,15 +10,31 @@ import api from "@/lib/api";
 import { getGuestCartCount } from "@/lib/guestCart";
 import Image from 'next/image';
 import { Product } from '@/lib/types';
+import { Skeleton } from "@/components/ui/skeleton";
 
 import BrandLogo from "./BrandLogo";
 
 const HeaderAuthSection = dynamic(() => import("./HeaderAuthSection"), {
   ssr: false,
-  loading: () => <div className="w-[120px] h-[36px]" />,
+  loading: () => <Skeleton className="w-[26px] h-[26px] rounded-full bg-neutral-200/80" />,
 });
 
 const Logo = () => <BrandLogo size={42} />;
+
+const SearchSuggestionSkeletons = () => (
+  <div className="flex flex-col">
+    {Array.from({ length: 5 }).map((_, item) => (
+      <div key={item} className="flex items-center gap-3 p-4 border-b border-neutral-50">
+        <Skeleton className="w-12 h-12 rounded-lg shrink-0" />
+        <div className="flex-1 min-w-0 space-y-2">
+          <Skeleton className="h-4 w-4/5 rounded-full" />
+          <Skeleton className="h-3 w-28 rounded-full" />
+        </div>
+        <Skeleton className="h-4 w-20 rounded-full" />
+      </div>
+    ))}
+  </div>
+);
 
 export default function Header() {
   const { user, token, setUser, setLoading, isLoading, logout } = useAuthStore();
@@ -355,7 +371,7 @@ export default function Header() {
             {suggestQ ? (
               <div className="flex flex-col">
                 {suggestLoading && !suggestions ? (
-                  <div className="p-6 text-sm text-neutral-500 text-center">Đang tìm...</div>
+                  <SearchSuggestionSkeletons />
                 ) : suggestions?.items?.length ? (
                   <>
                     {suggestions.items.map((p: Product) => (

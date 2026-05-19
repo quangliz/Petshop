@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import StarRating from "./StarRating";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Review = {
   id: string;
@@ -21,7 +22,28 @@ export default function ReviewList({ productId }: { productId: string }) {
     queryFn: () => api.get(`/products/${productId}/reviews`, { params: { page, size } }).then((r) => r.data),
   });
 
-  if (isLoading) return <p className="text-neutral-500 py-4">Đang tải...</p>;
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-4">
+        {Array.from({ length: 3 }).map((_, item) => (
+          <div key={item} className="py-4 border-b border-neutral-100">
+            <div className="flex items-center gap-3 mb-3">
+              <Skeleton className="w-9 h-9 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-28 rounded-full" />
+                <Skeleton className="h-3 w-20 rounded-full" />
+              </div>
+              <Skeleton className="ml-auto h-4 w-20 rounded-full" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full rounded-full" />
+              <Skeleton className="h-4 w-4/5 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
   if (!data || data.items.length === 0) return null;
 
   const totalPages = Math.ceil(data.total / size);

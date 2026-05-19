@@ -4,14 +4,23 @@ import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 import { getGuestCart, clearGuestCart } from "@/lib/guestCart";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function AuthCallbackSkeleton() {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="bg-white border border-neutral-100 rounded-[20px] shadow-sm p-10 max-w-[360px] w-full flex flex-col items-center">
+        <Skeleton className="w-10 h-10 rounded-full mb-5" />
+        <Skeleton className="h-5 w-40 rounded-full mb-3" />
+        <Skeleton className="h-3 w-48 rounded-full" />
+      </div>
+    </div>
+  );
+}
 
 export default function GoogleCallbackPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Đang tải...</p>
-      </div>
-    }>
+    <Suspense fallback={<AuthCallbackSkeleton />}>
       <GoogleCallbackContent />
     </Suspense>
   );

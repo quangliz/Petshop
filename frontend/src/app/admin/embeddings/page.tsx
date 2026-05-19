@@ -6,6 +6,7 @@ import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RefreshCw, Trash2, Search, Database } from "lucide-react";
+import { EmbeddingItemsSkeleton } from "@/components/skeletons/AdminSkeletons";
 
 type EmbeddingItem = {
   id: string;
@@ -101,7 +102,7 @@ function CollectionPanel({ collection, label }: { collection: string; label: str
       </div>
 
       <div className="divide-y max-h-[500px] overflow-y-auto">
-        {isLoading && <div className="p-6 text-center text-gray-400">Đang tải...</div>}
+        {isLoading && <EmbeddingItemsSkeleton />}
         {!isLoading && items.length === 0 && (
           <div className="p-6 text-center text-gray-400">Chưa có dữ liệu — bấm Reindex.</div>
         )}

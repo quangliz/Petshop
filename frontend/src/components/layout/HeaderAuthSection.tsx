@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useAuthStore } from "@/lib/store";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { User } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function HeaderAuthSection() {
   const { user, isLoading, logout } = useAuthStore();
 
   if (isLoading) {
-    return <div className="w-[26px] h-[26px]" />;
+    return <Skeleton className="w-[26px] h-[26px] rounded-full bg-neutral-200/80" />;
   }
 
   if (user) {

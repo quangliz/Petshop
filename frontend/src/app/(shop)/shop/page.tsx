@@ -10,7 +10,7 @@ import { ChevronRight, Star, ShoppingCart, Filter as FilterIcon, Check, SearchX 
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import Image from 'next/image';
 import { Product, Category } from '@/lib/types';
-import { ProductCardSkeleton } from "@/components/skeletons/ProductCardSkeleton";
+import { ShopPageSkeleton } from "@/components/skeletons/ProductCardSkeleton";
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -209,7 +209,7 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, on
 
 export default function ShopPage() {
   return (
-    <Suspense fallback={<div className="p-20 text-center text-neutral-500">Đang tải cửa hàng...</div>}>
+    <Suspense fallback={<ShopPageSkeleton />}>
       <ShopListing />
     </Suspense>
   );
@@ -269,13 +269,7 @@ function ShopListing() {
     addToCartMutation.mutate(productId);
   };
 
-  if (isLoading) return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 py-8">
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {[...Array(12)].map((_, i) => <ProductCardSkeleton key={i} />)}
-      </div>
-    </div>
-  );
+  if (isLoading) return <ShopPageSkeleton />;
   if (error) return <div className="p-[100px] text-center" style={{ color: 'var(--danger)' }}>Có lỗi khi tải sản phẩm</div>;
 
   const paginationItems = getPaginationItems(page, data.pages);

@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import StarRating from "./StarRating";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Summary = {
   average: number;
@@ -10,10 +11,32 @@ type Summary = {
 };
 
 export default function RatingSummary({ productId }: { productId: string }) {
-  const { data } = useQuery<Summary>({
+  const { data, isLoading } = useQuery<Summary>({
     queryKey: ["rating-summary", productId],
     queryFn: () => api.get(`/products/${productId}/rating-summary`).then((r) => r.data),
   });
+
+  if (isLoading) {
+    return (
+      <div className="flex gap-10 items-center py-4">
+        <div className="min-w-[120px] flex flex-col items-center gap-3">
+          <Skeleton className="h-12 w-20 rounded-lg" />
+          <Skeleton className="h-4 w-24 rounded-full" />
+          <Skeleton className="h-3 w-20 rounded-full" />
+        </div>
+        <div className="flex-1 flex flex-col gap-2">
+          {[0, 1, 2, 3, 4].map((item) => (
+            <div key={item} className="flex items-center gap-2">
+              <Skeleton className="h-3 w-5 rounded-full" />
+              <Skeleton className="h-3 w-20 rounded-full" />
+              <Skeleton className="h-2 flex-1 rounded-full" />
+              <Skeleton className="h-3 w-6 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (!data || data.total === 0) {
     return (

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle, Edit, Trash2, X, Search } from "lucide-react";
+import { AdminTableRowsSkeleton } from "@/components/skeletons/AdminSkeletons";
 
 type KnowledgeDoc = {
   id: string;
@@ -137,9 +138,7 @@ export default function AdminKnowledgePage() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {isLoading && (
-              <tr><td colSpan={5} className="text-center py-10 text-gray-400">Đang tải...</td></tr>
-            )}
+            {isLoading && <AdminTableRowsSkeleton columns={5} rows={5} imageColumn={false} />}
             {!isLoading && items.length === 0 && (
               <tr><td colSpan={5} className="text-center py-10 text-gray-400">Không có tài liệu</td></tr>
             )}

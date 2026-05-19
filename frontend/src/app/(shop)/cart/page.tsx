@@ -8,7 +8,7 @@ import { Trash2, Plus, Minus, ChevronRight, ShoppingBag } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { getGuestCart, getGuestCartItemKey, GuestCartItem } from '@/lib/guestCart';
 import Image from 'next/image';
-import { CartRowSkeleton } from "@/components/skeletons/CartRowSkeleton";
+import { CartPageSkeleton } from "@/components/skeletons/CartRowSkeleton";
 import { EmptyState } from '@/components/ui/empty-state';
 
 interface CartItem {
@@ -146,13 +146,7 @@ function AuthCartPage() {
     onSuccess: (_, id) => { setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; }); queryClient.invalidateQueries({ queryKey: ['cart'] }); },
   });
 
-  if (isLoading) return (
-    <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8">
-      <div className="flex flex-col gap-4">
-        {[...Array(3)].map((_, i) => <CartRowSkeleton key={i} />)}
-      </div>
-    </div>
-  );
+  if (isLoading) return <CartPageSkeleton />;
 
   const allSelected = items.length > 0 && items.every(i => selectedIds.has(i.id));
   const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(items.map(i => i.id)));

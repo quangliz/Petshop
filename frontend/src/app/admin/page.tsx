@@ -6,6 +6,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
 import { TrendingUp, ShoppingCart, Users, DollarSign, LucideIcon } from "lucide-react";
+import { AdminDashboardSkeleton } from "@/components/skeletons/AdminSkeletons";
 
 function KPICard({ title, value, icon: Icon, color }: { title: string; value: string; icon: LucideIcon; color: string }) {
   return (
@@ -30,7 +31,7 @@ export default function AdminDashboard() {
     },
   });
 
-  if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">Đang tải tổng quan...</div>;
+  if (isLoading) return <AdminDashboardSkeleton />;
 
   const fmt = (n: number) =>
     n >= 1_000_000

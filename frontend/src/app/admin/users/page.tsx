@@ -5,6 +5,7 @@ import api from "@/lib/api";
 import { ShieldCheck, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { User } from "@/lib/types";
+import { AdminTableRowsSkeleton } from "@/components/skeletons/AdminSkeletons";
 
 type AdminUser = User & { is_active: boolean; created_at: string };
 
@@ -39,9 +40,7 @@ export default function AdminUsersPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {isLoading && (
-              <tr><td colSpan={5} className="text-center py-10 text-gray-400">Đang tải...</td></tr>
-            )}
+            {isLoading && <AdminTableRowsSkeleton columns={5} rows={6} imageColumn={false} />}
             {data?.items?.map((u: AdminUser) => (
               <tr key={u.id} className={`transition-colors hover:bg-gray-50 ${!u.is_active ? "opacity-50" : ""}`}>
                 <td className="px-4 py-3">

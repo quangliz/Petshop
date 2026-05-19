@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { PlusCircle, Edit, Trash2, X, ChevronDown, ChevronUp, Plus, Sparkles, Wand2 } from "lucide-react";
 import Image from 'next/image';
 import { Product, Variant, AttrImage } from '@/lib/types';
+import { AdminTableRowsSkeleton } from "@/components/skeletons/AdminSkeletons";
 
 // Types imported from @/lib/types or defined locally for admin
 type AdminVariant = Variant;
@@ -370,7 +371,7 @@ export default function AdminProductsPage() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {isLoading && <tr><td colSpan={7} className="text-center py-10 text-gray-400">Đang tải...</td></tr>}
+            {isLoading && <AdminTableRowsSkeleton columns={7} rows={6} imageColumn />}
             {data?.items?.map((p: AdminProduct) => (
               <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3">
