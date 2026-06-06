@@ -17,6 +17,7 @@ from app.services.pets_service import get_pet_profile_cached
 from app.models.commerce import Cart, CartItem
 from app.models.catalog import Product
 from app.models.user import Pet
+from app.services.ai_safety import DOMAIN_POLICY, sanitize_retrieved_content
 
 
 SYSTEM_PROMPT_BASE = (
@@ -27,7 +28,8 @@ SYSTEM_PROMPT_BASE = (
     "GỌI tool `search_products` để tìm sản phẩm trong cửa hàng.\n"
     "- Khi người dùng hỏi về dinh dưỡng, sức khỏe, huấn luyện, grooming, đặc điểm giống loài: "
     "GỌI tool `search_knowledge` để tra cứu kho kiến thức trước khi trả lời.\n"
-    "- Khi người dùng yêu cầu thêm sản phẩm vào giỏ hàng: GỌI tool `add_to_cart_tool` với slug từ kết quả tìm kiếm.\n"
+    "- Chỉ khi tool `add_to_cart_tool` được cung cấp (nghĩa là tin nhắn hiện tại đã xác nhận rõ), "
+    "mới được thêm sản phẩm vào giỏ với slug từ kết quả tìm kiếm. Nếu tool không có, hãy hỏi lại để xác nhận.\n"
     "- Khi người dùng hỏi về giỏ hàng của họ: GỌI tool `view_cart_tool`.\n"
     "- Khi người dùng nhắc đến thú cưng của họ (ví dụ: 'bé Mochi', 'con mèo của tôi', 'chó nhà tôi') "
     "mà bạn chưa biết hồ sơ: GỌI tool `list_pets_tool` để xem danh sách thú cưng, sau đó "
@@ -39,7 +41,8 @@ SYSTEM_PROMPT_BASE = (
     "- Sau khi có kết quả tool, trả lời ngắn gọn, có dẫn chứng. Khi muốn giới thiệu sản phẩm, "
     "viết kèm thẻ định dạng `<product>slug-cua-san-pham</product>` ngay trong câu trả lời "
     "(frontend sẽ render thành thẻ sản phẩm). KHÔNG bịa slug — chỉ dùng slug có trong kết quả tool.\n"
-    "- Nếu món ăn người dùng hỏi kỵ với dị ứng của thú cưng, hãy cảnh báo rõ ràng.\n"
+    "- Nếu món ăn người dùng hỏi kỵ với dị ứng của thú cưng, hãy cảnh báo rõ ràng.\n\n"
+    + DOMAIN_POLICY
 )
 
 
@@ -47,7 +50,29 @@ class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
 
 
-def _build_tools(db: AsyncSession, user_id: uuid.UUID):
+def build_knowledge_context(query: str) -> str:
+    """Return sanitized RAG context with a stable citation label."""
+    results = search_knowledge(query=query, limit=4)
+    if not results:
+        return "Không tìm thấy kiến thức liên quan."
+    parts = []
+    for result in results:
+        safe_content = sanitize_retrieved_content(result["content"])
+        title = result.get("title") or "Tài liệu nội bộ ThePawsome"
+        source = f"Nguồn: [{title}]"
+        if result.get("source_url"):
+            source += f" {result['source_url']}"
+        parts.append(
+            f"<retrieved_document title={title!r} "
+            f"category={result.get('category')!r}>\n"
+            f"{safe_content}\n</retrieved_document>\n{source}"
+        )
+    return "\n\n".join(parts)
+
+
+def _build_tools(
+    db: AsyncSession, user_id: uuid.UUID, *, allow_cart_mutation: bool = False
+):
     @tool
     async def search_products_tool(query: str, species: Optional[List[str]] = None) -> str:
         """Tìm sản phẩm trong cửa hàng ThePawsome bằng vector similarity.
@@ -79,17 +104,7 @@ def _build_tools(db: AsyncSession, user_id: uuid.UUID):
 
         Returns: Tối đa 4 đoạn kiến thức liên quan, kèm tiêu đề bài.
         """
-        results = search_knowledge(query=query, limit=4)
-        if not results:
-            return "Không tìm thấy kiến thức liên quan."
-        parts = []
-        for r in results:
-            source_line = f"Nguồn: {r['source_url']}" if r.get('source_url') else ""
-            entry = f"[{r['title']} — {r['category']}]\n{r['content']}"
-            if source_line:
-                entry += f"\n{source_line}"
-            parts.append(entry)
-        return "\n\n".join(parts)
+        return build_knowledge_context(query)
 
     @tool
     async def add_to_cart_tool(slug: str, quantity: int = 1) -> str:
@@ -247,17 +262,24 @@ def _build_tools(db: AsyncSession, user_id: uuid.UUID):
 
         return await get_pet_profile_cached(pet)
 
-    return [
+    tools = [
         search_products_tool,
         search_knowledge_tool,
-        add_to_cart_tool,
         view_cart_tool,
         list_pets_tool,
         get_pet_detail_tool,
     ]
+    if allow_cart_mutation:
+        tools.append(add_to_cart_tool)
+    return tools
 
 
-def build_agent(db: AsyncSession, user_id: uuid.UUID):
+def build_agent(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    *,
+    allow_cart_mutation: bool = False,
+):
     """Build a per-request StateGraph agent: agent ⇄ tools.
 
     Graph:
@@ -268,8 +290,12 @@ def build_agent(db: AsyncSession, user_id: uuid.UUID):
         model=settings.CHAT_MODEL,
         api_key=settings.OPENAI_API_KEY,
         temperature=0.3,
+        timeout=settings.AI_REQUEST_TIMEOUT_SECONDS,
+        max_retries=settings.AI_MAX_RETRIES,
     )
-    tools = _build_tools(db, user_id)
+    tools = _build_tools(
+        db, user_id, allow_cart_mutation=allow_cart_mutation
+    )
     llm_with_tools = llm.bind_tools(tools)
 
     async def agent_node(state: AgentState):

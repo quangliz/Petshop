@@ -1,4 +1,6 @@
 import uuid
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import httpx
@@ -6,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.api.deps import SessionDep, CurrentUser
 from app.core.limiter import limiter
@@ -19,7 +21,7 @@ from app.core.security import (
     create_reset_token,
 )
 from app.core.email import send_reset_email
-from app.models.user import User
+from app.models.user import RefreshSession, User
 
 router = APIRouter()
 
@@ -77,6 +79,38 @@ def _user_response(user: User) -> dict:
     }
 
 
+def _set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key="refresh_token",
+        value=token,
+        httponly=True,
+        secure=settings.refresh_cookie_secure,
+        samesite="lax",
+        max_age=REFRESH_COOKIE_MAX_AGE,
+        path="/api/v1/auth",
+    )
+
+
+async def _issue_refresh_session(db: SessionDep, user_id: uuid.UUID) -> str:
+    jti = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
+    db.add(RefreshSession(user_id=user_id, jti=jti, expires_at=expires_at))
+    return create_refresh_token(subject=str(user_id), jti=jti)
+
+
+async def _revoke_all_refresh_sessions(db: SessionDep, user_id: uuid.UUID) -> None:
+    await db.execute(
+        update(RefreshSession)
+        .where(
+            RefreshSession.user_id == user_id,
+            RefreshSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=datetime.now(timezone.utc))
+    )
+
+
 @router.post("/register", response_model=UserResponse)
 @limiter.limit("5/minute")
 async def register(request: Request, user_in: UserRegister, db: SessionDep) -> Any:
@@ -102,22 +136,17 @@ async def login(request: Request, response: Response, db: SessionDep, form_data:
     user = result.scalar_one_or_none()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Email hoặc mật khẩu không chính xác")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Tài khoản đã bị khóa")
     access_token = create_access_token(subject=str(user.id))
-    refresh_token = create_refresh_token(subject=str(user.id))
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        secure=settings.refresh_cookie_secure,
-        samesite="lax",
-        max_age=REFRESH_COOKIE_MAX_AGE,
-        path="/api/v1/auth",
-    )
+    refresh_token = await _issue_refresh_session(db, user.id)
+    await db.commit()
+    _set_refresh_cookie(response, refresh_token)
     return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post("/refresh", response_model=Token)
-async def refresh(request: Request, db: SessionDep) -> Any:
+async def refresh(request: Request, response: Response, db: SessionDep) -> Any:
     token = request.cookies.get("refresh_token")
     if not token:
         raise HTTPException(status_code=401, detail="Không có refresh token")
@@ -126,13 +155,51 @@ async def refresh(request: Request, db: SessionDep) -> Any:
         if payload.get("type") != "refresh":
             raise HTTPException(status_code=401, detail="Token không hợp lệ")
         user_id = payload.get("sub")
-        result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+        jti = payload.get("jti")
+        if not user_id or not jti:
+            raise HTTPException(status_code=401, detail="Token không hợp lệ")
+        user_uuid = uuid.UUID(user_id)
+        result = await db.execute(
+            select(RefreshSession)
+            .where(RefreshSession.jti == jti)
+            .with_for_update()
+        )
+        session = result.scalar_one_or_none()
+        if not session or session.user_id != user_uuid:
+            raise HTTPException(status_code=401, detail="Token không hợp lệ")
+        if session.revoked_at is not None:
+            await _revoke_all_refresh_sessions(db, user_uuid)
+            await db.commit()
+            raise HTTPException(status_code=401, detail="Phát hiện refresh token đã được sử dụng lại")
+        if session.expires_at <= datetime.now(timezone.utc):
+            session.revoked_at = datetime.now(timezone.utc)
+            await db.commit()
+            raise HTTPException(status_code=401, detail="Refresh token đã hết hạn")
+
+        result = await db.execute(select(User).where(User.id == user_uuid))
         user = result.scalar_one_or_none()
-        if not user:
+        if not user or not user.is_active:
             raise HTTPException(status_code=401, detail="Người dùng không tồn tại")
     except (JWTError, ValueError):
         raise HTTPException(status_code=401, detail="Token không hợp lệ")
+
+    replacement_jti = secrets.token_urlsafe(32)
+    session.revoked_at = datetime.now(timezone.utc)
+    session.replaced_by_jti = replacement_jti
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
+    db.add(
+        RefreshSession(
+            user_id=user.id,
+            jti=replacement_jti,
+            expires_at=expires_at,
+        )
+    )
     new_access = create_access_token(subject=str(user.id))
+    new_refresh = create_refresh_token(subject=str(user.id), jti=replacement_jti)
+    await db.commit()
+    _set_refresh_cookie(response, new_refresh)
     return {"access_token": new_access, "token_type": "bearer"}
 
 
@@ -164,9 +231,10 @@ async def reset_password(request: Request, body: ResetPasswordRequest, db: Sessi
         user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(status_code=400, detail="Token không hợp lệ")
-    except JWTError:
+    except (JWTError, ValueError, KeyError):
         raise HTTPException(status_code=400, detail="Token không hợp lệ hoặc đã hết hạn")
     user.hashed_password = get_password_hash(body.new_password)
+    await _revoke_all_refresh_sessions(db, user.id)
     await db.commit()
     return {"message": "Mật khẩu đã được cập nhật."}
 
@@ -177,12 +245,30 @@ async def change_password(request: Request, body: ChangePasswordRequest, db: Ses
     if not verify_password(body.current_password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng")
     current_user.hashed_password = get_password_hash(body.new_password)
+    await _revoke_all_refresh_sessions(db, current_user.id)
     await db.commit()
     return {"message": "Đã đổi mật khẩu thành công."}
 
 
 @router.post("/logout")
-async def logout(response: Response) -> Any:
+async def logout(request: Request, response: Response, db: SessionDep) -> Any:
+    token = request.cookies.get("refresh_token")
+    if token:
+        try:
+            payload = jwt.decode(
+                token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            )
+            jti = payload.get("jti")
+            if payload.get("type") == "refresh" and jti:
+                result = await db.execute(
+                    select(RefreshSession).where(RefreshSession.jti == jti)
+                )
+                session = result.scalar_one_or_none()
+                if session and session.revoked_at is None:
+                    session.revoked_at = datetime.now(timezone.utc)
+                    await db.commit()
+        except JWTError:
+            pass
     response.delete_cookie("refresh_token", path="/api/v1/auth")
     return {"message": "Đã đăng xuất."}
 
@@ -245,16 +331,11 @@ async def google_login(body: GoogleAuthRequest, response: Response, db: SessionD
         await db.refresh(user)
 
     access_token = create_access_token(subject=str(user.id))
-    refresh_token = create_refresh_token(subject=str(user.id))
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        secure=settings.refresh_cookie_secure,
-        samesite="lax",
-        max_age=REFRESH_COOKIE_MAX_AGE,
-        path="/api/v1/auth",
-    )
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Tài khoản đã bị khóa")
+    refresh_token = await _issue_refresh_session(db, user.id)
+    await db.commit()
+    _set_refresh_cookie(response, refresh_token)
     return {"access_token": access_token, "token_type": "bearer"}
 
 

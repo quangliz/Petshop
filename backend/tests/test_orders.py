@@ -1,5 +1,6 @@
 """Tests for Orders API."""
 import pytest
+from tests.helpers import get_purchasable_line, idempotency_headers
 
 
 class TestOrdersList:
@@ -31,7 +32,7 @@ class TestCheckout:
         for item in cart.get("items", []):
             client.delete(f"/api/v1/cart/items/{item['id']}", headers=auth_headers)
 
-        res = client.post("/api/v1/orders/checkout", headers=auth_headers, json={
+        res = client.post("/api/v1/orders/checkout", headers=idempotency_headers(auth_headers), json={
             "ship_name": "Test",
             "ship_phone": "0123456789",
             "ship_address": "123 Đường test",
@@ -41,20 +42,12 @@ class TestCheckout:
 
     def test_checkout_success(self, client, auth_headers):
         """Full checkout flow: add item → checkout → verify order."""
-        products = client.get("/api/v1/products?size=20").json()
-        items = [p for p in products.get("items", []) if p.get("stock_qty", 0) > 0]
-        if not items:
-            pytest.skip("No products available")
-
-        product_id = items[0]["id"]
-        
+        line = get_purchasable_line(client)
         # Add to cart
-        client.post("/api/v1/cart/items", headers=auth_headers, json={
-            "product_id": product_id, "quantity": 1
-        })
+        client.post("/api/v1/cart/items", headers=auth_headers, json=line)
 
         # Checkout
-        res = client.post("/api/v1/orders/checkout", headers=auth_headers, json={
+        res = client.post("/api/v1/orders/checkout", headers=idempotency_headers(auth_headers), json={
             "ship_name": "Nguyễn Test",
             "ship_phone": "0909090909",
             "ship_address": "456 Đường Kiểm Thử, Q.2, HCM",

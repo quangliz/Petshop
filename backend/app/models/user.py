@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, String, Text, Numeric, DateTime, Enum as SQLEnum, ForeignKey, Integer, func
+from sqlalchemy import Boolean, String, Text, Numeric, DateTime, Enum as SQLEnum, ForeignKey, Integer, Index, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import uuid
@@ -43,6 +43,28 @@ class User(Base):
     orders = relationship("Order", back_populates="user")
     chat_sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
+    refresh_sessions = relationship("RefreshSession", back_populates="user", cascade="all, delete-orphan")
+
+
+class RefreshSession(Base):
+    __tablename__ = "refresh_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
+    )
+    jti: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    replaced_by_jti: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="refresh_sessions")
+
+    __table_args__ = (
+        Index("ix_refresh_sessions_user_id", "user_id"),
+        Index("ix_refresh_sessions_expires_at", "expires_at"),
+    )
 
 class Pet(Base):
     __tablename__ = "pets"

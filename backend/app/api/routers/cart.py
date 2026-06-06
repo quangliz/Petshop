@@ -13,8 +13,8 @@ router = APIRouter()
 
 
 class CartItemCreate(BaseModel):
-    product_id: str
-    variant_id: str | None = None
+    product_id: uuid.UUID
+    variant_id: uuid.UUID | None = None
     quantity: int = Field(default=1, ge=1)
 
 
@@ -113,10 +113,12 @@ def _build_cart_response(cart: Cart) -> CartResponse:
     return CartResponse(id=str(cart.id), items=items, total_amount=total)
 
 
-async def _resolve_product_and_variant(db, product_id: str, variant_id: str | None) -> tuple[Product, ProductVariant | None]:
+async def _resolve_product_and_variant(
+    db, product_id: uuid.UUID, variant_id: uuid.UUID | None
+) -> tuple[Product, ProductVariant | None]:
     result = await db.execute(
         select(Product)
-        .where(Product.id == uuid.UUID(product_id))
+        .where(Product.id == product_id)
         .options(selectinload(Product.variants))
     )
     product = result.scalar_one_or_none()
@@ -129,12 +131,7 @@ async def _resolve_product_and_variant(db, product_id: str, variant_id: str | No
     if not variant_id:
         return product, None
 
-    try:
-        variant_uuid = uuid.UUID(variant_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Biến thể không hợp lệ")
-
-    variant = next((v for v in active_variants if v.id == variant_uuid), None)
+    variant = next((v for v in active_variants if v.id == variant_id), None)
     if not variant:
         raise HTTPException(status_code=404, detail="Biến thể không tồn tại hoặc đã ngừng bán")
     return product, variant
@@ -188,7 +185,7 @@ async def add_to_cart(item_in: CartItemCreate, db: SessionDep, current_user: Cur
 
 
 @router.put("/items/{item_id}", response_model=CartResponse)
-async def update_cart_item(item_id: str, item_in: CartItemUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
+async def update_cart_item(item_id: uuid.UUID, item_in: CartItemUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
     result = await db.execute(select(Cart).where(Cart.user_id == current_user.id))
     cart = result.scalar_one_or_none()
     if not cart:
@@ -196,7 +193,7 @@ async def update_cart_item(item_id: str, item_in: CartItemUpdate, db: SessionDep
 
     result = await db.execute(
         select(CartItem)
-        .where(CartItem.id == uuid.UUID(item_id), CartItem.cart_id == cart.id)
+        .where(CartItem.id == item_id, CartItem.cart_id == cart.id)
         .options(selectinload(CartItem.product), selectinload(CartItem.variant))
     )
     cart_item = result.scalar_one_or_none()
@@ -220,14 +217,14 @@ async def update_cart_item(item_id: str, item_in: CartItemUpdate, db: SessionDep
 
 
 @router.delete("/items/{item_id}", response_model=CartResponse)
-async def remove_cart_item(item_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+async def remove_cart_item(item_id: uuid.UUID, db: SessionDep, current_user: CurrentUser) -> Any:
     result = await db.execute(select(Cart).where(Cart.user_id == current_user.id))
     cart = result.scalar_one_or_none()
     if not cart:
         raise HTTPException(status_code=404, detail="Giỏ hàng trống")
 
     result = await db.execute(
-        select(CartItem).where(CartItem.id == uuid.UUID(item_id), CartItem.cart_id == cart.id)
+        select(CartItem).where(CartItem.id == item_id, CartItem.cart_id == cart.id)
     )
     cart_item = result.scalar_one_or_none()
     if not cart_item:

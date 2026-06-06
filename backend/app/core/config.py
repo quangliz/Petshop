@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    GUEST_ORDER_TOKEN_EXPIRE_HOURS: int = 24
     COOKIE_SECURE: bool = False
 
     # Email (Gmail SMTP)
@@ -54,6 +55,10 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     CHAT_MODEL: str = "gpt-4o-mini"
+    AI_EVAL_JUDGE_MODEL: str = "gpt-4o"
+    AI_REQUEST_TIMEOUT_SECONDS: float = 30.0
+    AI_MAX_RETRIES: int = 2
+    AI_EVAL_TOKEN_BUDGET: int = 200000
     CLOUDINARY_CLOUD_NAME: str = ""
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
@@ -63,6 +68,12 @@ class Settings(BaseSettings):
     LANGSMITH_API_KEY: str = ""
     LANGSMITH_PROJECT: str = "petshop-ai"
     LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
+
+    # Commerce hardening
+    VNPAY_PAYMENT_TTL_MINUTES: int = 15
+    INVENTORY_RESERVATION_GRACE_MINUTES: int = 5
+    RESERVATION_SWEEP_INTERVAL_SECONDS: int = 60
+    PET_AVATAR_MAX_BYTES: int = 5 * 1024 * 1024
 
     model_config = SettingsConfigDict(
         env_file="../.env",

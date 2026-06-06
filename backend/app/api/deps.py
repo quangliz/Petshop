@@ -50,7 +50,7 @@ async def get_current_user(db: SessionDep, token: TokenDep) -> User:
 
     result = await db.execute(select(User).where(User.id == uuid_obj))
     user = result.scalar_one_or_none()
-    if user is None:
+    if user is None or not user.is_active:
         raise credentials_exception
     return user
 
@@ -67,12 +67,15 @@ async def get_optional_user(
         return None
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != "access":
+            return None
         user_id: str = payload.get("sub")
         if user_id is None:
             return None
         uuid_obj = uuid.UUID(user_id)
         result = await db.execute(select(User).where(User.id == uuid_obj))
-        return result.scalar_one_or_none()
+        user = result.scalar_one_or_none()
+        return user if user and user.is_active else None
     except (JWTError, ValueError):
         return None
 

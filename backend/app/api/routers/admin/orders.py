@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 class OrderStatusUpdate(BaseModel):
-    status: str
+    status: OrderStatusEnum
 
 
 @router.get("/orders")
@@ -50,21 +50,18 @@ async def admin_list_orders(
 
 @router.put("/orders/{order_id}/status")
 async def admin_update_order_status(
-    order_id: str, body: OrderStatusUpdate, db: SessionDep, _admin: AdminUser
+    order_id: uuid.UUID, body: OrderStatusUpdate, db: SessionDep, _admin: AdminUser
 ) -> Any:
     result = await db.execute(
         select(Order)
-        .where(Order.id == uuid.UUID(order_id))
+        .where(Order.id == order_id)
         .options(selectinload(Order.order_items))
     )
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng")
 
-    try:
-        new_status = OrderStatusEnum(body.status)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Trạng thái không hợp lệ")
+    new_status = body.status
 
     # Increment sold_count for COD orders when transitioning TO 'confirmed' for the first time
     should_increment = (

@@ -35,10 +35,10 @@ async def admin_list_users(db: SessionDep, _admin: AdminUser, skip: int = 0, lim
 
 
 @router.put("/users/{user_id}/toggle-active")
-async def admin_toggle_user_active(user_id: str, db: SessionDep, _admin: AdminUser) -> Any:
-    if str(_admin.id) == user_id:
+async def admin_toggle_user_active(user_id: uuid.UUID, db: SessionDep, _admin: AdminUser) -> Any:
+    if _admin.id == user_id:
         raise HTTPException(status_code=400, detail="Không thể khoá chính tài khoản của mình")
-    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="Không tìm thấy người dùng")

@@ -69,7 +69,11 @@ uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 ```
 
-Health check: `GET /health`.
+Health checks:
+
+- `GET /health/live`: process liveness.
+- `GET /health/ready`: DB/Redis readiness; OpenAI chỉ báo degraded và không gọi API.
+- `GET /health`: alias tương thích.
 
 ## API modules
 
@@ -78,8 +82,8 @@ Health check: `GET /health`.
 - `categories`: danh mục public.
 - `banners`: banner public đang active.
 - `cart`: giỏ hàng user, item add/update/delete.
-- `orders`: user checkout, guest checkout, order history, guest lookup, detail, cancel.
-- `payments`: VNPay create URL và IPN.
+- `orders`: idempotent user/guest checkout, order history, protected guest lookup, detail, cancel.
+- `payments`: VNPay payment attempt, status polling và authoritative IPN.
 - `pets`: CRUD hồ sơ thú cưng và upload avatar.
 - `chat`: chat sessions, messages, streaming response.
 - `reviews`: tạo/list/xóa review, rating summary, can-review.
@@ -95,9 +99,9 @@ Auth dependency chính:
 
 Models chính:
 
-- `users`, `pets`
+- `users`, `refresh_sessions`, `pets`
 - `categories`, `banners`, `products`, `product_variants`, `product_images`
-- `carts`, `cart_items`, `orders`, `order_items`, `payments`
+- `carts`, `cart_items`, `orders`, `order_items`, `payments`, `inventory_reservations`
 - `reviews`
 - `chat_sessions`, `chat_messages`
 - `knowledge_docs`
@@ -120,7 +124,7 @@ Luồng chatbot nằm ở `app/services/chat_agent.py`:
 user message
   -> LangGraph agent
   -> tools_condition
-  -> tools: search_products, search_knowledge, add_to_cart, view_cart, list_pets, get_pet_detail
+  -> tools: search_products, search_knowledge, confirmation-gated add_to_cart, view_cart, list_pets, get_pet_detail
   -> assistant response streamed by /api/v1/chat/stream
 ```
 
@@ -148,7 +152,16 @@ uv run python scripts/import_petshophanoi.py --limit 30 --dry-run
 uv run python scripts/import_petshophanoi.py --limit 30
 ```
 
-Các script `seed_db.py`, `seed_products.py`, `seed_knowledge.py`, `embed_products.py`, `embed_knowledge.py`, `evaluate_ai.py` là script lịch sử và có thể cần cập nhật trước khi chạy vì một số script còn dùng session sync.
+AI evaluation dùng async session, không mutation dữ liệu:
+
+```bash
+uv run python scripts/seed_knowledge.py
+uv run python scripts/embed_knowledge.py
+uv run python scripts/evaluate_ai.py --limit 5
+uv run python scripts/evaluate_ai.py --live --concurrency 2
+```
+
+Seed knowledge là idempotent; evaluation từ chối chạy RAG grounding nếu corpus chưa được index.
 
 ## Kiểm thử
 
@@ -163,7 +176,8 @@ Tests là integration-style, dùng DB/Redis thật theo `.env` hoặc env của 
 1. `uv sync --dev`
 2. `uv run alembic upgrade head`
 3. `uv run ruff check .`
-4. `uv run pytest`
+4. migration downgrade/upgrade smoke test
+5. `uv run pytest`
 
 ## Docker
 
@@ -172,6 +186,7 @@ Backend image:
 - build bằng `backend/Dockerfile`
 - entrypoint chạy `alembic upgrade head`
 - start `uvicorn app.main:app --host 0.0.0.0 --port 8000`
-- healthcheck gọi `/health`
+- healthcheck gọi `/health/ready`
+- production compose chạy reservation expiry worker riêng, quét theo `RESERVATION_SWEEP_INTERVAL_SECONDS`
 
 Production compose không chạy Postgres local; `DATABASE_URL` cần trỏ đến database production hoặc managed database.

@@ -64,8 +64,8 @@ async def admin_list_knowledge(
 
 
 @router.get("/knowledge/{doc_id}")
-async def admin_get_knowledge(doc_id: str, db: SessionDep, _admin: AdminUser) -> Any:
-    result = await db.execute(select(KnowledgeDoc).where(KnowledgeDoc.id == uuid.UUID(doc_id)))
+async def admin_get_knowledge(doc_id: uuid.UUID, db: SessionDep, _admin: AdminUser) -> Any:
+    result = await db.execute(select(KnowledgeDoc).where(KnowledgeDoc.id == doc_id))
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu")
@@ -82,8 +82,8 @@ async def admin_create_knowledge(payload: KnowledgeCreate, db: SessionDep, _admi
 
 
 @router.put("/knowledge/{doc_id}")
-async def admin_update_knowledge(doc_id: str, payload: KnowledgeUpdate, db: SessionDep, _admin: AdminUser) -> Any:
-    result = await db.execute(select(KnowledgeDoc).where(KnowledgeDoc.id == uuid.UUID(doc_id)))
+async def admin_update_knowledge(doc_id: uuid.UUID, payload: KnowledgeUpdate, db: SessionDep, _admin: AdminUser) -> Any:
+    result = await db.execute(select(KnowledgeDoc).where(KnowledgeDoc.id == doc_id))
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu")
@@ -95,8 +95,8 @@ async def admin_update_knowledge(doc_id: str, payload: KnowledgeUpdate, db: Sess
 
 
 @router.delete("/knowledge/{doc_id}")
-async def admin_delete_knowledge(doc_id: str, db: SessionDep, _admin: AdminUser) -> Any:
-    result = await db.execute(select(KnowledgeDoc).where(KnowledgeDoc.id == uuid.UUID(doc_id)))
+async def admin_delete_knowledge(doc_id: uuid.UUID, db: SessionDep, _admin: AdminUser) -> Any:
+    result = await db.execute(select(KnowledgeDoc).where(KnowledgeDoc.id == doc_id))
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu")
