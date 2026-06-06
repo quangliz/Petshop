@@ -200,7 +200,7 @@ Lookup result
 
 API:
 
-- `GET /orders/guest-lookup?order_code=...&email=...`
+- `POST /orders/guest-lookup` với `order_code` và `email` trong JSON body
 
 ## 10. Profile `/profile`
 

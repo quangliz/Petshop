@@ -50,17 +50,18 @@ Một bản ThePawsome ở mức doanh nghiệp phải chứng minh được:
 | [ISO/IEC 27001](https://www.iso.org/standard/27001) | ISMS quản lý rủi ro bảo mật dữ liệu, bảo toàn confidentiality, integrity, availability. | Enterprise version cần ISMS-lite: asset inventory, access control, backup, incident response. |
 | [OpenTelemetry](https://opentelemetry.io/docs/) | Framework vendor-neutral cho traces, metrics và logs. | Cần observability chuẩn để debug checkout/payment/AI incidents. |
 | [Online.gov.vn](https://online.gov.vn/Gioi-thieu) | Hệ thống Bộ Công Thương xác nhận thông báo/đăng ký website/app TMĐT theo Nghị định 52/2013 và 85/2021. | Khi vận hành thật ở Việt Nam, website TMĐT cần hồ sơ pháp lý, chính sách và thông báo/đăng ký phù hợp. |
-| [Nghị định 13/2023/NĐ-CP](https://xaydungchinhsach.chinhphu.vn/toan-van-nghi-dinh-13-2023-nd-cp-bao-ve-du-lieu-ca-nhan-119230516104357809.htm) | Quy định bảo vệ dữ liệu cá nhân ở Việt Nam. | Cần consent, mục đích xử lý dữ liệu, quyền chủ thể dữ liệu, log truy cập và data retention. |
+| [Luật Bảo vệ dữ liệu cá nhân 91/2025/QH15](https://xaydungchinhsach.chinhphu.vn/quoc-hoi-da-thong-qua-luat-bao-ve-du-lieu-ca-nhan-119250626153701582.htm) | Khung pháp lý bảo vệ dữ liệu cá nhân có hiệu lực từ năm 2026; Nghị định 13/2023/NĐ-CP vẫn là tài liệu triển khai liên quan. | Cần consent, mục đích xử lý dữ liệu, quyền chủ thể dữ liệu, log truy cập và data retention. |
+| [Luật Trí tuệ nhân tạo 134/2025/QH15](https://xaydungchinhsach.chinhphu.vn/nhung-noi-dung-dang-chu-y-cua-luat-tri-tue-nhan-tao-119260212091614393.htm) | Đặt yêu cầu minh bạch, quản trị rủi ro và trách nhiệm cho hệ thống AI tại Việt Nam. | Chatbot cần disclosure, safety policy, đánh giá và cơ chế escalation. |
 
 ## 3. Khoảng cách từ bản hiện tại đến enterprise
 
 | Miền | Hiện tại | Khoảng cách enterprise |
 |---|---|---|
 | Frontend | Có storefront, auth, checkout, profile, order, admin, chat widget. | Thiếu RUM/Core Web Vitals, accessibility AA, returns/wishlist, consent management, A/B testing, mobile PWA. |
-| Backend | Có FastAPI, auth, cart/order/payment, admin, DB constraints, CI cơ bản. | Thiếu idempotency toàn diện, refund/returns, inventory reservation TTL, RBAC granular, audit log, API versioning, observability, backup/DR, integration layer. |
-| AI | Có LangGraph, RAG, product/knowledge tools, SSE chat. | Thiếu AI evaluation chính thức, prompt injection defense, source quality workflow, medical triage policy, cost budget, model fallback, human handoff, audit dashboard. |
-| Security/Compliance | Có JWT, bcrypt, CORS, security headers, secret startup checks. | Thiếu ASVS/API Security mapping, consent/privacy workflow, data subject rights, log redaction, SAST/DAST/dependency scan, incident runbook. |
-| Operations | Có Docker, CI/CD, Nginx, healthcheck cơ bản. | Thiếu ready checks, metrics/tracing/logging, alerting, SLO, backup restore drill, blue-green/rollback, environment separation. |
+| Backend | Có FastAPI, refresh rotation, idempotent checkout/payment, reservation TTL, admin, DB constraints và CI. | Còn thiếu refund/returns, RBAC granular, audit log tổng quát, API versioning, backup/DR và integration layer. |
+| AI | Có LangGraph, RAG, safety policy, prompt-injection guard, tool authorization và live evaluation 40 case. | Còn thiếu source governance workflow, model fallback đa nhà cung cấp, human handoff và cost/audit dashboard. |
+| Security/Compliance | Có ASVS/API Security mapping, token replay defense, BOLA tests, log redaction và legal pages demo. | Còn thiếu consent center, data export/delete workflow, SAST/DAST/dependency scan và incident runbook đầy đủ. |
+| Operations | Có Docker, CI/CD, Nginx, live/ready checks, JSON request logs và reservation worker. | Còn thiếu metrics/tracing dashboard, alerting, SLO, backup restore drill, blue-green/rollback và environment separation. |
 
 ## 4. Enterprise requirement format
 
@@ -158,11 +159,11 @@ Mỗi requirement dùng format:
 
 ### Phase 0 - Hardening để public demo an toàn
 
-- Hoàn thiện ASVS/API security baseline cho auth, orders, pets, reviews, admin.
-- Thêm idempotency checkout/payment và stock reservation TTL.
-- Thêm ready healthcheck, structured logs, request id.
-- Cập nhật AI evaluation script async-compatible và tạo báo cáo AI evaluation.
-- Thêm privacy/legal pages tối thiểu.
+- Đã hoàn thiện ASVS/API security baseline cho auth, orders, pets, reviews, chat và admin.
+- Đã thêm idempotency checkout/payment và stock reservation TTL.
+- Đã thêm ready healthcheck, structured logs và request id.
+- Đã cập nhật AI evaluation async-compatible và tạo live report 40 case.
+- Đã thêm privacy/legal pages tối thiểu.
 
 ### Phase 1 - SME production
 

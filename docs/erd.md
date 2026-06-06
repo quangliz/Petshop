@@ -8,6 +8,7 @@ ERD này phản ánh schema hiện tại trong `backend/app/models/` và Alembic
 |---|---|---|
 | Identity | `users` | Tài khoản user/admin |
 | Identity | `pets` | Hồ sơ thú cưng thuộc user |
+| Identity | `refresh_sessions` | Refresh token rotation/revocation |
 | Catalog | `categories` | Danh mục phân cấp |
 | Catalog | `banners` | Banner homepage responsive |
 | Catalog | `products` | Sản phẩm gốc |
@@ -18,6 +19,7 @@ ERD này phản ánh schema hiện tại trong `backend/app/models/` và Alembic
 | Commerce | `orders` | Đơn hàng user hoặc guest |
 | Commerce | `order_items` | Snapshot dòng đơn |
 | Commerce | `payments` | Giao dịch COD/VNPay |
+| Commerce | `inventory_reservations` | Giữ hàng VNPay có TTL |
 | Review | `reviews` | Rating/comment của user cho sản phẩm |
 | AI Chat | `chat_sessions` | Phiên chat |
 | AI Chat | `chat_messages` | Lượt hội thoại |
@@ -36,6 +38,7 @@ erDiagram
     users ||--o{ orders : places
     users ||--o{ chat_sessions : starts
     users ||--o{ reviews : writes
+    users ||--o{ refresh_sessions : authenticates
 
     categories ||--o{ categories : parent_of
     categories ||--o{ products : contains
@@ -52,6 +55,8 @@ erDiagram
     products ||--o{ order_items : snapshot_of
     product_variants ||--o{ order_items : snapshot_variant
     orders ||--o{ payments : has
+    orders ||--o{ inventory_reservations : reserves
+    order_items ||--o| inventory_reservations : represented_by
 
     products ||--o{ reviews : reviewed
 
@@ -71,6 +76,15 @@ erDiagram
         boolean is_active
         timestamptz created_at
         timestamptz updated_at
+    }
+
+    refresh_sessions {
+        uuid id PK
+        uuid user_id FK
+        string jti UK
+        timestamptz expires_at
+        timestamptz revoked_at
+        string replaced_by_jti
     }
 
     pets {
@@ -211,8 +225,25 @@ erDiagram
         numeric amount
         enum status "pending|success|failed|refunded"
         string external_txn_id UK
+        string merchant_ref UK
+        string idempotency_key
+        timestamptz expires_at
+        boolean requires_review
         jsonb raw_response
         timestamptz created_at
+    }
+
+    inventory_reservations {
+        uuid id PK
+        uuid order_id FK
+        uuid order_item_id FK_UK
+        uuid product_id FK_nullable
+        uuid variant_id FK_nullable
+        int quantity
+        enum status "held|committed|released"
+        timestamptz expires_at
+        timestamptz released_at
+        timestamptz committed_at
     }
 
     reviews {

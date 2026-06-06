@@ -58,6 +58,11 @@ jobs:
       - name: Run database migrations
         run: uv run alembic upgrade head
 
+      - name: Verify latest migration downgrade and re-upgrade
+        run: |
+          uv run alembic downgrade -1
+          uv run alembic upgrade head
+
       - name: Lint with Ruff
         run: uv run ruff check .
 

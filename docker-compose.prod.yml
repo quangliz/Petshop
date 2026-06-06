@@ -18,6 +18,17 @@ services:
     networks:
       - petshop_net
 
+  reservation-worker:
+    image: ${DOCKER_HUB_USERNAME}/petshop-backend:${IMAGE_TAG:-latest}
+    container_name: petshop_reservation_worker
+    env_file: .env
+    entrypoint: ["python", "-m", "app.workers.reservation_expiry"]
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - petshop_net
+
   frontend:
     image: ${DOCKER_HUB_USERNAME}/petshop-frontend:${IMAGE_TAG:-latest}
     container_name: petshop_frontend

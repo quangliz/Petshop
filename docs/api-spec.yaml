@@ -382,6 +382,8 @@ paths:
     post:
       tags: [orders]
       summary: Checkout current user's cart
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "200":
           $ref: "#/components/responses/Object"
@@ -391,6 +393,8 @@ paths:
       tags: [orders]
       security: []
       summary: Checkout as guest
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "200":
           $ref: "#/components/responses/Object"
@@ -404,22 +408,23 @@ paths:
           $ref: "#/components/responses/List"
 
   /orders/guest-lookup:
-    get:
+    post:
       tags: [orders]
       security: []
       summary: Look up guest order by email and order code
-      parameters:
-        - name: email
-          in: query
-          required: true
-          schema:
-            type: string
-            format: email
-        - name: order_code
-          in: query
-          required: true
-          schema:
-            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, order_code]
+              properties:
+                email:
+                  type: string
+                  format: email
+                order_code:
+                  type: string
       responses:
         "200":
           $ref: "#/components/responses/Object"
@@ -430,6 +435,21 @@ paths:
       summary: Get order detail
       parameters:
         - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /payments/vnpay/status/{merchant_ref}:
+    get:
+      tags: [payments]
+      summary: Poll persisted VNPay payment status
+      parameters:
+        - name: merchant_ref
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/GuestOrderToken"
       responses:
         "200":
           $ref: "#/components/responses/Object"
@@ -450,6 +470,8 @@ paths:
       summary: Create VNPay payment URL
       parameters:
         - $ref: "#/components/parameters/OrderId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/GuestOrderToken"
       responses:
         "200":
           $ref: "#/components/responses/Object"
@@ -899,6 +921,20 @@ components:
       bearerFormat: JWT
 
   parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    GuestOrderToken:
+      name: X-Guest-Order-Token
+      in: header
+      required: false
+      schema:
+        type: string
     SearchQuery:
       name: q
       in: query

@@ -50,10 +50,11 @@ Lý do:
 - User order vẫn bảo vệ theo owner.
 - Guest lookup ưu tiên `order_code + email` thay vì chỉ dựa vào order id.
 
-Trade-off:
+Phase 0 hardening:
 
-- Cần cẩn trọng với order detail public của guest order.
-- Hướng production tốt hơn là lookup token một lần hoặc bắt buộc email + code cho mọi guest detail.
+- Không còn order detail public bằng UUID.
+- Guest checkout trả signed guest-order token ngắn hạn cho payment/status.
+- Guest lookup dùng `POST` với `order_code + email`, rate limit và lỗi không tiết lộ order có tồn tại hay không.
 
 ## 5. Product variant tách bảng riêng
 
@@ -175,21 +176,33 @@ Lý do:
 - Validation frontend/backend không đủ để chống ghi sai do bug/race/manual SQL.
 - DB là lớp bảo vệ cuối cùng cho dữ liệu thương mại.
 
-## 12. Stock trừ tại checkout
+## 12. Stock reservation tại checkout
 
-Checkout lock sản phẩm/variant bằng `SELECT ... FOR UPDATE`, kiểm tra tồn kho rồi trừ ngay khi tạo order.
+Checkout lock sản phẩm/variant bằng `SELECT ... FOR UPDATE`, kiểm tra tồn kho rồi trừ available stock. Với VNPay, hệ thống đồng thời tạo `inventory_reservations` ở trạng thái `held`.
 
 Lý do:
 
-- Tránh oversell trong demo/concurrent checkout cơ bản.
-- Đơn COD và VNPay đều giữ hàng ngay sau checkout.
+- Tránh oversell trong concurrent checkout.
+- VNPay có TTL 15 phút và grace 5 phút; worker riêng release đúng một lần bằng row lock/`SKIP LOCKED`.
+- IPN thành công commit reservation. Late success thử reacquire nguyên tử; thiếu hàng thì payment vẫn được ghi nhận và chuyển `requires_review`.
 
 Trade-off:
 
-- VNPay thất bại/timeout cần policy restock hoặc TTL giữ hàng rõ hơn.
-- Đây là một mục hardening còn trong production readiness.
+- COD vẫn trừ kho trực tiếp vì không có cửa sổ chờ gateway.
+- Reconciliation thiếu hàng cần xử lý thủ công; workflow tổng quát thuộc Phase 1.
 
-## 13. Review aggregate trên products
+## 13. Checkout và payment idempotency
+
+`orders` lưu scope, idempotency key và SHA-256 của canonical request. Advisory transaction lock bảo đảm concurrent duplicate chỉ tạo một order và trừ kho một lần.
+
+`payments` có unique merchant reference, idempotency key, payment URL và expiry. IPN retry cập nhật cùng payment attempt thay vì tạo giao dịch mới.
+
+Lý do:
+
+- Retry từ browser/proxy là hành vi bình thường, không được tạo đơn hoặc thanh toán trùng.
+- Cùng key nhưng payload khác trả `409` để phát hiện client reuse sai.
+
+## 14. Review aggregate trên products
 
 `products.avg_rating` và `products.review_count` là aggregate denormalized từ `reviews`.
 
@@ -202,7 +215,7 @@ Trade-off:
 
 - Khi thêm/xóa review phải cập nhật aggregate nhất quán.
 
-## 14. Chat history lưu đủ để replay/debug
+## 15. Chat history lưu đủ để replay/debug
 
 `chat_messages` lưu role/content/tool_calls/token_usage.
 
@@ -212,7 +225,16 @@ Lý do:
 - Có thể debug tool call và token usage.
 - Có cơ sở làm AI evaluation/cost tracking.
 
-## 15. Index strategy
+## 16. Refresh session rotation
+
+Refresh JWT chứa `jti` và ánh xạ tới `refresh_sessions`. Mỗi lần refresh sẽ revoke session cũ và tạo session thay thế; replay thu hồi toàn bộ session của user. Logout, đổi và reset mật khẩu cũng revoke session.
+
+Lý do:
+
+- JWT refresh stateless thuần túy không thể chống token bị sao chép dùng lại.
+- Bảng session cho phép thu hồi có mục tiêu mà vẫn giữ access token ngắn hạn.
+
+## 17. Index strategy
 
 Các index/unique quan trọng:
 

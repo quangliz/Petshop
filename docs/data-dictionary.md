@@ -167,6 +167,9 @@ Quan hệ: category, variants, product_images, cart_items, order_items, reviews.
 | `payment_status` | Enum | default `unpaid` | Trạng thái thanh toán |
 | `note` | Text | nullable | Ghi chú |
 | `guest_email` | String | nullable | Email tra cứu đơn guest |
+| `idempotency_scope` | String(160) | composite UK, nullable | Scope user/guest |
+| `idempotency_key` | String(128) | composite UK, nullable | Khóa retry checkout |
+| `request_hash` | String(64) | nullable | SHA-256 canonical request |
 | `created_at`, `updated_at` | DateTimeTZ | | Audit |
 
 ## `order_items`
@@ -193,8 +196,37 @@ Quan hệ: category, variants, product_images, cart_items, order_items, reviews.
 | `amount` | Numeric(10,2) | CHECK `> 0` | Số tiền |
 | `status` | Enum | default `pending` | Trạng thái giao dịch |
 | `external_txn_id` | String | UK, nullable | Mã giao dịch VNPay |
+| `merchant_ref` | String(64) | UK, nullable | Mã payment attempt gửi VNPay |
+| `idempotency_key` | String(128) | UK theo order, nullable | Khóa retry tạo payment |
+| `payment_url` | Text | nullable | URL VNPay đã tạo |
+| `expires_at` | DateTimeTZ | nullable, indexed | Hạn payment attempt |
+| `requires_review` | Boolean | default false | Cần đối soát thủ công |
 | `raw_response` | JSONB | nullable | Payload gateway |
 | `created_at` | DateTimeTZ | server default now | Ngày tạo |
+
+## `inventory_reservations`
+
+| Cột | Kiểu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính |
+| `order_id` | UUID | FK `orders.id` cascade | Đơn giữ hàng |
+| `order_item_id` | UUID | FK `order_items.id` cascade, UK | Dòng đơn |
+| `product_id`, `variant_id` | UUID | FK set null | Đối tượng tồn kho |
+| `quantity` | Integer | CHECK `> 0` | Số lượng giữ |
+| `status` | Enum | held/committed/released | Trạng thái reservation |
+| `expires_at` | DateTimeTZ | indexed | Hạn giữ hàng gồm grace |
+| `released_at`, `committed_at` | DateTimeTZ | nullable | Thời điểm chuyển trạng thái |
+
+## `refresh_sessions`
+
+| Cột | Kiểu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính |
+| `user_id` | UUID | FK `users.id` cascade | Chủ session |
+| `jti` | String(64) | UK | ID refresh token |
+| `expires_at` | DateTimeTZ | indexed | Hạn token |
+| `revoked_at` | DateTimeTZ | nullable | Thời điểm thu hồi |
+| `replaced_by_jti` | String(64) | nullable | Token rotation kế tiếp |
 
 ## `reviews`
 
@@ -257,5 +289,7 @@ Không chỉnh trực tiếp bằng model app. Reindex qua `app/services/indexin
 - `categories.slug` unique.
 - `product_variants.sku` unique.
 - `payments.external_txn_id` unique để hỗ trợ idempotency.
+- `payments.merchant_ref` và `(order_id, idempotency_key)` unique.
+- `(orders.idempotency_scope, orders.idempotency_key)` unique.
 - Check constraints cho price/sale_price/stock/quantity/order totals/payment amount.
 - Index hiệu năng được thêm trong migration `f3aeb0091cb2_add_perf_indexes.py`.

@@ -16,6 +16,10 @@ Thư mục này chứa tài liệu kỹ thuật và tài liệu phục vụ báo
 10. [api-spec.yaml](./api-spec.yaml): API contract tham khảo.
 11. [production-readiness-plan.md](./production-readiness-plan.md): roadmap hardening.
 12. [db-design-decisions.md](./db-design-decisions.md): quyết định thiết kế dữ liệu.
+13. [security-baseline.md](./security-baseline.md): ma trận OWASP cho Phase 0.
+14. [ai-domain-policy.md](./ai-domain-policy.md): policy an toàn và escalation của Catbot.
+15. [ai-evaluation.md](./ai-evaluation.md): scorecard live 40 case; evidence ở `ai-evaluation.json`.
+16. [phase0-traceability.md](./phase0-traceability.md): requirement -> implementation -> test/evidence.
 
 ## Source of truth
 
@@ -32,4 +36,4 @@ Nếu tài liệu và code lệch nhau, ưu tiên code/migration hiện tại r�
 
 Một số tài liệu cũ từng mô tả legacy embedding tables (`product_embeddings`, `knowledge_chunks`). Hiện tại hai bảng này đã bị drop và được thay bằng LangChain PGVector collections (`langchain_pg_collection`, `langchain_pg_embedding`).
 
-Một số script lịch sử trong `backend/scripts/` còn dùng session sync. Khi viết hướng dẫn demo, ưu tiên importer async `import_petshophanoi.py` và admin reindex endpoints.
+Importer, knowledge seed/embed và AI evaluation đang dùng async stack. Các script lịch sử khác trong `backend/scripts/` cần được kiểm tra trước khi đưa vào demo.

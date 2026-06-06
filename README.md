@@ -12,13 +12,13 @@ Project là monorepo gồm:
 
 - Storefront: trang chủ banner, danh sách sản phẩm, lọc/tìm kiếm/sắp xếp, chi tiết sản phẩm, sản phẩm tương tự, best sellers, new arrivals.
 - Catalog nâng cao: danh mục phân cấp, sản phẩm có biến thể, ảnh theo biến thể/thuộc tính, rating summary, banner responsive.
-- Auth: đăng ký, đăng nhập JWT, refresh token qua cookie, Google OAuth, quên/reset/đổi mật khẩu, phân quyền user/admin.
-- Commerce: giỏ hàng, checkout cho user, guest checkout, tra cứu đơn khách, lịch sử đơn, hủy đơn pending, snapshot giá/variant trong order item.
-- Payment: COD và VNPay sandbox, tạo URL thanh toán, IPN/callback kiểm tra chữ ký và amount.
+- Auth: đăng ký, đăng nhập JWT, refresh-session rotation/replay protection, Google OAuth, quên/reset/đổi mật khẩu, phân quyền user/admin.
+- Commerce: giỏ hàng, idempotent checkout, guest-order token, reservation TTL, lịch sử đơn, hủy đơn pending, snapshot giá/variant.
+- Payment: COD và VNPay sandbox, idempotent payment attempt, authoritative IPN và callback chỉ poll trạng thái.
 - Pet profile: nhiều hồ sơ thú cưng cho mỗi user, thông tin loài/giống/tuổi/cân nặng/sức khỏe/dị ứng/avatar.
 - AI: chatbot streaming SSE dùng LangGraph tool-calling, RAG với PGVector, tìm sản phẩm hybrid vector + keyword, gợi ý sản phẩm cá nhân hóa.
 - Admin: dashboard thống kê, quản lý sản phẩm/biến thể/ảnh, đơn hàng, user, banner, knowledge docs và embedding collections.
-- DevOps: Dockerfile cho backend/frontend, Nginx reverse proxy, CI/CD GitHub Actions, Docker Hub images, deploy AWS qua SSH.
+- DevOps: JSON request logs, live/ready health checks, reservation worker, Docker, Nginx và CI/CD.
 
 ## Kiến trúc
 
@@ -118,7 +118,14 @@ uv run python scripts/import_petshophanoi.py --limit 30 --dry-run
 uv run python scripts/import_petshophanoi.py --limit 30
 ```
 
-Admin panel có endpoint reindex embedding tại `/api/v1/admin/embeddings/{collection}/reindex` với `collection` là `products` hoặc `knowledge`. Một số script seed/embed cũ vẫn còn trong `backend/scripts/` nhưng dùng session sync đời cũ; kiểm tra lại trước khi dùng trong demo.
+Admin panel có endpoint reindex embedding tại `/api/v1/admin/embeddings/{collection}/reindex` với `collection` là `products` hoặc `knowledge`. Knowledge seed/embed và AI evaluation dùng async stack:
+
+```bash
+cd backend
+uv run python scripts/seed_knowledge.py
+uv run python scripts/embed_knowledge.py
+uv run python scripts/evaluate_ai.py --live --concurrency 2
+```
 
 ## Kiểm thử và lint
 
