@@ -39,9 +39,22 @@ const PAYMENT_LABELS: Record<string, string> = {
   vnpay: 'VNPay',
 };
 
+function getRecentGuestOrder(): { email?: string; orderCode?: string } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem('guest_order_result');
+    if (!raw) return null;
+    sessionStorage.removeItem('guest_order_result');
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export default function GuestOrderLookupPage() {
-  const [email, setEmail] = useState('');
-  const [orderCode, setOrderCode] = useState('');
+  const [recentOrder] = useState(getRecentGuestOrder);
+  const [email, setEmail] = useState(recentOrder?.email || '');
+  const [orderCode, setOrderCode] = useState(recentOrder?.orderCode || '');
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -52,8 +65,10 @@ export default function GuestOrderLookupPage() {
     setOrder(null);
     setLoading(true);
     try {
-      const params = new URLSearchParams({ email, order_code: orderCode });
-      const res = await api.get(`/orders/guest-lookup?${params}`);
+      const res = await api.post('/orders/guest-lookup', {
+        email,
+        order_code: orderCode,
+      });
       setOrder(res.data);
     } catch (err: unknown) {
       const detail =
@@ -195,7 +210,7 @@ export default function GuestOrderLookupPage() {
 
       <p className="text-xs text-gray-400 mt-8 text-center">
         Bạn có tài khoản?{' '}
-        <Link href="/profile/orders" className="underline hover:text-primary">
+        <Link href="/orders" className="underline hover:text-primary">
           Xem đơn hàng của tôi
         </Link>
       </p>

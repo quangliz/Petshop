@@ -30,7 +30,7 @@ const checkoutSchema = z.object({
   phone: z.string().min(1, 'Vui lòng nhập số điện thoại').regex(/^0\d{9,10}$/, 'Số điện thoại không hợp lệ'),
   address: z.string().min(1, 'Vui lòng chọn địa chỉ'),
   note: z.string().optional(),
-  guestEmail: z.string().optional(),
+  guestEmail: z.string().email('Email không hợp lệ').optional().or(z.literal('')),
 });
 type CheckoutForm = z.infer<typeof checkoutSchema>;
 
@@ -109,28 +109,71 @@ function CheckoutPage() {
 
   const onSubmit = async (data: CheckoutForm) => {
     try {
+      if (isGuest && !data.guestEmail) {
+        toast.error('Vui lòng nhập email để nhận và tra cứu đơn hàng.');
+        return;
+      }
+      const checkoutPayload = isGuest ? {
+        ship_name: data.name, ship_phone: data.phone, ship_address: data.address,
+        note: data.note, guest_email: data.guestEmail, payment_method: paymentMethod, items: guestItems,
+      } : {
+        ship_name: data.name, ship_phone: data.phone, ship_address: data.address,
+        note: data.note, payment_method: paymentMethod,
+        ...(selectedItemIds.length > 0 ? { item_ids: selectedItemIds } : {})
+      };
+      const fingerprint = JSON.stringify(checkoutPayload);
+      const stored = sessionStorage.getItem('checkout_idempotency');
+      let idempotencyState: { fingerprint: string; key: string } | null = null;
+      try { idempotencyState = stored ? JSON.parse(stored) : null; } catch {}
+      if (!idempotencyState || idempotencyState.fingerprint !== fingerprint) {
+        idempotencyState = { fingerprint, key: crypto.randomUUID() };
+        sessionStorage.setItem('checkout_idempotency', JSON.stringify(idempotencyState));
+      }
+
       let order;
       if (isGuest) {
-        const res = await api.post('/orders/guest-checkout', {
-          ship_name: data.name, ship_phone: data.phone, ship_address: data.address,
-          note: data.note, guest_email: data.guestEmail, payment_method: paymentMethod, items: guestItems,
+        const res = await api.post('/orders/guest-checkout', checkoutPayload, {
+          headers: { 'Idempotency-Key': idempotencyState.key },
         });
         order = res.data;
         clearGuestCart();
       } else {
-        const res = await api.post('/orders/checkout', {
-          ship_name: data.name, ship_phone: data.phone, ship_address: data.address,
-          note: data.note, payment_method: paymentMethod,
-          ...(selectedItemIds.length > 0 ? { item_ids: selectedItemIds } : {})
+        const res = await api.post('/orders/checkout', checkoutPayload, {
+          headers: { 'Idempotency-Key': idempotencyState.key },
         });
         order = res.data;
       }
+      sessionStorage.removeItem('checkout_idempotency');
       if (paymentMethod === 'vnpay') {
-        const vnpRes = await api.post(`/payments/vnpay/create/${order.id}`);
+        const paymentKeyName = `payment_idempotency:${order.id}`;
+        let paymentKey = sessionStorage.getItem(paymentKeyName);
+        if (!paymentKey) {
+          paymentKey = crypto.randomUUID();
+          sessionStorage.setItem(paymentKeyName, paymentKey);
+        }
+        const vnpRes = await api.post(`/payments/vnpay/create/${order.id}`, null, {
+          headers: {
+            'Idempotency-Key': paymentKey,
+            ...(order.guest_order_token ? { 'X-Guest-Order-Token': order.guest_order_token } : {}),
+          },
+        });
+        sessionStorage.setItem(`payment_context:${vnpRes.data.merchant_ref}`, JSON.stringify({
+          guestOrderToken: order.guest_order_token || null,
+          orderId: order.id,
+          orderCode: order.order_code,
+        }));
         window.location.assign(vnpRes.data.payment_url);
       } else {
         toast.success('Đặt hàng thành công!');
-        router.push(`/orders/${order.id}?guest=1&order_code=${order.order_code}`);
+        if (isGuest) {
+          sessionStorage.setItem('guest_order_result', JSON.stringify({
+            email: data.guestEmail,
+            orderCode: order.order_code,
+          }));
+          router.push('/tra-cuu-don-hang?created=1');
+        } else {
+          router.push(`/orders/${order.id}`);
+        }
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { detail?: string } } };
@@ -289,6 +332,12 @@ function CheckoutPage() {
             <div className="flex items-center justify-center gap-2 mt-6 text-neutral-400 text-[12px]">
               <ShieldCheck size={14} /> Thanh toán an toàn & bảo mật
             </div>
+            <p className="mt-3 text-center text-[11px] leading-5 text-neutral-400">
+              Khi đặt hàng, bạn đồng ý với{' '}
+              <Link href="/dieu-khoan-mua-ban" className="underline">điều khoản mua bán</Link>
+              {' '}và{' '}
+              <Link href="/chinh-sach-bao-mat" className="underline">chính sách bảo mật</Link>.
+            </p>
           </div>
         </div>
       </form>

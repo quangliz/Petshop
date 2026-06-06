@@ -258,7 +258,10 @@ export default function ChatWidget() {
                 {messages.length === 0 && (
                   <div className="text-center py-10 px-5 text-neutral-500 text-[14px] leading-relaxed">
                     Chào <strong>{user.full_name}</strong>! 🐱<br />
-                    Mình là <strong>Catbot</strong> — trợ lý AI của ThePawsome. Hỏi mình bất cứ điều gì về sức khoẻ, dinh dưỡng hoặc sản phẩm cho pet nhé!
+                    Mình là <strong>Catbot</strong> — trợ lý AI của ThePawsome. Hỏi mình về sức khoẻ, dinh dưỡng hoặc sản phẩm cho pet nhé!
+                    <span className="block mt-2 text-[12px]">
+                      Nội dung chỉ mang tính tham khảo, không thay thế chẩn đoán hoặc điều trị của bác sĩ thú y.
+                    </span>
                   </div>
                 )}
 
@@ -305,23 +308,28 @@ export default function ChatWidget() {
               </div>
 
               {/* Composer */}
-              <div className="px-5 py-4 bg-white border-t border-neutral-100 flex gap-2.5">
-                <input
-                  placeholder="Nhập câu hỏi cho AI..."
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                  disabled={isTyping}
-                  className="flex-1 border-none bg-neutral-50 px-3.5 py-2.5 rounded-[10px] text-[13px] outline-none disabled:opacity-60"
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={!input.trim() || isTyping}
-                  className="w-10 h-10 rounded-[10px] text-white border-none cursor-pointer flex items-center justify-center shrink-0 disabled:opacity-50 transition-opacity"
-                  style={{ background: "var(--teal-600)" }}
-                >
-                  <Send size={16} />
-                </button>
+              <div className="px-5 py-3 bg-white border-t border-neutral-100">
+                <div className="flex gap-2.5">
+                  <input
+                    placeholder="Nhập câu hỏi cho AI..."
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                    disabled={isTyping}
+                    className="flex-1 border-none bg-neutral-50 px-3.5 py-2.5 rounded-[10px] text-[13px] outline-none disabled:opacity-60"
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={!input.trim() || isTyping}
+                    className="w-10 h-10 rounded-[10px] text-white border-none cursor-pointer flex items-center justify-center shrink-0 disabled:opacity-50 transition-opacity"
+                    style={{ background: "var(--teal-600)" }}
+                  >
+                    <Send size={16} />
+                  </button>
+                </div>
+                <p className="mt-2 text-center text-[10px] text-neutral-400">
+                  Catbot là AI và có thể sai. Tình huống khẩn cấp cần liên hệ bác sĩ thú y.
+                </p>
               </div>
             </>
           )}
