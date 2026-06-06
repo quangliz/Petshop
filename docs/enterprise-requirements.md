@@ -56,7 +56,7 @@ Một bản ThePawsome ở mức doanh nghiệp phải chứng minh được:
 
 | Miền | Hiện tại | Khoảng cách enterprise |
 |---|---|---|
-| Frontend | Có storefront, auth, checkout, profile, order, admin, chat widget. | Thiếu RUM/Core Web Vitals, accessibility AA, loyalty/subscription UX, returns/wishlist, consent management, A/B testing, mobile PWA. |
+| Frontend | Có storefront, auth, checkout, profile, order, admin, chat widget. | Thiếu RUM/Core Web Vitals, accessibility AA, returns/wishlist, consent management, A/B testing, mobile PWA. |
 | Backend | Có FastAPI, auth, cart/order/payment, admin, DB constraints, CI cơ bản. | Thiếu idempotency toàn diện, refund/returns, inventory reservation TTL, RBAC granular, audit log, API versioning, observability, backup/DR, integration layer. |
 | AI | Có LangGraph, RAG, product/knowledge tools, SSE chat. | Thiếu AI evaluation chính thức, prompt injection defense, source quality workflow, medical triage policy, cost budget, model fallback, human handoff, audit dashboard. |
 | Security/Compliance | Có JWT, bcrypt, CORS, security headers, secret startup checks. | Thiếu ASVS/API Security mapping, consent/privacy workflow, data subject rights, log redaction, SAST/DAST/dependency scan, incident runbook. |
@@ -80,14 +80,12 @@ Mỗi requirement dùng format:
 | FE-ENT-04 | P0 | Checkout phải có validation rõ ràng, retry an toàn, trạng thái redirect VNPay, success/failure page và không mất cart khi refresh. | E2E test checkout COD/VNPay mock; browser refresh test. |
 | FE-ENT-05 | P0 | Auth UX phải xử lý expired token, refresh token fail, logout toàn tab, protected route và admin route guard. | E2E auth/session tests; network error test. |
 | FE-ENT-06 | P1 | Account self-service: quản lý địa chỉ, nhiều pet profile, wishlist, order lookup, return request, invoice/download receipt. | UI routes + API integration + traceability matrix. |
-| FE-ENT-07 | P1 | Loyalty UX: điểm thưởng, hạng thành viên, ưu đãi cá nhân hóa, birthday/gotcha day pet reminders. | Loyalty dashboard; campaign/promotion states. |
-| FE-ENT-08 | P1 | Subscription/replenishment UX cho sản phẩm mua định kỳ như thức ăn, cát, thuốc bổ: chọn chu kỳ, nhắc trước, pause/cancel. | Subscription flow prototype/E2E; notification event log. |
-| FE-ENT-09 | P1 | Omnichannel UX: store locator, khu vực giao hàng, pickup/delivery options, phí ship theo địa chỉ. | Store locator page; delivery quote component; address validation. |
-| FE-ENT-10 | P1 | Consent/cookie center: phân loại necessary, analytics, personalization/ads; user có thể thay đổi consent. | Consent banner + preference center + persisted consent state. |
-| FE-ENT-11 | P1 | Admin frontend phải hỗ trợ bulk workflow: bulk price/stock update, image upload progress, variant matrix edit, safe delete/soft delete. | Admin E2E tests; optimistic/error state checklist. |
-| FE-ENT-12 | P1 | Frontend analytics phải đo funnel: product view, add cart, checkout start, payment redirect, purchase, AI product click. | Event schema + analytics QA report. |
-| FE-ENT-13 | P2 | PWA/mobile app-like: offline-friendly shell, install prompt, push notification cho order/subscription/reminders. | PWA audit; notification integration tests. |
-| FE-ENT-14 | P2 | Experimentation support: feature flags, A/B experiments cho banner, recommendation layout và checkout copy. | Feature flag config; experiment event attribution. |
+| FE-ENT-07 | P1 | Omnichannel UX: store locator, khu vực giao hàng, pickup/delivery options, phí ship theo địa chỉ. | Store locator page; delivery quote component; address validation. |
+| FE-ENT-08 | P1 | Consent/cookie center: phân loại necessary, analytics, personalization/ads; user có thể thay đổi consent. | Consent banner + preference center + persisted consent state. |
+| FE-ENT-09 | P1 | Admin frontend phải hỗ trợ bulk workflow: bulk price/stock update, image upload progress, variant matrix edit, safe delete/soft delete. | Admin E2E tests; optimistic/error state checklist. |
+| FE-ENT-10 | P1 | Frontend analytics phải đo funnel: product view, add cart, checkout start, payment redirect, purchase, AI product click. | Event schema + analytics QA report. |
+| FE-ENT-11 | P2 | PWA/mobile app-like: offline-friendly shell, install prompt, push notification cho order/reminders. | PWA audit; notification integration tests. |
+| FE-ENT-12 | P2 | Experimentation support: feature flags, A/B experiments cho banner, recommendation layout và checkout copy. | Feature flag config; experiment event attribution. |
 
 ## 6. Backend enterprise requirements
 
@@ -100,16 +98,13 @@ Mỗi requirement dùng format:
 | BE-ENT-05 | P0 | Mọi mutation quan trọng phải có audit log: admin product changes, order status changes, payment status changes, user lock/unlock, knowledge changes. | Audit log table/API; sample audit trail in admin. |
 | BE-ENT-06 | P0 | Database migration phải có rollback strategy, migration test trong CI và không destructive without backup plan. | CI migration up/down check; migration review checklist. |
 | BE-ENT-07 | P1 | Return/refund workflow: request return, approve/reject, restock, refund transaction, reason codes, policy window. | Return API + admin UI + accounting report. |
-| BE-ENT-08 | P1 | Promotion engine: coupons, automatic discounts, loyalty redemption, stacking rules, usage limits, fraud checks. | Promotion rule tests; checkout discount snapshots. |
-| BE-ENT-09 | P1 | Loyalty/CRM backend: points ledger, tier calculation, campaign eligibility, member profile enrichment. | Points ledger invariants; tier recalculation job. |
-| BE-ENT-10 | P1 | Subscription/autoship backend: recurring schedules, reminder notifications, payment retry, pause/cancel, reserved stock. | Subscription job tests; notification logs. |
-| BE-ENT-11 | P1 | Integration layer: shipping providers, POS/ERP/warehouse, email/SMS/Zalo, analytics, payment settlement. | Adapter interfaces; contract tests; retry/dead-letter queue. |
-| BE-ENT-12 | P1 | API versioning and contract governance: `/api/v1`, OpenAPI generated/validated, backward compatibility policy. | OpenAPI diff in CI; changelog for breaking changes. |
-| BE-ENT-13 | P1 | Observability: structured logs, request id, trace id, latency metrics, error metrics, route/payment/AI spans. | OpenTelemetry traces/metrics/logs in dashboard. |
-| BE-ENT-14 | P1 | Reliability: `/health/live`, `/health/ready`, DB/Redis/OpenAI degraded status, graceful shutdown. | Health endpoint tests; readiness failure simulation. |
-| BE-ENT-15 | P1 | Data lifecycle: backup, restore drill, retention policy, data deletion/anonymization for user requests. | Backup logs; restore test evidence; deletion job tests. |
-| BE-ENT-16 | P2 | Multi-store and multi-warehouse inventory: store-level stock, pickup availability, transfer stock. | Store inventory schema; fulfillment tests. |
-| BE-ENT-17 | P2 | Search service upgrade: typo tolerance, synonyms, Vietnamese tokenizer, facet counts, relevance feedback. | Search benchmark; relevance evaluation set. |
+| BE-ENT-08 | P1 | Promotion engine: coupons, automatic discounts, stacking rules, usage limits, fraud checks. | Promotion rule tests; checkout discount snapshots. |
+| BE-ENT-09 | P1 | Integration layer: shipping providers, POS/ERP/warehouse, email/SMS/Zalo, analytics, payment settlement. | Adapter interfaces; contract tests; retry/dead-letter queue. |
+| BE-ENT-10 | P1 | API versioning and contract governance: `/api/v1`, OpenAPI generated/validated, backward compatibility policy. | OpenAPI diff in CI; changelog for breaking changes. |
+| BE-ENT-11 | P1 | Observability: structured logs, request id, trace id, latency metrics, error metrics, route/payment/AI spans. | OpenTelemetry traces/metrics/logs in dashboard. |
+| BE-ENT-12 | P1 | Reliability: `/health/live`, `/health/ready`, DB/Redis/OpenAI degraded status, graceful shutdown. | Health endpoint tests; readiness failure simulation. |
+| BE-ENT-13 | P1 | Data lifecycle: backup, restore drill, retention policy, data deletion/anonymization for user requests. | Backup logs; restore test evidence; deletion job tests. |
+| BE-ENT-14 | P2 | Search service upgrade: typo tolerance, synonyms, Vietnamese tokenizer, facet counts, relevance feedback. | Search benchmark; relevance evaluation set. |
 
 ## 7. AI/RAG enterprise requirements
 
@@ -155,10 +150,9 @@ Mỗi requirement dùng format:
 | OPS-ENT-04 | P0 | Monitoring and alerting: uptime, error rate, p95 latency, checkout failure, payment failure, AI timeout/cost. | Dashboard + alert policy. |
 | OPS-ENT-05 | P1 | SLOs: API availability, checkout success, payment callback processing, AI TTFB, admin availability. | SLO document; error budget dashboard. |
 | OPS-ENT-06 | P1 | Release strategy: rollback plan, blue-green/canary option, feature flags for risky features. | Release runbook; rollback test. |
-| OPS-ENT-07 | P1 | Data warehouse/BI: daily sales, inventory aging, repeat purchase, AI usage, campaign conversion. | BI schema; scheduled exports/jobs. |
-| OPS-ENT-08 | P1 | Customer support tooling: order notes, internal comments, refund/return status, chat transcript access with privacy guard. | Support admin module; audit tests. |
-| OPS-ENT-09 | P2 | Multi-region/CDN strategy: static asset CDN, image optimization, disaster region plan. | CDN config; failover drill. |
-| OPS-ENT-10 | P2 | Vendor management: contract/SLA tracking for OpenAI, Cloudinary, VNPay, email/SMS, shipping. | Vendor register; outage contingency plan. |
+| OPS-ENT-07 | P1 | Customer support tooling: order notes, internal comments, refund/return status, chat transcript access with privacy guard. | Support admin module; audit tests. |
+| OPS-ENT-08 | P2 | Multi-region/CDN strategy: static asset CDN, image optimization, disaster region plan. | CDN config; failover drill. |
+| OPS-ENT-09 | P2 | Vendor management: contract/SLA tracking for OpenAI, Cloudinary, VNPay, email/SMS, shipping. | Vendor register; outage contingency plan. |
 
 ## 10. Enterprise roadmap đề xuất
 
@@ -172,7 +166,7 @@ Mỗi requirement dùng format:
 
 ### Phase 1 - SME production
 
-- Loyalty points ledger và promotion engine đơn giản.
+- Promotion engine đơn giản (coupons, stacking rules).
 - Return/refund workflow.
 - Admin audit log và RBAC granular.
 - RUM Core Web Vitals và analytics funnel.
@@ -181,6 +175,7 @@ Mỗi requirement dùng format:
 
 ### Phase 2 - Enterprise retail
 
+- Loyalty/CRM (points ledger, member profiles, tier calculation, personalized offers).
 - Subscription/autoship.
 - Multi-store/multi-warehouse inventory.
 - Shipping provider integration.
@@ -217,4 +212,4 @@ Nếu chỉ còn thời gian giới hạn, ưu tiên làm các mục tạo sức
 5. OpenTelemetry-style request id/log/metrics cơ bản.
 6. Privacy/legal pages và consent baseline.
 
-Các mục loyalty, subscription, multi-store, BI nên trình bày như roadmap doanh nghiệp, không nhất thiết implement toàn bộ trong phạm vi đồ án.
+Các mục như loyalty, subscription, multi-store, BI được xem là các tính năng thuộc lộ trình phát triển dài hạn của doanh nghiệp (Enterprise Roadmap). Nhóm phát triển đã chủ động loại bỏ các mục này khỏi danh sách yêu cầu bắt buộc (requirements) của đồ án nhằm tập trung tối đa nguồn lực vào việc tối ưu hóa độ ổn định, hiệu năng và tính bảo mật tin cậy cho các luồng nghiệp vụ cốt lõi.
