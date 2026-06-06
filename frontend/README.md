@@ -1,36 +1,146 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend - ThePawsome
 
-## Getting Started
+Frontend là ứng dụng Next.js 16 App Router cho storefront, auth flow, admin dashboard và chat widget AI.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Next.js 16 App Router
+- React 18 + TypeScript
+- Tailwind CSS 3
+- TanStack Query cho server state
+- Zustand cho auth/viewing-product client state
+- Axios client chung ở `src/lib/api.ts`
+- React Hook Form + Zod cho form
+- Recharts cho admin stats
+- lucide-react cho icon
+- shadcn-style UI primitives trong `src/components/ui`
+
+## Route map
+
+```text
+src/app/
+├── (shop)/
+│   ├── page.tsx                    # homepage
+│   ├── shop/page.tsx               # product listing
+│   ├── products/[slug]/page.tsx    # product detail
+│   ├── cart/page.tsx
+│   ├── checkout/page.tsx
+│   ├── orders/page.tsx
+│   ├── orders/[id]/page.tsx
+│   ├── profile/page.tsx            # user profile + pet profiles
+│   └── tra-cuu-don-hang/page.tsx   # guest order lookup
+├── (auth)/
+│   ├── login/page.tsx
+│   ├── register/page.tsx
+│   ├── forgot-password/page.tsx
+│   └── reset-password/page.tsx
+├── auth/google/callback/page.tsx
+├── orders/payment/callback/page.tsx
+└── admin/
+    ├── page.tsx
+    ├── products/page.tsx
+    ├── orders/page.tsx
+    ├── users/page.tsx
+    ├── banners/page.tsx
+    ├── knowledge/page.tsx
+    └── embeddings/page.tsx
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`(shop)/layout.tsx` mount `Header`, `Footer` và `ConditionalChatWidget`. Admin dùng layout riêng.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Cấu trúc đáng chú ý
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```text
+src/components/
+├── layout/             # Header, Footer, BrandLogo, auth section
+├── chat/               # ChatWidget, CatbotLogo, conditional mount
+├── reviews/            # ReviewSection, form, list, rating summary
+├── skeletons/          # loading states
+└── ui/                 # button, card, input, sheet, dropdown, toast, spinner
 
-## Learn More
+src/lib/
+├── api.ts              # axios baseURL, auth header, refresh-token retry queue
+├── store.ts            # Zustand auth + viewing product store
+├── guestCart.ts        # guest cart persistence
+├── types.ts            # shared frontend types
+└── utils.ts
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Cấu hình
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Copy env mẫu:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+cp .env.example .env.local
+```
 
-## Deploy on Vercel
+Local dev:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Production qua Nginx dùng:
+
+```env
+NEXT_PUBLIC_API_URL=/api/v1
+```
+
+Các biến `NEXT_PUBLIC_*` được bake vào bundle ở build time, nên CI/Docker build phải truyền build args tương ứng.
+
+## Chạy local
+
+```bash
+npm ci
+npm run dev
+```
+
+App chạy ở `http://localhost:3000`.
+
+## Kiểm thử build
+
+```bash
+npm run lint
+npm run build
+```
+
+`npm run build` là bước type/build check chính của Next.
+
+## Data flow
+
+- Tất cả request API nên dùng `src/lib/api.ts`.
+- Axios tự gắn Bearer token từ `localStorage`.
+- Khi API trả 401, interceptor gọi `/auth/refresh`, cập nhật access token và replay các request đang chờ.
+- TanStack Query dùng cho fetch/cache danh sách sản phẩm, đơn hàng, admin stats, banners, reviews.
+- Zustand giữ auth user/token và context sản phẩm đang xem để chat widget tư vấn theo trang.
+
+## Chat widget
+
+`ConditionalChatWidget` chỉ mount trong shop layout. Chat gọi `/chat/stream` để nhận SSE response. Assistant có thể trả thẻ `<product>slug</product>`; frontend render thành product card/link trong nội dung chat.
+
+## Design system
+
+Design hiện tại là retail UI ấm, nổi bật bằng:
+
+- Primary orange scale `--primary-*`
+- Teal accent `--teal-*` dành cho AI/chat
+- Warm neutral surface `--neutral-*`
+- Font local `VNMMono`, `GoodPawoo`; root layout cũng nạp Be Vietnam Pro và JetBrains Mono
+- Radius 8/12/16/20/24px và pill
+- Loading skeleton, empty state, toast rich colors
+
+Token chính nằm ở `src/app/globals.css` và `tailwind.config.ts`. Quy ước chi tiết ở [../DESIGN.md](../DESIGN.md).
+
+## Docker
+
+`frontend/Dockerfile` build Next standalone output:
+
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_API_URL=/api/v1 \
+  --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID=... \
+  -t petshop-frontend ./frontend
+```
+
+Runtime chạy `node server.js` trên port `3000` và có healthcheck HTTP.

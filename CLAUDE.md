@@ -1,49 +1,47 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Hướng dẫn cho coding assistant hoặc dev agent khi làm việc trong repository này.
 
-## Project Overview
+## Tổng quan
 
-Graduation thesis (DATN) — a pet-shop e-commerce platform with an integrated AI assistant. Scope, features, and timeline are documented in `DATN.md`; API contract in `docs/api-spec.yaml`; domain model in `docs/data-dictionary.md` and `docs/erd.md`. Primary spoken/written language in the code and docs is Vietnamese.
+ThePawsome là đồ án tốt nghiệp về pet-shop e-commerce tích hợp trợ lý AI. Ngôn ngữ chính của tài liệu/UI là tiếng Việt. Repo là monorepo:
 
-The repo is a two-app monorepo: `backend/` (FastAPI) and `frontend/` (Next.js 14 App Router). `petshop-prototype/` contains an earlier static prototype — it is **not** wired to the real backend.
+- `backend/`: FastAPI API, PostgreSQL/pgvector, Redis, VNPay, Cloudinary, LangGraph/OpenAI.
+- `frontend/`: Next.js 16 App Router, TypeScript, Tailwind, TanStack Query, Zustand.
+- `docs/`: tài liệu phân tích, thiết kế, dữ liệu, API và readiness.
 
-## Running the stack
+Không thêm code vào thư mục placeholder nếu không cần. Router canonical nằm ở `backend/app/api/routers/`; models canonical nằm ở `backend/app/models/`.
 
-Infrastructure (Postgres with pgvector + Redis) runs via Docker:
+## Chạy project
 
 ```bash
-docker compose up -d              # from repo root
+cp .env.example .env
+cp frontend/.env.example frontend/.env.local
+docker compose up -d postgres redis
+
+cd backend
+uv sync --dev
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload
+
+cd ../frontend
+npm ci
+npm run dev
 ```
 
-Backend uses **uv** (not pip/poetry). The live database is expected to be running:
+Backend: `http://localhost:8000`
+Frontend: `http://localhost:3000`
+
+`SECRET_KEY` mặc định yếu bị chặn ở startup. `.env.example` đã có local defaults cho Postgres/Redis, nhưng khi deploy phải đổi secret thật.
+
+## Kiểm thử
+
+Backend:
 
 ```bash
 cd backend
-uv sync --dev                     # install deps incl. dev group
-uv run alembic upgrade head       # apply migrations
-uv run uvicorn app.main:app --reload   # dev server on :8000
-uv run python scripts/seed_db.py  # optional: seed sample data
-```
-
-Frontend:
-
-```bash
-cd frontend
-npm install
-npm run dev                       # :3000, expects backend at :8000
-```
-
-## Testing & linting
-
-Backend tests hit the **live database** defined in `.env` (see `backend/tests/conftest.py` — `TestClient` is instantiated against `app.main:app` with no DB override; fixtures register/login a real user `test_runner@petshop.dev`). Do not mock the DB layer in these tests.
-
-```bash
-cd backend
-uv run pytest                     # all tests
-uv run pytest tests/test_pets.py  # single file
-uv run pytest tests/test_pets.py::test_name -v   # single test
-uv run ruff check .               # lint (matches CI)
+uv run ruff check .
+uv run pytest
 ```
 
 Frontend:
@@ -51,14 +49,25 @@ Frontend:
 ```bash
 cd frontend
 npm run lint
-npm run build                     # type-checks via next build
+npm run build
 ```
 
-CI (`.github/workflows/ci.yml`) runs `ruff check` + `pytest` on the backend only.
+Backend tests dùng Postgres/Redis thật theo `.env` hoặc env CI. Đừng mock DB layer trừ khi đang viết unit test tách riêng rõ ràng.
 
-## Database migrations
+## Backend notes
 
-Alembic lives in `backend/alembic/` with a single init migration so far. When changing models under `app/models/`, generate a revision and review it before committing:
+- `app/main.py`: app factory, CORS, SlowAPI limiter, security headers, router mount.
+- `app/database.py`: async SQLAlchemy engine/session. Không dùng sync `SessionLocal` mới trong code mới.
+- `app/api/deps.py`: `SessionDep`, `CurrentUser`, `OptionalUser`, `AdminUser`.
+- `app/core/config.py`: env config qua `pydantic-settings`, đọc `../.env`.
+- `app/core/security.py`: bcrypt + JWT access/refresh/reset.
+- `app/models/`: `user`, `catalog`, `commerce`, `review`, `chat`, `knowledge`.
+- `app/services/chat_agent.py`: LangGraph tool-calling chatbot.
+- `app/services/retrieval.py`: hybrid product search + knowledge search.
+- `app/services/indexing.py`: async-safe PGVector reindex helpers.
+- `app/services/vnpay.py`: signing/callback verification.
+
+Database schema phải đi qua Alembic:
 
 ```bash
 cd backend
@@ -66,44 +75,56 @@ uv run alembic revision --autogenerate -m "describe change"
 uv run alembic upgrade head
 ```
 
-`app/database.py` rewrites `postgresql+asyncpg://` URLs to sync form — the app uses SQLAlchemy's **sync** engine even though the stack supports async.
+`AUTO_CREATE_TABLES` chỉ dành cho tình huống dev đặc biệt, không phải luồng chuẩn.
 
-## Backend architecture
+## AI/RAG notes
 
-Entry point: `backend/app/main.py` wires CORS, a SlowAPI rate limiter backed by Redis (`settings.REDIS_URL`), and mounts routers under `settings.API_V1_STR` (`/api/v1`).
+LangChain PGVector dùng hai collection:
 
-Layer layout under `backend/app/`:
+- `petshop_products`
+- `petshop_knowledge`
 
-- `api/routers/` — FastAPI routers, one file per resource (`auth`, `products`, `categories`, `cart`, `orders`, `payments`, `pets`, `chat`, `admin`). This is the canonical router location; top-level `app/routers/` and `app/schemas/` directories exist but are empty placeholders — don't add new code there.
-- `api/deps.py` — shared FastAPI dependencies (DB session, current user, admin guard).
-- `core/config.py` — `Settings` (pydantic-settings) loaded from `.env`. Holds JWT, Redis, VNPay, OpenAI, and Cloudinary config. `SECRET_KEY` has a dev fallback; override in `.env` for anything non-local.
-- `core/security.py` — password hashing (bcrypt via passlib) and JWT (`python-jose`).
-- `models/` — SQLAlchemy 2.0 declarative models grouped by bounded context: `user`, `catalog` (products, categories), `commerce` (cart, orders, payments), `pets`-related in `catalog` or `user`, `chat` (conversations/messages), `knowledge` (RAG documents with pgvector embeddings). Base is defined in `app/database.py`.
-- `services/` — cross-cutting logic that doesn't belong in a router:
-  - `chat_agent.py` — LangGraph agent for the AI chatbot; composes three context layers (user's pet profile, product catalog via vector search, pet-care knowledge base) and streams responses via `sse-starlette`.
-  - `vnpay.py` — VNPay sandbox signing & callback verification.
-- `scripts/seed_db.py` and `scripts/crawl_data.ipynb` — data bootstrap (sample catalog, crawled knowledge) run manually.
+Legacy tables `product_embeddings` và `knowledge_chunks` đã bị drop trong migration `a1f2c3d4e5b6`; đừng viết lại code phụ thuộc hai bảng này.
 
-Auth flow: `/api/v1/auth/register` + `/api/v1/auth/login` (OAuth2 password form) → JWT bearer token. Rate limiter is enabled globally; decorate endpoints with `@limiter.limit(...)` as needed.
+Chat tools hiện có:
 
-## Frontend architecture
+- `search_products`
+- `search_knowledge`
+- `add_to_cart_tool`
+- `view_cart_tool`
+- `list_pets_tool`
+- `get_pet_detail_tool`
 
-Next.js 16 App Router under `frontend/src/app/` with two route groups:
+Nếu sửa AI, giữ guardrail tiếng Việt, không bịa slug sản phẩm và chỉ render `<product>slug</product>` với slug có thật từ tool result.
 
-- `(shop)/` — storefront (products, cart, checkout, orders, profile). The AI chat widget lives in `components/chat/` and is mounted from the shop layout.
-- `admin/` — admin dashboard (products, orders, users, analytics with Recharts). Access is gated client-side based on the JWT's role claim.
-- `(auth)/` — login/register pages.
+## Frontend notes
 
-Key libraries and their roles:
+- Route groups: `(shop)`, `(auth)`, `admin`.
+- Dùng axios instance ở `frontend/src/lib/api.ts`; không tạo client rời nếu không có lý do.
+- Auth/token state ở `frontend/src/lib/store.ts`.
+- Shared types ở `frontend/src/lib/types.ts`.
+- UI primitives ở `frontend/src/components/ui/`.
+- Chat widget mount trong `(shop)/layout.tsx`.
+- Design tokens ở `frontend/src/app/globals.css` và `frontend/tailwind.config.ts`.
 
-- `@tanstack/react-query` — server state for all API calls; devtools enabled in dev.
-- `zustand` — client-only state (cart, auth token, UI).
-- `react-hook-form` + `zod` (via `@hookform/resolvers`) — forms.
-- `shadcn/ui` + Tailwind (`tailwind.config.ts`, `components.json`) — UI primitives in `src/components/ui/`.
-- `axios` — single instance in `src/lib/api.ts` with `baseURL=http://localhost:8000/api/v1` and a request interceptor that attaches `Authorization: Bearer <token>` from `localStorage`. Import this instance rather than creating new axios clients.
+Khi thêm màn hình mới, giữ các state tối thiểu: loading, empty, error, success/toast nếu có mutation.
 
-VNPay callback lands on `/orders/payment/callback` (matches `VNPAY_RETURN_URL` in backend config).
+## Scripts
 
-## Environment
+Script async importer đang khớp stack hiện tại:
 
-Root `.env` (copied from `.env.example`) is consumed by `docker-compose.yml` for Postgres. The backend reads its own `.env` (same file works) for `SECRET_KEY`, `DATABASE_URL`, `REDIS_URL`, `OPENAI_API_KEY`, `VNPAY_*`, `CLOUDINARY_*`. Never commit real secrets.
+```bash
+cd backend
+uv run python scripts/import_petshophanoi.py --limit 30 --dry-run
+uv run python scripts/import_petshophanoi.py --limit 30
+```
+
+Một số script cũ trong `backend/scripts/` còn dùng sync sessionmaker hoặc import `SessionLocal`; kiểm tra và cập nhật trước khi dùng làm lệnh chính thức.
+
+## Quy tắc thay đổi
+
+- Ưu tiên sửa nhỏ, bám pattern hiện có.
+- Không revert thay đổi của người khác trong worktree.
+- Với thay đổi model/schema, cập nhật Alembic và docs liên quan.
+- Với thay đổi API, cập nhật frontend caller, tests và `docs/api-spec.yaml` nếu endpoint là public/quan trọng.
+- Với thay đổi UX lớn, cập nhật `DESIGN.md` hoặc `docs/wireframes.md`.
