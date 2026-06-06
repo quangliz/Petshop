@@ -144,7 +144,7 @@ function CheckoutPage() {
   }
 
   const paymentOptionCls = (active: boolean) =>
-    `flex items-center gap-3 px-4 py-3 rounded-2xl border-[1.5px] cursor-pointer transition-all duration-[120ms] ${active ? 'border-[var(--primary-500)] bg-[var(--primary-25)]' : 'border-neutral-100 bg-white'}`;
+    `flex items-center gap-3 px-4 py-3 rounded-2xl border-[1.5px] cursor-pointer transition-all duration-120 ${active ? 'border-[var(--primary-500)] bg-[var(--primary-25)]' : 'border-neutral-100 bg-white'}`;
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8">

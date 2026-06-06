@@ -411,7 +411,7 @@ export default function ProductDetailPage() {
                   className="w-[150px] md:w-[180px] shrink-0 no-underline text-inherit"
                   style={{ scrollSnapAlign: 'start' }}
                 >
-                  <div className="group bg-white border border-neutral-100 rounded-[16px] shadow-xs cursor-pointer overflow-hidden flex flex-col h-full transition-[transform,box-shadow] duration-[160ms] hover:-translate-y-0.5 hover:shadow-md">
+                  <div className="group bg-white border border-neutral-100 rounded-[16px] shadow-xs cursor-pointer overflow-hidden flex flex-col h-full transition-[transform,box-shadow] duration-160 hover:-translate-y-0.5 hover:shadow-md">
                     <div className="relative aspect-square bg-neutral-50">
                       {p.thumbnail_url || p.images?.main ? (
                         <Image src={p.thumbnail_url || p.images?.main || ''} alt={p.name} fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover" />

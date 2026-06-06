@@ -161,7 +161,7 @@ const Rating = ({ value, size = 12, count }: { value: number, size?: number, cou
 const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, onAddToCart: (e: React.MouseEvent, id: string, slug: string, hasVariants: boolean) => void, isPending: boolean }) => (
   <Link href={`/products/${product.slug}`} className="no-underline text-inherit">
     <div
-      className="group bg-white border border-neutral-100 rounded-[16px] shadow-xs cursor-pointer overflow-hidden flex flex-col h-full transition-[transform,box-shadow] duration-[160ms] ease-[ease] hover:-translate-y-0.5 hover:shadow-md"
+      className="group bg-white border border-neutral-100 rounded-[16px] shadow-xs cursor-pointer overflow-hidden flex flex-col h-full transition-[transform,box-shadow] duration-160 ease-ease hover:-translate-y-0.5 hover:shadow-md"
     >
       <div className="relative aspect-square bg-neutral-50 overflow-hidden">
         {(product.thumbnail_url || product.images?.main) ? (
@@ -369,7 +369,7 @@ function ShopListing() {
                   <button
                     key={item}
                     onClick={() => setPage(item)}
-                    className={`min-w-8 min-h-9 sm:min-w-[44px] sm:min-h-[44px] rounded-[10px] border border-neutral-100 text-[12px] sm:text-[13px] font-semibold cursor-pointer transition-all duration-[120ms] ease-[ease] shrink-0 ${
+                    className={`min-w-8 min-h-9 sm:min-w-[44px] sm:min-h-[44px] rounded-[10px] border border-neutral-100 text-[12px] sm:text-[13px] font-semibold cursor-pointer transition-all duration-120 ease-ease shrink-0 ${
                       page === item ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-700 hover:bg-neutral-50'
                     }`}
                   >

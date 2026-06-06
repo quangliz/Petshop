@@ -27,7 +27,7 @@ const ProductCardSmall = ({ product }: { product: Product }) => (
     style={{ scrollSnapAlign: 'start' }}
   >
     <div
-      className="group cursor-pointer overflow-hidden flex flex-col h-full bg-white border border-neutral-100 rounded-[16px] shadow-xs transition-[transform,box-shadow] duration-[160ms] ease-[ease] hover:-translate-y-0.5 hover:shadow-md"
+      className="group cursor-pointer overflow-hidden flex flex-col h-full bg-white border border-neutral-100 rounded-[16px] shadow-xs transition-[transform,box-shadow] duration-160 ease-ease hover:-translate-y-0.5 hover:shadow-md"
     >
       <div className="relative aspect-square bg-neutral-50 overflow-hidden">
         {product.images?.main ? (
