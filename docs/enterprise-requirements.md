@@ -11,6 +11,31 @@ Phạm vi yêu cầu được chia thành:
 - AI/RAG
 - Security, Compliance, Data, DevOps và Operations
 
+## Định vị đồ án hiện tại
+
+ThePawsome được định vị là một nền tảng thương mại điện tử thú cưng có tích hợp
+AI/RAG, tập trung vào độ đúng nghiệp vụ, an toàn dữ liệu, khả năng audit và
+readiness cho public demo/SME production. Mục tiêu của đồ án không phải là
+chứng nhận một hệ thống enterprise hoàn chỉnh, mà là chứng minh cách tiếp cận
+production-oriented thông qua requirement, implementation và validation evidence.
+
+Phạm vi nghiệm thu chính của đồ án:
+
+- Hoàn thiện Phase 0: hardening để public demo an toàn.
+- Triển khai chọn lọc Phase 1: các tính năng tạo bằng chứng vận hành SME như
+  promotion, return/refund, RBAC, audit log, consent, RUM và AI cost/logging.
+- Đóng gói evidence: test/build/migration, AI evaluation, security baseline và
+  traceability.
+
+Ngoài phạm vi nghiệm thu chính:
+
+- Phase 2 retail scale như loyalty, autoship, multi-store, warehouse, BI.
+- Phase 3 regulated pet health như vet/pharmacy workflow, telehealth-like flow
+  hoặc bán thuốc/thức ăn điều trị.
+
+Phase 2 và Phase 3 là hai hướng mở rộng tương lai, không phải các mốc bắt buộc
+phải triển khai tuần tự trong phạm vi đồ án.
+
 ## 1. Mục tiêu enterprise
 
 Một bản ThePawsome ở mức doanh nghiệp phải chứng minh được:
@@ -174,7 +199,10 @@ Mỗi requirement dùng format:
 - Backup/restore drill, SLO dashboard, alerting.
 - Knowledge governance và AI cost dashboard.
 
-### Phase 2 - Enterprise retail
+### Phase 2 - Enterprise retail future track (out of DATN scope)
+
+Các mục Phase 2 không thuộc phạm vi nghiệm thu của đồ án hiện tại. Chúng được
+giữ lại để thể hiện hướng mở rộng sản phẩm khi vận hành ở quy mô retail lớn hơn.
 
 - Loyalty/CRM (points ledger, member profiles, tier calculation, personalized offers).
 - Subscription/autoship.
@@ -184,7 +212,12 @@ Mỗi requirement dùng format:
 - Advanced search/recommendation analytics.
 - Data warehouse/BI.
 
-### Phase 3 - Regulated pet health expansion
+### Phase 3 - Regulated pet health future track (conditional / out of DATN scope)
+
+Phase 3 chỉ trở thành hướng triển khai thực tế nếu sản phẩm mở rộng sang thuốc,
+veterinary diet, tư vấn bác sĩ thú y hoặc telehealth-like features. Với phạm vi
+đồ án hiện tại, Phase 3 chỉ là ranh giới pháp lý và governance để tránh AI vượt
+quá vai trò tư vấn chăm sóc thú cưng phổ thông.
 
 - Vet/pharmacy workflow nếu bán thuốc hoặc veterinary diet.
 - Professional review/approval cho medical content.
@@ -202,6 +235,21 @@ Một doanh nghiệp có thể cân nhắc dùng ThePawsome thực tế khi có 
 - Compliance: privacy consent/logs, legal policy pages, data deletion/export workflow.
 - Operations: OpenTelemetry dashboard, alerting, SLOs, rollback runbook, staging/prod separation.
 
+### 11.1 Trạng thái hiện tại so với acceptance checklist
+
+| Nhóm | Trạng thái | Bằng chứng hiện có | Còn thiếu để đạt full enterprise acceptance |
+|---|---|---|---|
+| Frontend | Partial | Storefront, checkout/order/return UI, consent center, RUM hook, `npm run lint`, `npm run build` | WCAG 2.2 AA report, Core Web Vitals p75 report, Playwright E2E checkout/auth/order |
+| Backend | Mostly partial | Idempotency, reservation TTL, RBAC granular, audit log, promotions, returns, migration up/down evidence | Restore drill report, broader audit coverage, OpenAPI diff/contract governance |
+| AI/RAG | Partial | Domain policy, safety tests, live AI evaluation, RAG grounding checks, AI call logging/cost summary | Cost dashboard, source governance report, human handoff workflow, full AI observability dashboard |
+| Security | Partial | ASVS/API Security mapping, auth/session hardening, BOLA tests, startup secret checks, log redaction review | Secret/dependency/container scan reports, DAST/SAST reports, incident runbook/game-day |
+| Compliance | Partial | Legal policy pages, consent center | Server-side consent logs, data export/delete workflow and tests, retention/deletion evidence |
+| Operations | Partial / not full | Structured request logs, live/ready healthchecks, SLO summary endpoint, backup/restore scripts | OpenTelemetry dashboard, alerting policy, rollback runbook, staging/prod separation evidence, recorded restore drill |
+
+Kết luận: trạng thái hiện tại phù hợp với **production-oriented thesis / Phase 1
+partial evidence**, chưa phải full enterprise acceptance. Phần tiếp theo của đồ
+án nên ưu tiên hoàn thiện evidence còn thiếu thay vì mở rộng sang Phase 2/3.
+
 ## 12. Ưu tiên áp dụng cho đồ án
 
 Nếu chỉ còn thời gian giới hạn, ưu tiên làm các mục tạo sức nặng khi bảo vệ:
@@ -213,4 +261,11 @@ Nếu chỉ còn thời gian giới hạn, ưu tiên làm các mục tạo sức
 5. OpenTelemetry-style request id/log/metrics cơ bản.
 6. Privacy/legal pages và consent baseline.
 
-Các mục như loyalty, subscription, multi-store, BI được xem là các tính năng thuộc lộ trình phát triển dài hạn của doanh nghiệp (Enterprise Roadmap). Nhóm phát triển đã chủ động loại bỏ các mục này khỏi danh sách yêu cầu bắt buộc (requirements) của đồ án nhằm tập trung tối đa nguồn lực vào việc tối ưu hóa độ ổn định, hiệu năng và tính bảo mật tin cậy cho các luồng nghiệp vụ cốt lõi.
+Hướng đi hiện tại là đóng gói ThePawsome như một **production-oriented pet
+e-commerce + AI assistant**, với trọng tâm là core commerce, AI governance,
+security hardening và traceability evidence. Các mục như loyalty, subscription,
+multi-store, BI, vet/pharmacy workflow và telehealth-like features được xem là
+future roadmap, không thuộc danh sách yêu cầu bắt buộc của đồ án. Nhóm phát
+triển chủ động loại bỏ các mục này khỏi phạm vi nghiệm thu chính để tập trung
+tối đa vào độ ổn định, hiệu năng, bảo mật và tính đúng đắn của các luồng nghiệp
+vụ cốt lõi.

@@ -21,7 +21,7 @@ chứng nhận enterprise đầy đủ.
 ## Latest Evidence
 
 - Backend focused Phase 1: `4 passed`.
-- Backend full suite: `98 passed, 2 skipped`.
+- Backend full suite: `101 passed, 2 skipped`.
 - Frontend: ESLint PASS.
 - Frontend production build: PASS; includes dynamic `/orders/[id]/return`.
 - Database: isolated `pgvector/pgvector:pg15` container passed `alembic upgrade head`, `alembic downgrade -1`, and `alembic upgrade head`; `roleenum` contains `user`, `admin`, `catalog_manager`, `order_operator`, `support`, `content_manager`.

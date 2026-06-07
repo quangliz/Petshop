@@ -7,7 +7,7 @@ Thư mục này chứa tài liệu kỹ thuật và tài liệu phục vụ báo
 1. [../README.md](../README.md): tổng quan project, quickstart, deploy.
 2. [../DATN.md](../DATN.md): phạm vi đồ án, yêu cầu, luồng nghiệp vụ, tiêu chí bảo vệ.
 3. [../ARCHITECTURE.md](../ARCHITECTURE.md): kiến trúc hệ thống, luồng request, dữ liệu, AI/RAG và deploy.
-4. [enterprise-requirements.md](./enterprise-requirements.md): khảo sát thị trường và yêu cầu để nâng hệ thống lên mức doanh nghiệp.
+4. [enterprise-requirements.md](./enterprise-requirements.md): khảo sát thị trường, định vị phạm vi đồ án và yêu cầu để nâng hệ thống lên mức doanh nghiệp.
 5. [requirements.md](./requirements.md): actor, use case, NFR và traceability.
 6. [erd.md](./erd.md): ERD hiện tại.
 7. [data-dictionary.md](./data-dictionary.md): bảng/cột/ràng buộc chính.
