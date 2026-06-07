@@ -1,5 +1,5 @@
 from sqlalchemy import Boolean, String, Text, Numeric, DateTime, Enum as SQLEnum, ForeignKey, Integer, Index, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import uuid
 from typing import Optional
@@ -10,6 +10,10 @@ from app.database import Base
 class RoleEnum(str, enum.Enum):
     user = "user"
     admin = "admin"
+    catalog_manager = "catalog_manager"
+    order_operator = "order_operator"
+    support = "support"
+    content_manager = "content_manager"
 
 class SpeciesEnum(str, enum.Enum):
     dog = "dog"
@@ -34,6 +38,7 @@ class User(Base):
     phone: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     role: Mapped[RoleEnum] = mapped_column(SQLEnum(RoleEnum), default=RoleEnum.user)
+    scopes: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)

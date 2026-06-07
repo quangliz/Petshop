@@ -94,3 +94,22 @@ async def require_admin(current_user: CurrentUser) -> User:
 
 
 AdminUser = Annotated[User, Depends(require_admin)]
+
+
+def require_roles(*allowed_roles: RoleEnum):
+    async def dependency(current_user: CurrentUser) -> User:
+        if current_user.role == RoleEnum.admin:
+            return current_user
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền thực hiện hành động này",
+            )
+        return current_user
+    return dependency
+
+
+CatalogManager = Annotated[User, Depends(require_roles(RoleEnum.catalog_manager))]
+OrderOperator = Annotated[User, Depends(require_roles(RoleEnum.order_operator))]
+ContentManager = Annotated[User, Depends(require_roles(RoleEnum.content_manager))]
+SupportOperator = Annotated[User, Depends(require_roles(RoleEnum.support))]

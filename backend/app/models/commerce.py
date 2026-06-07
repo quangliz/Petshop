@@ -67,6 +67,47 @@ class CartItem(Base):
         Index("ix_cart_items_variant_id", "variant_id"),
     )
 
+class PromotionTypeEnum(str, enum.Enum):
+    product = "product"
+    shipping = "shipping"
+
+class DiscountTypeEnum(str, enum.Enum):
+    percentage = "percentage"
+    fixed = "fixed"
+
+class ReturnStatusEnum(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+    completed = "completed"
+
+class Promotion(Base):
+    __tablename__ = "promotions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code: Mapped[str] = mapped_column(String, unique=True, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    promo_type: Mapped[PromotionTypeEnum] = mapped_column(SQLEnum(PromotionTypeEnum))
+    discount_type: Mapped[DiscountTypeEnum] = mapped_column(SQLEnum(DiscountTypeEnum))
+    discount_value: Mapped[float] = mapped_column(Numeric(10, 2))
+    min_subtotal: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0)
+    max_discount: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True)
+    starts_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
+    usage_limit: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    usage_count: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("discount_value > 0", name="ck_promotions_discount_value_positive"),
+        CheckConstraint("min_subtotal >= 0", name="ck_promotions_min_subtotal_nonnegative"),
+        CheckConstraint("max_discount IS NULL OR max_discount > 0", name="ck_promotions_max_discount_positive"),
+        CheckConstraint("usage_limit IS NULL OR usage_limit > 0", name="ck_promotions_usage_limit_positive"),
+        CheckConstraint("usage_count >= 0", name="ck_promotions_usage_count_nonnegative"),
+        CheckConstraint("starts_at < expires_at", name="ck_promotions_valid_window"),
+    )
+
 class Order(Base):
     __tablename__ = "orders"
 
@@ -84,6 +125,13 @@ class Order(Base):
     payment_status: Mapped[PaymentStatusEnum] = mapped_column(SQLEnum(PaymentStatusEnum), default=PaymentStatusEnum.unpaid)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     guest_email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+    # Coupon fields
+    applied_product_coupon_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("promotions.id", ondelete="SET NULL"), nullable=True)
+    applied_shipping_coupon_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("promotions.id", ondelete="SET NULL"), nullable=True)
+    discount_amount: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0)
+    shipping_discount_amount: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0)
+
     idempotency_scope: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
     idempotency_key: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     request_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
@@ -96,11 +144,16 @@ class Order(Base):
     reservations = relationship(
         "InventoryReservation", back_populates="order", cascade="all, delete-orphan"
     )
+    product_coupon = relationship("Promotion", foreign_keys=[applied_product_coupon_id])
+    shipping_coupon = relationship("Promotion", foreign_keys=[applied_shipping_coupon_id])
+    returns = relationship("OrderReturn", back_populates="order", cascade="all, delete-orphan")
 
     __table_args__ = (
         CheckConstraint("subtotal >= 0", name="ck_orders_subtotal_nonnegative"),
         CheckConstraint("shipping_fee >= 0", name="ck_orders_shipping_fee_nonnegative"),
         CheckConstraint("total >= 0", name="ck_orders_total_nonnegative"),
+        CheckConstraint("discount_amount >= 0", name="ck_orders_discount_amount_nonnegative"),
+        CheckConstraint("shipping_discount_amount >= 0", name="ck_orders_shipping_discount_amount_nonnegative"),
         Index("ix_orders_user_id", "user_id"),
         Index("ix_orders_status", "status"),
         Index("ix_orders_order_code", "order_code", unique=True),
@@ -201,4 +254,44 @@ class InventoryReservation(Base):
             "status",
             "expires_at",
         ),
+    )
+
+class OrderReturn(Base):
+    __tablename__ = "order_returns"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="RESTRICT"))
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"))
+    status: Mapped[ReturnStatusEnum] = mapped_column(SQLEnum(ReturnStatusEnum), default=ReturnStatusEnum.pending)
+    reason: Mapped[str] = mapped_column(Text)
+    refund_amount: Mapped[float] = mapped_column(Numeric(10, 2), default=0.0)
+    admin_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
+    order = relationship("Order", back_populates="returns")
+    user = relationship("User")
+    return_items = relationship("OrderReturnItem", back_populates="order_return", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        CheckConstraint("refund_amount >= 0", name="ck_order_returns_refund_amount_nonnegative"),
+        Index("ix_order_returns_order_id", "order_id"),
+        Index("ix_order_returns_user_id", "user_id"),
+        Index("ix_order_returns_status", "status"),
+    )
+
+class OrderReturnItem(Base):
+    __tablename__ = "order_return_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    return_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("order_returns.id", ondelete="CASCADE"))
+    order_item_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("order_items.id", ondelete="RESTRICT"))
+    quantity: Mapped[int] = mapped_column(Integer)
+
+    order_return = relationship("OrderReturn", back_populates="return_items")
+    order_item = relationship("OrderItem")
+
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_order_return_items_quantity_positive"),
+        UniqueConstraint("return_id", "order_item_id", name="uq_order_return_items_return_order_item"),
     )

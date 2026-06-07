@@ -19,7 +19,8 @@ Thư mục này chứa tài liệu kỹ thuật và tài liệu phục vụ báo
 13. [security-baseline.md](./security-baseline.md): ma trận OWASP cho Phase 0.
 14. [ai-domain-policy.md](./ai-domain-policy.md): policy an toàn và escalation của Catbot.
 15. [ai-evaluation.md](./ai-evaluation.md): scorecard live 40 case; evidence ở `ai-evaluation.json`.
-16. [phase0-traceability.md](./phase0-traceability.md): requirement -> implementation -> test/evidence.
+16. [phase0-traceability.md](./phase0-traceability.md): requirement -> implementation -> test/evidence cho Phase 0.
+17. [phase1-traceability.md](./phase1-traceability.md): requirement -> implementation -> test/evidence cho Phase 1 SME production.
 
 ## Source of truth
 

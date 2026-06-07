@@ -17,6 +17,7 @@ from app.services.pets_service import get_pet_profile_cached
 from app.services.ai_safety import has_cart_confirmation, preflight_safety_response
 from app.services.retrieval import search_products
 from app.core.limiter import limiter
+from app.core.config import settings
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
@@ -195,6 +196,8 @@ async def chat_stream(
         )
 
     async def event_generator():
+        import time
+        from app.models.ai_observability import AICallLog
         state = {"messages": history}
         full_content = ""
         total_tokens = 0
@@ -208,6 +211,7 @@ async def chat_stream(
                 "pet_id": str(pet_id) if pet_id else None,
             },
         }
+        start_times = {}
         try:
             if safety_response is not None:
                 full_content = safety_response
@@ -219,7 +223,9 @@ async def chat_stream(
                 assert agent is not None
                 async for event in agent.astream_events(state, version="v2", config=run_config):
                     kind = event["event"]
-                    if kind == "on_chat_model_stream":
+                    if kind == "on_chat_model_start":
+                        start_times[event["run_id"]] = time.perf_counter()
+                    elif kind == "on_chat_model_stream":
                         chunk = event["data"]["chunk"]
                         content = chunk.content if isinstance(chunk.content, str) else ""
                         if content:
@@ -231,7 +237,29 @@ async def chat_stream(
                     elif kind == "on_chat_model_end":
                         output = event["data"].get("output")
                         if output and hasattr(output, "usage_metadata") and output.usage_metadata:
-                            total_tokens += output.usage_metadata.get("total_tokens", 0)
+                            input_toks = output.usage_metadata.get("input_tokens", 0)
+                            output_toks = output.usage_metadata.get("output_tokens", 0)
+                            total_tokens += input_toks + output_toks
+
+                            latency_ms = int((time.perf_counter() - start_times.pop(event["run_id"], time.perf_counter())) * 1000)
+                            model_name = getattr(output, "response_metadata", {}).get("model_name", settings.CHAT_MODEL)
+                            if "gpt-4o-mini" in model_name.lower():
+                                cost = (input_toks * 0.15 + output_toks * 0.60) / 1_000_000.0
+                            elif "gpt-4o" in model_name.lower():
+                                cost = (input_toks * 5.00 + output_toks * 15.00) / 1_000_000.0
+                            else:
+                                cost = (input_toks * 0.15 + output_toks * 0.60) / 1_000_000.0
+
+                            call_log = AICallLog(
+                                user_id=current_user.id,
+                                session_id=session.id,
+                                model_name=model_name,
+                                prompt_tokens=input_toks,
+                                completion_tokens=output_toks,
+                                cost_usd=cost,
+                                latency_ms=latency_ms
+                            )
+                            db.add(call_log)
                     elif kind == "on_tool_end" and event.get("name") == "add_to_cart_tool":
                         cart_was_updated = True
 
@@ -277,6 +305,15 @@ async def chat_stream(
                     fallback += f" Bạn có thể tham khảo các sản phẩm tìm theo từ khóa: {tags}"
             except Exception:
                 pass
+            # Save fallback as assistant message so session always has >=2 messages
+            fallback_content = full_content if full_content else fallback
+            am = ChatMessage(
+                session_id=session.id,
+                role=ChatRoleEnum.assistant,
+                content=fallback_content,
+            )
+            db.add(am)
+            await db.commit()
             yield {
                 "event": "message",
                 "data": json.dumps({"content": fallback}),

@@ -4,7 +4,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 
-from app.api.deps import SessionDep, AdminUser
+from app.api.deps import SessionDep, ContentManager as AdminUser
 from app.services import indexing
 
 router = APIRouter()

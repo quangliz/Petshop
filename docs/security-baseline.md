@@ -31,7 +31,9 @@ phải chứng nhận tuân thủ độc lập.
 - API10 Unsafe Consumption: VNPay signature/amount/status được verify; AI/RAG data
   được xem là input không tin cậy.
 
-## Deferred
+## Phase 1 handoff
 
-RBAC granular, audit log tổng quát, DAST/SAST dashboard, consent center,
-data-export/delete workflow và incident management thuộc Phase 1.
+RBAC granular, audit log bước đầu, consent center và RUM đã có bằng chứng ở
+`docs/phase1-traceability.md`. Các mục còn lại cho SME production gồm
+DAST/SAST dashboard, data-export/delete workflow, incident management,
+audit coverage đầy đủ cho mọi mutation admin và restore drill.

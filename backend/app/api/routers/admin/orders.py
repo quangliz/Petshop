@@ -7,9 +7,10 @@ from sqlalchemy import func, desc, select
 from sqlalchemy.orm import selectinload
 import uuid
 
-from app.api.deps import SessionDep, AdminUser
+from app.api.deps import SessionDep, OrderOperator as AdminUser
 from app.models.commerce import Order, OrderStatusEnum, PaymentMethodEnum
 from app.models.catalog import Product
+from app.services.audit import log_audit
 
 router = APIRouter()
 
@@ -81,6 +82,16 @@ async def admin_update_order_status(
                 if oi.product_id and oi.product_id in prods:
                     prods[oi.product_id].sold_count += oi.quantity
 
+    old_status = order.status.value
     order.status = new_status
+    await log_audit(
+        db=db,
+        user_id=getattr(_admin, "id", None),
+        action="order.status_update",
+        resource_type="Order",
+        resource_id=str(order.id),
+        old_values={"status": old_status},
+        new_values={"status": new_status.value},
+    )
     await db.commit()
     return {"message": "Đã cập nhật", "status": order.status.value}

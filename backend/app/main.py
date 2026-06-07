@@ -40,7 +40,7 @@ if settings.LANGSMITH_TRACING and settings.LANGSMITH_API_KEY:
     os.environ["LANGSMITH_ENDPOINT"] = settings.LANGSMITH_ENDPOINT
     os.environ["LANGCHAIN_ENDPOINT"] = settings.LANGSMITH_ENDPOINT
 
-from app.api.routers import auth, products, categories, cart, orders, payments, pets, chat, admin, reviews, banners  # noqa: E402
+from app.api.routers import auth, products, categories, cart, orders, payments, pets, chat, admin, reviews, banners, promotions, returns, audit_logs, observability  # noqa: E402
 from app.database import engine, Base  # noqa: E402
 
 
@@ -149,6 +149,10 @@ app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["cha
 app.include_router(reviews.router, prefix=f"{settings.API_V1_STR}/products", tags=["reviews"])
 app.include_router(banners.router, prefix=f"{settings.API_V1_STR}/banners", tags=["banners"])
 app.include_router(admin.router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin"])
+app.include_router(promotions.router, prefix=f"{settings.API_V1_STR}/promotions", tags=["promotions"])
+app.include_router(returns.router, prefix=f"{settings.API_V1_STR}", tags=["returns"])
+app.include_router(audit_logs.router, prefix=f"{settings.API_V1_STR}", tags=["audit_logs"])
+app.include_router(observability.router, prefix=f"{settings.API_V1_STR}", tags=["observability"])
 
 
 @app.get("/")

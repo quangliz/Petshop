@@ -22,6 +22,9 @@ from app.models.commerce import (
     PaymentMethodEnum,
     PaymentStatusEnum,
     ReservationStatusEnum,
+    Promotion,
+    PromotionTypeEnum,
+    DiscountTypeEnum,
 )
 from app.models.catalog import Product, ProductVariant
 from app.services.inventory import release_order_reservations
@@ -36,6 +39,7 @@ class CheckoutRequest(BaseModel):
     payment_method: PaymentMethodEnum
     note: str | None = Field(default=None, max_length=500)
     item_ids: list[uuid.UUID] | None = None
+    coupon_codes: list[str] | None = Field(default=None, max_length=2)
 
 
 class GuestCartItem(BaseModel):
@@ -52,6 +56,82 @@ class GuestCheckoutRequest(BaseModel):
     note: str | None = Field(default=None, max_length=500)
     guest_email: EmailStr
     items: list[GuestCartItem]
+    coupon_codes: list[str] | None = Field(default=None, max_length=2)
+
+
+async def _process_checkout_coupons(
+    db, subtotal: float, shipping_fee: float, coupon_codes: list[str] | None
+) -> tuple[Promotion | None, Promotion | None, float, float]:
+    if not coupon_codes:
+        return None, None, 0.0, 0.0
+
+    codes = [c.strip().upper() for c in coupon_codes if c.strip()]
+    if not codes:
+        return None, None, 0.0, 0.0
+
+    if len(codes) > 2:
+        raise HTTPException(status_code=400, detail="Chỉ được áp dụng tối đa 2 mã giảm giá")
+
+    result = await db.execute(
+        select(Promotion).where(
+            func.upper(Promotion.code).in_(codes),
+            Promotion.is_active
+        )
+    )
+    promotions = result.scalars().all()
+    promo_map = {p.code.upper(): p for p in promotions}
+
+    for code in codes:
+        if code not in promo_map:
+            raise HTTPException(status_code=400, detail=f"Mã giảm giá {code} không tồn tại hoặc đã bị khóa")
+
+    applied_product_promo = None
+    applied_shipping_promo = None
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    for p in promotions:
+        if p.starts_at > now or p.expires_at < now:
+            raise HTTPException(status_code=400, detail=f"Mã giảm giá {p.code} đã hết hạn hoặc chưa đến hạn sử dụng")
+
+        if p.usage_limit is not None and p.usage_count >= p.usage_limit:
+            raise HTTPException(status_code=400, detail=f"Mã giảm giá {p.code} đã hết lượt sử dụng")
+
+        if subtotal < float(p.min_subtotal):
+            raise HTTPException(status_code=400, detail=f"Mã giảm giá {p.code} yêu cầu giá trị đơn hàng tối thiểu là {p.min_subtotal}đ")
+
+        if p.promo_type == PromotionTypeEnum.product:
+            if applied_product_promo:
+                raise HTTPException(status_code=400, detail="Chỉ được áp dụng tối đa 1 mã giảm giá trên sản phẩm")
+            applied_product_promo = p
+        elif p.promo_type == PromotionTypeEnum.shipping:
+            if applied_shipping_promo:
+                raise HTTPException(status_code=400, detail="Chỉ được áp dụng tối đa 1 mã giảm giá trên phí vận chuyển")
+            applied_shipping_promo = p
+
+    discount_amount = 0.0
+    if applied_product_promo:
+        if applied_product_promo.discount_type == DiscountTypeEnum.percentage:
+            disc = subtotal * (float(applied_product_promo.discount_value) / 100.0)
+            if applied_product_promo.max_discount is not None:
+                disc = min(disc, float(applied_product_promo.max_discount))
+            discount_amount = disc
+        else:
+            discount_amount = float(applied_product_promo.discount_value)
+        discount_amount = min(discount_amount, subtotal)
+
+    shipping_discount_amount = 0.0
+    if applied_shipping_promo:
+        if applied_shipping_promo.discount_type == DiscountTypeEnum.percentage:
+            s_disc = shipping_fee * (float(applied_shipping_promo.discount_value) / 100.0)
+            if applied_shipping_promo.max_discount is not None:
+                s_disc = min(s_disc, float(applied_shipping_promo.max_discount))
+            shipping_discount_amount = s_disc
+        else:
+            shipping_discount_amount = float(applied_shipping_promo.discount_value)
+        shipping_discount_amount = min(shipping_discount_amount, shipping_fee)
+
+    return applied_product_promo, applied_shipping_promo, discount_amount, shipping_discount_amount
 
 
 class OrderResponseLocal(BaseModel):
@@ -138,6 +218,7 @@ def _line_price(product: Product, variant: ProductVariant | None) -> float:
 
 def _item_response(oi: OrderItem) -> dict:
     return {
+        "id": str(oi.id),
         "product_name": oi.product_name_snapshot,
         "product_id": str(oi.product_id) if oi.product_id else None,
         "variant_id": str(oi.variant_id) if oi.variant_id else None,
@@ -254,13 +335,20 @@ async def checkout(
         ))
 
     shipping_fee = 30000.0
-    total = subtotal + shipping_fee
+    prod_promo, ship_promo, discount_amount, shipping_discount_amount = await _process_checkout_coupons(
+        db, subtotal, shipping_fee, req.coupon_codes
+    )
+    total = max(0.0, subtotal - discount_amount) + max(0.0, shipping_fee - shipping_discount_amount)
 
     new_order = Order(
         user_id=current_user.id,
         order_code=generate_order_code(),
         subtotal=subtotal,
         shipping_fee=shipping_fee,
+        discount_amount=discount_amount,
+        shipping_discount_amount=shipping_discount_amount,
+        applied_product_coupon_id=prod_promo.id if prod_promo else None,
+        applied_shipping_coupon_id=ship_promo.id if ship_promo else None,
         total=total,
         ship_name=req.ship_name,
         ship_phone=req.ship_phone,
@@ -272,6 +360,10 @@ async def checkout(
         idempotency_key=idempotency_key,
         request_hash=request_hash,
     )
+    if prod_promo:
+        prod_promo.usage_count += 1
+    if ship_promo:
+        ship_promo.usage_count += 1
     db.add(new_order)
     await db.flush()
 
@@ -354,13 +446,20 @@ async def guest_checkout(
         ))
 
     shipping_fee = 30000.0
-    total = subtotal + shipping_fee
+    prod_promo, ship_promo, discount_amount, shipping_discount_amount = await _process_checkout_coupons(
+        db, subtotal, shipping_fee, req.coupon_codes
+    )
+    total = max(0.0, subtotal - discount_amount) + max(0.0, shipping_fee - shipping_discount_amount)
 
     new_order = Order(
         user_id=None,
         order_code=generate_order_code(),
         subtotal=subtotal,
         shipping_fee=shipping_fee,
+        discount_amount=discount_amount,
+        shipping_discount_amount=shipping_discount_amount,
+        applied_product_coupon_id=prod_promo.id if prod_promo else None,
+        applied_shipping_coupon_id=ship_promo.id if ship_promo else None,
         total=total,
         ship_name=req.ship_name,
         ship_phone=req.ship_phone,
@@ -373,6 +472,10 @@ async def guest_checkout(
         idempotency_key=idempotency_key,
         request_hash=request_hash,
     )
+    if prod_promo:
+        prod_promo.usage_count += 1
+    if ship_promo:
+        ship_promo.usage_count += 1
     db.add(new_order)
     await db.flush()
 
@@ -556,6 +659,18 @@ async def cancel_order(order_id: uuid.UUID, db: SessionDep, current_user: Curren
             prod = product_map.get(oi.product_id)
             if prod:
                 prod.stock_qty += oi.quantity
+
+    # Revert coupon usage count
+    if order.applied_product_coupon_id:
+        p_res = await db.execute(select(Promotion).where(Promotion.id == order.applied_product_coupon_id))
+        p_promo = p_res.scalar_one_or_none()
+        if p_promo:
+            p_promo.usage_count = max(0, p_promo.usage_count - 1)
+    if order.applied_shipping_coupon_id:
+        s_res = await db.execute(select(Promotion).where(Promotion.id == order.applied_shipping_coupon_id))
+        s_promo = s_res.scalar_one_or_none()
+        if s_promo:
+            s_promo.usage_count = max(0, s_promo.usage_count - 1)
 
     order.status = OrderStatusEnum.cancelled
     await db.commit()
