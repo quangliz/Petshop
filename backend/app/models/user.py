@@ -14,6 +14,7 @@ class RoleEnum(str, enum.Enum):
     order_operator = "order_operator"
     support = "support"
     content_manager = "content_manager"
+    expert = "expert"
 
 class SpeciesEnum(str, enum.Enum):
     dog = "dog"
@@ -49,6 +50,8 @@ class User(Base):
     chat_sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
     refresh_sessions = relationship("RefreshSession", back_populates="user", cascade="all, delete-orphan")
+    forum_threads = relationship("ForumThread", back_populates="author")
+    forum_replies = relationship("ForumReply", back_populates="author")
 
 
 class RefreshSession(Base):

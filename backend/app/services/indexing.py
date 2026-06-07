@@ -11,8 +11,10 @@ from typing import Iterable
 from langchain_core.documents import Document
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.catalog import Product
+from app.models.forum import ForumReply, KnowledgeStatusEnum
 from app.models.knowledge import KnowledgeDoc
 from app.services.embeddings import (
     PRODUCTS_COLLECTION,
@@ -20,6 +22,7 @@ from app.services.embeddings import (
     get_products_store,
     get_knowledge_store,
 )
+from app.services.forum_knowledge import forum_reply_source_text, forum_reply_trust_level
 
 logger = logging.getLogger(__name__)
 
@@ -140,11 +143,46 @@ def _knowledge_chunks(doc: KnowledgeDoc) -> tuple[list[str], list[Document]]:
     return ids, documents
 
 
+def _forum_reply_chunks(reply: ForumReply) -> tuple[list[str], list[Document]]:
+    ids: list[str] = []
+    documents: list[Document] = []
+    thread = reply.thread
+    author = reply.author
+    for i, chunk in enumerate(_chunk_text(forum_reply_source_text(thread, reply))):
+        ids.append(f"forum-reply-{reply.id}-{i}")
+        title = f"Forum: {thread.title}"
+        trust_level = forum_reply_trust_level(reply, author)
+        documents.append(Document(
+            page_content=chunk,
+            metadata={
+                "source_type": "forum",
+                "trust_level": trust_level,
+                "thread_id": str(thread.id),
+                "thread_slug": thread.slug,
+                "reply_id": str(reply.id),
+                "author_role": author.role.value if author else None,
+                "category": thread.category.value if thread.category else None,
+                "title": title,
+                "source_url": f"/forum/{thread.slug}",
+                "knowledge_score": reply.knowledge_score,
+                "is_accepted": reply.is_accepted,
+                "chunk_index": i,
+            },
+        ))
+    return ids, documents
+
+
 async def reindex_knowledge(db: AsyncSession) -> int:
     result = await db.execute(select(KnowledgeDoc))
     docs_db = result.scalars().all()
+    forum_result = await db.execute(
+        select(ForumReply)
+        .where(ForumReply.knowledge_status == KnowledgeStatusEnum.eligible)
+        .options(selectinload(ForumReply.thread), selectinload(ForumReply.author))
+    )
+    forum_replies = forum_result.scalars().all()
     store = get_knowledge_store()
-    if not docs_db:
+    if not docs_db and not forum_replies:
         await _wipe_collection(db, KNOWLEDGE_COLLECTION)
         return 0
 
@@ -152,6 +190,10 @@ async def reindex_knowledge(db: AsyncSession) -> int:
     all_docs: list[Document] = []
     for d in docs_db:
         ids, documents = _knowledge_chunks(d)
+        all_ids.extend(ids)
+        all_docs.extend(documents)
+    for reply in forum_replies:
+        ids, documents = _forum_reply_chunks(reply)
         all_ids.extend(ids)
         all_docs.extend(documents)
 
@@ -164,3 +206,17 @@ async def reindex_knowledge(db: AsyncSession) -> int:
 async def delete_embedding_ids(collection: str, ids: Iterable[str]) -> None:
     store = get_products_store() if collection == "products" else get_knowledge_store()
     await asyncio.to_thread(store.delete, ids=list(ids))
+
+
+async def delete_forum_reply_embeddings(db: AsyncSession, reply_id) -> None:
+    table_exists = (await db.execute(text("SELECT to_regclass('langchain_pg_embedding')"))).scalar_one()
+    if not table_exists:
+        return
+    await db.execute(
+        text(
+            "DELETE FROM langchain_pg_embedding WHERE collection_id = "
+            "(SELECT uuid FROM langchain_pg_collection WHERE name = :name) "
+            "AND id LIKE :prefix"
+        ),
+        {"name": KNOWLEDGE_COLLECTION, "prefix": f"forum-reply-{reply_id}-%"},
+    )

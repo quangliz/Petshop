@@ -499,18 +499,37 @@ async def search_products(
     ]
 
 
+def _knowledge_source_weight(metadata: dict) -> float:
+    if metadata.get("source_type") != "forum":
+        return 1.0
+    trust_level = metadata.get("trust_level")
+    if trust_level == "expert":
+        return 0.85
+    return 0.70
+
+
 def search_knowledge(query: str, limit: int = 4) -> List[dict]:
     store = get_knowledge_store()
-    results = store.similarity_search_with_score(query, k=limit)
+    results = store.similarity_search_with_score(query, k=max(12, limit * 3))
+    ranked = []
+    for doc, distance in results:
+        metadata = doc.metadata or {}
+        base_score = float(1 - distance)
+        weighted_score = base_score * _knowledge_source_weight(metadata)
+        ranked.append((weighted_score, base_score, doc, metadata))
+    ranked.sort(key=lambda item: item[0], reverse=True)
     return [
         {
-            "title": (doc.metadata or {}).get("title"),
-            "category": (doc.metadata or {}).get("category"),
-            "source_url": (doc.metadata or {}).get("source_url"),
+            "title": metadata.get("title"),
+            "category": metadata.get("category"),
+            "source_url": metadata.get("source_url"),
+            "source_type": metadata.get("source_type", "curated"),
+            "trust_level": metadata.get("trust_level"),
             "content": doc.page_content,
-            "score": float(1 - distance),
+            "score": weighted_score,
+            "raw_score": base_score,
         }
-        for doc, distance in results
+        for weighted_score, base_score, doc, metadata in ranked[:limit]
     ]
 
 

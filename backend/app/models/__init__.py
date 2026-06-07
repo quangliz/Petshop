@@ -5,6 +5,7 @@ from app.models.commerce import Cart, CartItem, Order, OrderItem, Payment, Inven
 from app.models.chat import ChatSession, ChatMessage
 from app.models.knowledge import KnowledgeDoc
 from app.models.review import Review
+from app.models.forum import ForumThread, ForumReply, ForumThreadVote, ForumReplyVote
 from app.models.audit import AuditLog
 from app.models.ai_observability import AICallLog
 
@@ -17,6 +18,7 @@ __all__ = [
     "ChatSession", "ChatMessage",
     "KnowledgeDoc",
     "Review",
+    "ForumThread", "ForumReply", "ForumThreadVote", "ForumReplyVote",
     "AuditLog",
     "AICallLog",
 ]

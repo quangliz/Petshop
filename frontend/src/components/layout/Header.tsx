@@ -4,7 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { ShoppingCart, Search, PackageSearch, X, ArrowLeft, Menu, User, ChevronRight, LogOut, Package, Store, ClipboardList, ShieldCheck } from "lucide-react";
+import { ShoppingCart, Search, PackageSearch, X, ArrowLeft, Menu, User, ChevronRight, LogOut, Package, Store, ClipboardList, ShieldCheck, MessageSquare } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { getGuestCartCount } from "@/lib/guestCart";
@@ -20,6 +20,7 @@ const HeaderAuthSection = dynamic(() => import("./HeaderAuthSection"), {
 });
 
 const Logo = () => <BrandLogo size={42} />;
+const ADMIN_ROLES = ["admin", "catalog_manager", "order_operator", "support", "content_manager"];
 
 const SearchSuggestionSkeletons = () => (
   <div className="flex flex-col">
@@ -145,6 +146,9 @@ export default function Header() {
             <Link href="/shop" className="hover:text-white/80 transition-colors tracking-wide">
               CỬA HÀNG
             </Link>
+            <Link href="/forum" className="hover:text-white/80 transition-colors tracking-wide">
+              FORUM
+            </Link>
             <div className="flex items-center gap-3 text-white">
               {!isTopBarHidden && (
                 <>
@@ -224,6 +228,9 @@ export default function Header() {
                <>
                  <Link href="/shop" className="text-inherit hover:opacity-80 transition-opacity p-1 flex items-center">
                    <Store size={18} strokeWidth={2} />
+                 </Link>
+                 <Link href="/forum" className="text-inherit hover:opacity-80 transition-opacity p-1 flex items-center">
+                   <MessageSquare size={18} strokeWidth={2} />
                  </Link>
                  <HeaderAuthSection />
                  <button
@@ -310,6 +317,11 @@ export default function Header() {
                 <ClipboardList size={20} strokeWidth={1.75} className="text-neutral-500 shrink-0" />
                 <span className="text-[15px] font-semibold">Tra cứu đơn hàng</span>
               </Link>
+              <Link href="/forum" onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-4 px-5 py-4 no-underline text-surface-invert border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+                <MessageSquare size={20} strokeWidth={1.75} className="text-neutral-500 shrink-0" />
+                <span className="text-[15px] font-semibold">Forum</span>
+              </Link>
               {user && (
                 <>
                   <Link href="/orders" onClick={() => setMobileMenuOpen(false)}
@@ -317,7 +329,7 @@ export default function Header() {
                     <Package size={20} strokeWidth={1.75} className="text-neutral-500 shrink-0" />
                     <span className="text-[15px] font-semibold">Đơn hàng của tôi</span>
                   </Link>
-                  {user.role === 'admin' && (
+                  {ADMIN_ROLES.includes(user.role) && (
                     <Link href="/admin" onClick={() => setMobileMenuOpen(false)}
                       className="flex items-center gap-4 px-5 py-4 no-underline text-surface-invert border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
                       <ShieldCheck size={20} strokeWidth={1.75} className="text-[oklch(0.61_0.19_46)] shrink-0" />

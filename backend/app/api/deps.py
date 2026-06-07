@@ -113,3 +113,4 @@ CatalogManager = Annotated[User, Depends(require_roles(RoleEnum.catalog_manager)
 OrderOperator = Annotated[User, Depends(require_roles(RoleEnum.order_operator))]
 ContentManager = Annotated[User, Depends(require_roles(RoleEnum.content_manager))]
 SupportOperator = Annotated[User, Depends(require_roles(RoleEnum.support))]
+ForumModerator = Annotated[User, Depends(require_roles(RoleEnum.support, RoleEnum.content_manager))]
