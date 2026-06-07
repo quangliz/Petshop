@@ -3,12 +3,14 @@ from __future__ import annotations
 import re
 import unicodedata
 import uuid
+import asyncio
+import logging
 from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import and_, asc, desc, func, or_, select
+from sqlalchemy import desc, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, SessionDep
@@ -21,10 +23,15 @@ from app.models.forum import (
     ForumThreadVote,
 )
 from app.models.user import RoleEnum, User
-from app.services.forum_knowledge import apply_forum_knowledge_decision
-from app.services.indexing import delete_forum_reply_embeddings
+from app.services.forum_knowledge import (
+    apply_forum_reply_quality,
+    apply_forum_thread_knowledge_decision,
+    is_verified_expert,
+)
+from app.services.indexing import delete_forum_thread_embeddings, reindex_one_forum_thread
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 CATEGORY_LABELS = {
@@ -60,6 +67,7 @@ class ForumThreadCreate(BaseModel):
 
 class ForumReplyCreate(BaseModel):
     body: str = Field(min_length=10, max_length=8000)
+    parent_reply_id: Optional[uuid.UUID] = None
 
 
 class ForumVoteRequest(BaseModel):
@@ -91,12 +99,19 @@ async def _unique_slug(db: SessionDep, title: str) -> str:
 
 def _author_dict(user: User | None) -> dict:
     if not user:
-        return {"id": None, "full_name": "Người dùng đã xoá", "role": "user", "is_expert": False}
+        return {
+            "id": None,
+            "full_name": "Người dùng đã xoá",
+            "role": "user",
+            "is_expert": False,
+            "is_expert_verified": False,
+        }
     return {
         "id": str(user.id),
         "full_name": user.full_name,
         "role": user.role.value,
         "is_expert": user.role == RoleEnum.expert,
+        "is_expert_verified": is_verified_expert(user),
     }
 
 
@@ -111,6 +126,9 @@ def _thread_summary(thread: ForumThread) -> dict:
         "tags": thread.tags or [],
         "status": thread.status.value,
         "is_locked": thread.is_locked,
+        "is_ai_blocked": thread.is_ai_blocked,
+        "knowledge_status": thread.knowledge_status.value,
+        "knowledge_score": thread.knowledge_score,
         "upvote_count": thread.upvote_count,
         "downvote_count": thread.downvote_count,
         "reply_count": thread.reply_count,
@@ -125,12 +143,15 @@ def _reply_dict(reply: ForumReply) -> dict:
     return {
         "id": str(reply.id),
         "thread_id": str(reply.thread_id),
+        "parent_reply_id": str(reply.parent_reply_id) if reply.parent_reply_id else None,
         "body": reply.body,
         "status": reply.status.value,
+        "is_ai_blocked": reply.is_ai_blocked,
         "is_expert_answer": reply.is_expert_answer,
         "is_accepted": reply.is_accepted,
         "upvote_count": reply.upvote_count,
         "downvote_count": reply.downvote_count,
+        "expert_upvote_count": reply.expert_upvote_count,
         "knowledge_status": reply.knowledge_status.value,
         "knowledge_score": reply.knowledge_score,
         "author": _author_dict(reply.author),
@@ -153,7 +174,28 @@ async def _get_published_thread(db: SessionDep, thread_id: uuid.UUID) -> ForumTh
 
 async def _refresh_reply_knowledge(db: SessionDep, reply: ForumReply) -> None:
     await db.refresh(reply, attribute_names=["thread", "author"])
-    apply_forum_knowledge_decision(thread=reply.thread, reply=reply, author=reply.author)
+    apply_forum_reply_quality(reply=reply, author=reply.author)
+
+
+async def _refresh_thread_ai_index(db: SessionDep, thread: ForumThread) -> None:
+    result = await db.execute(
+        select(ForumReply)
+        .where(ForumReply.thread_id == thread.id)
+        .options(selectinload(ForumReply.author))
+    )
+    replies = list(result.scalars().all())
+    decision = apply_forum_thread_knowledge_decision(thread, replies)
+    if decision.status.value == "eligible":
+        asyncio.create_task(_safe_reindex_thread(thread))
+    else:
+        await delete_forum_thread_embeddings(db, thread.id)
+
+
+async def _safe_reindex_thread(thread: ForumThread) -> None:
+    try:
+        await reindex_one_forum_thread(thread)
+    except Exception:
+        logger.warning("Failed to reindex forum thread %s", thread.id, exc_info=True)
 
 
 async def _update_vote(
@@ -190,7 +232,7 @@ async def _update_vote(
         parent.upvote_count += 1
     elif value == -1:
         parent.downvote_count += 1
-    return {"upvote_count": parent.upvote_count, "downvote_count": parent.downvote_count, "value": value}
+    return {"upvote_count": parent.upvote_count, "downvote_count": parent.downvote_count, "value": value, "old_value": old_value}
 
 
 @router.get("/categories")
@@ -257,13 +299,16 @@ async def create_thread(payload: ForumThreadCreate, db: SessionDep, current_user
         last_activity_at=datetime.now(timezone.utc),
     )
     db.add(thread)
+    apply_forum_thread_knowledge_decision(thread, [])
     await db.commit()
     result = await db.execute(
         select(ForumThread)
         .where(ForumThread.id == thread.id)
         .options(selectinload(ForumThread.author))
     )
-    return _thread_summary(result.scalar_one())
+    created = result.scalar_one()
+    asyncio.create_task(_safe_reindex_thread(created))
+    return _thread_summary(created)
 
 
 @router.get("/threads/{slug}")
@@ -304,16 +349,8 @@ async def vote_thread(
         user_id=current_user.id,
         value=payload.value,
     )
-    result = await db.execute(
-        select(ForumReply)
-        .where(ForumReply.thread_id == thread.id)
-        .options(selectinload(ForumReply.thread), selectinload(ForumReply.author))
-    )
-    for reply in result.scalars().all():
-        previous = reply.knowledge_status
-        apply_forum_knowledge_decision(thread=thread, reply=reply, author=reply.author)
-        if previous != reply.knowledge_status:
-            await delete_forum_reply_embeddings(db, reply.id)
+    data.pop("old_value", None)
+    await _refresh_thread_ai_index(db, thread)
     await db.commit()
     return data
 
@@ -328,11 +365,24 @@ async def create_reply(
     thread = await _get_published_thread(db, thread_id)
     if thread.is_locked:
         raise HTTPException(status_code=403, detail="Bài forum đã bị khoá trả lời")
+    parent_reply = None
+    if payload.parent_reply_id:
+        parent_result = await db.execute(
+            select(ForumReply).where(
+                ForumReply.id == payload.parent_reply_id,
+                ForumReply.thread_id == thread.id,
+                ForumReply.status == ForumStatusEnum.published,
+            )
+        )
+        parent_reply = parent_result.scalar_one_or_none()
+        if not parent_reply:
+            raise HTTPException(status_code=404, detail="Không tìm thấy bình luận cần phản hồi")
     reply = ForumReply(
         thread_id=thread.id,
+        parent_reply_id=parent_reply.id if parent_reply else None,
         author_id=current_user.id,
         body=payload.body.strip(),
-        is_expert_answer=current_user.role == RoleEnum.expert,
+        is_expert_answer=is_verified_expert(current_user),
     )
     db.add(reply)
     thread.reply_count += 1
@@ -340,7 +390,8 @@ async def create_reply(
     await db.flush()
     reply.author = current_user
     reply.thread = thread
-    apply_forum_knowledge_decision(thread=thread, reply=reply, author=current_user)
+    apply_forum_reply_quality(reply=reply, author=current_user)
+    await _refresh_thread_ai_index(db, thread)
     await db.commit()
     await db.refresh(reply)
     result = await db.execute(
@@ -375,11 +426,18 @@ async def vote_reply(
         user_id=current_user.id,
         value=payload.value,
     )
-    previous = reply.knowledge_status
-    apply_forum_knowledge_decision(thread=reply.thread, reply=reply, author=reply.author)
-    if previous != reply.knowledge_status:
-        await delete_forum_reply_embeddings(db, reply.id)
+    if is_verified_expert(current_user):
+        old_value = data.pop("old_value", 0)
+        if old_value == 1:
+            reply.expert_upvote_count = max(0, reply.expert_upvote_count - 1)
+        if payload.value == 1:
+            reply.expert_upvote_count += 1
+    else:
+        data.pop("old_value", None)
+    apply_forum_reply_quality(reply=reply, author=reply.author)
+    await _refresh_thread_ai_index(db, reply.thread)
     await db.commit()
+    data["expert_upvote_count"] = reply.expert_upvote_count
     return data
 
 
@@ -405,10 +463,8 @@ async def accept_reply(reply_id: uuid.UUID, db: SessionDep, current_user: Curren
     replies = result.scalars().all()
     for item in replies:
         item.is_accepted = item.id == reply.id
-        previous = item.knowledge_status
-        apply_forum_knowledge_decision(thread=thread, reply=item, author=item.author)
-        if previous != item.knowledge_status:
-            await delete_forum_reply_embeddings(db, item.id)
+        apply_forum_reply_quality(reply=item, author=item.author)
     thread.accepted_reply_id = reply.id
+    await _refresh_thread_ai_index(db, thread)
     await db.commit()
     return {"accepted_reply_id": str(reply.id)}

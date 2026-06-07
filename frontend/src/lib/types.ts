@@ -61,6 +61,7 @@ export interface User {
   phone?: string;
   address?: string;
   role: string;
+  is_expert_verified?: boolean;
 }
 
 export interface Category {
@@ -110,6 +111,7 @@ export interface ForumAuthor {
   full_name: string;
   role: string;
   is_expert: boolean;
+  is_expert_verified: boolean;
 }
 
 export interface ForumThread {
@@ -123,6 +125,9 @@ export interface ForumThread {
   tags: string[];
   status: string;
   is_locked: boolean;
+  is_ai_blocked: boolean;
+  knowledge_status: string;
+  knowledge_score: number;
   upvote_count: number;
   downvote_count: number;
   reply_count: number;
@@ -135,12 +140,15 @@ export interface ForumThread {
 export interface ForumReply {
   id: string;
   thread_id: string;
+  parent_reply_id: string | null;
   body: string;
   status: string;
+  is_ai_blocked: boolean;
   is_expert_answer: boolean;
   is_accepted: boolean;
   upvote_count: number;
   downvote_count: number;
+  expert_upvote_count: number;
   knowledge_status: string;
   knowledge_score: number;
   author: ForumAuthor;

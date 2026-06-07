@@ -12,8 +12,14 @@ from sqlalchemy import case, func, literal, or_, select, text
 from sqlalchemy.orm import selectinload
 
 from app.models.catalog import Category, Product
+from app.models.forum import ForumReply, ForumStatusEnum, ForumThread
 from app.core.redis_client import get_redis
 from app.services.embeddings import PRODUCTS_COLLECTION, get_products_store, get_knowledge_store
+from app.services.forum_knowledge import (
+    forum_reply_answer_score,
+    forum_thread_quality_score,
+    is_verified_expert,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -499,24 +505,16 @@ async def search_products(
     ]
 
 
-def _knowledge_source_weight(metadata: dict) -> float:
-    if metadata.get("source_type") != "forum":
-        return 1.0
-    trust_level = metadata.get("trust_level")
-    if trust_level == "expert":
-        return 0.85
-    return 0.70
-
-
 def search_knowledge(query: str, limit: int = 4) -> List[dict]:
     store = get_knowledge_store()
-    results = store.similarity_search_with_score(query, k=max(12, limit * 3))
+    results = store.similarity_search_with_score(query, k=max(12, limit * 4))
     ranked = []
     for doc, distance in results:
         metadata = doc.metadata or {}
+        if metadata.get("source_type") == "forum_thread":
+            continue
         base_score = float(1 - distance)
-        weighted_score = base_score * _knowledge_source_weight(metadata)
-        ranked.append((weighted_score, base_score, doc, metadata))
+        ranked.append((base_score, doc, metadata))
     ranked.sort(key=lambda item: item[0], reverse=True)
     return [
         {
@@ -524,13 +522,154 @@ def search_knowledge(query: str, limit: int = 4) -> List[dict]:
             "category": metadata.get("category"),
             "source_url": metadata.get("source_url"),
             "source_type": metadata.get("source_type", "curated"),
-            "trust_level": metadata.get("trust_level"),
             "content": doc.page_content,
-            "score": weighted_score,
-            "raw_score": base_score,
+            "score": score,
+            "raw_score": score,
         }
-        for weighted_score, base_score, doc, metadata in ranked[:limit]
+        for score, doc, metadata in ranked[:limit]
     ]
+
+
+async def search_forum_discussions(db: AsyncSession, query: str, limit: int = 3) -> List[dict]:
+    try:
+        store = get_knowledge_store()
+        results = await asyncio.to_thread(
+            store.similarity_search_with_score,
+            query,
+            k=max(12, limit * 4),
+        )
+    except Exception:  # noqa: BLE001
+        logger.warning("Forum semantic retrieval failed", exc_info=True)
+        return []
+
+    candidates: list[tuple[float, str, dict]] = []
+    seen: set[str] = set()
+    for doc, distance in results:
+        metadata = doc.metadata or {}
+        if metadata.get("source_type") != "forum_thread":
+            continue
+        thread_id = metadata.get("thread_id")
+        if not thread_id or thread_id in seen:
+            continue
+        seen.add(thread_id)
+        candidates.append((float(1 - distance), thread_id, metadata))
+    if not candidates:
+        return []
+
+    parsed_ids: list[uuid.UUID] = []
+    id_order: list[str] = []
+    for _, thread_id, _ in candidates:
+        try:
+            parsed_ids.append(uuid.UUID(thread_id))
+            id_order.append(thread_id)
+        except ValueError:
+            continue
+    if not parsed_ids:
+        return []
+
+    result = await db.execute(
+        select(ForumThread)
+        .where(
+            ForumThread.id.in_(parsed_ids),
+            ForumThread.status == ForumStatusEnum.published,
+            ForumThread.is_ai_blocked.is_(False),
+        )
+        .options(
+            selectinload(ForumThread.author),
+            selectinload(ForumThread.replies).selectinload(ForumReply.author),
+        )
+    )
+    threads_by_id = {str(thread.id): thread for thread in result.scalars().all()}
+    candidate_scores = {thread_id: semantic_score for semantic_score, thread_id, _ in candidates}
+
+    discussions: list[dict] = []
+    for thread_id in id_order:
+        thread = threads_by_id.get(thread_id)
+        if not thread:
+            continue
+        replies = [
+            reply for reply in thread.replies
+            if reply.status == ForumStatusEnum.published and not reply.is_ai_blocked
+        ]
+        if not replies:
+            continue
+        has_expert_answer = any(is_verified_expert(reply.author) for reply in replies)
+        if not (
+            thread.accepted_reply_id
+            or has_expert_answer
+            or (thread.upvote_count or 0) >= 3
+        ):
+            continue
+
+        ranked_replies = sorted(
+            replies,
+            key=lambda reply: forum_reply_answer_score(reply, reply.author),
+            reverse=True,
+        )
+        selected = [
+            reply for reply in ranked_replies
+            if _is_selectable_forum_answer(reply)
+        ][:3]
+        if not selected:
+            continue
+        semantic_score = candidate_scores.get(thread_id, 0.0)
+        quality_score = forum_thread_quality_score(thread, replies)
+        discussions.append({
+            "title": f"Forum: {thread.title}",
+            "category": thread.category.value if thread.category else None,
+            "source_url": f"/forum/{thread.slug}",
+            "source_type": "forum_thread",
+            "score": semantic_score + min(quality_score, 20) / 100,
+            "content": _forum_discussion_context(thread, selected),
+            "thread_id": str(thread.id),
+            "thread_slug": thread.slug,
+            "quality_score": quality_score,
+            "semantic_score": semantic_score,
+        })
+
+    return sorted(discussions, key=lambda item: item["score"], reverse=True)[:limit]
+
+
+def _forum_discussion_context(thread: ForumThread, replies: list[ForumReply]) -> str:
+    lines = [
+        f"Bài đăng forum: {thread.title}",
+        f"Chủ đề: {thread.category.value}",
+        f"Upvote bài đăng: {thread.upvote_count}",
+        f"Đã giải quyết: {'có' if thread.accepted_reply_id else 'chưa'}",
+        "",
+        f"Nội dung bài đăng: {thread.body}",
+        "",
+        "Các câu trả lời được chọn:",
+    ]
+    for reply in replies:
+        author = reply.author
+        expert_answer = is_verified_expert(author)
+        author_label = "chuyên gia đã xác minh" if expert_answer else "người dùng"
+        answer_score = forum_reply_answer_score(reply, author)
+        markers = []
+        if reply.is_accepted:
+            markers.append("accepted")
+        if expert_answer:
+            markers.append("expert")
+        if reply.expert_upvote_count:
+            markers.append(f"{reply.expert_upvote_count} expert-upvote")
+        lines.extend([
+            f"- Tác giả: {author.full_name if author else 'Người dùng đã xoá'} ({author_label}); điểm={answer_score}; {', '.join(markers) or 'community'}",
+            f"  Nội dung: {reply.body}",
+        ])
+    return "\n".join(lines)
+
+
+def _is_selectable_forum_answer(reply: ForumReply) -> bool:
+    if reply.status != ForumStatusEnum.published or reply.is_ai_blocked:
+        return False
+    if is_verified_expert(reply.author):
+        return True
+    if reply.is_accepted:
+        return True
+    if (reply.expert_upvote_count or 0) > 0:
+        return True
+    return (reply.upvote_count or 0) >= 5
 
 
 async def similar_products(db: AsyncSession, product: Product, limit: int = 6) -> List[dict]:

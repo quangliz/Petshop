@@ -40,6 +40,7 @@ class User(Base):
     address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     role: Mapped[RoleEnum] = mapped_column(SQLEnum(RoleEnum), default=RoleEnum.user)
     scopes: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    is_expert_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)

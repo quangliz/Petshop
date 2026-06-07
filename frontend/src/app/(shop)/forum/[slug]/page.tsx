@@ -5,25 +5,23 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
-import { CheckCircle2, ChevronRight, Lock, MessageSquare, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
+import { CheckCircle2, ChevronRight, Lock, MessageSquare, Reply, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import VerifiedPawBadge from "@/components/forum/VerifiedPawBadge";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 import { ForumReply, ForumThread } from "@/lib/types";
 
 type ForumThreadDetail = ForumThread & { body: string; replies: ForumReply[] };
+type ReplyNode = ForumReply & { children: ReplyNode[] };
 
 function AuthorLine({ author, createdAt }: { author: ForumThread["author"]; createdAt: string | null }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-[12px] text-neutral-500">
       <span className="font-bold text-neutral-700">{author.full_name}</span>
-      {author.is_expert && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-700">
-          <Sparkles size={12} /> Chuyên gia
-        </span>
-      )}
+      {author.is_expert_verified && <VerifiedPawBadge compact />}
       {createdAt && <span>{new Date(createdAt).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" })}</span>}
     </div>
   );
@@ -38,12 +36,101 @@ function VoteButtons({ onVote, up, down, disabled }: { onVote: (value: number) =
   );
 }
 
+function buildReplyTree(replies: ForumReply[]): ReplyNode[] {
+  const byId = new Map<string, ReplyNode>();
+  replies.forEach((reply) => byId.set(reply.id, { ...reply, children: [] }));
+
+  const roots: ReplyNode[] = [];
+  replies.forEach((reply) => {
+    const node = byId.get(reply.id);
+    if (!node) return;
+    const parent = reply.parent_reply_id ? byId.get(reply.parent_reply_id) : null;
+    if (parent) {
+      parent.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  return roots;
+}
+
+function ReplyCard({
+  reply,
+  depth,
+  canAccept,
+  canVote,
+  votePending,
+  acceptPending,
+  onVote,
+  onAccept,
+  onReply,
+}: {
+  reply: ReplyNode;
+  depth: number;
+  canAccept: boolean;
+  canVote: boolean;
+  votePending: boolean;
+  acceptPending: boolean;
+  onVote: (replyId: string, value: number) => void;
+  onAccept: (replyId: string) => void;
+  onReply: (reply: ForumReply) => void;
+}) {
+  return (
+    <div className={depth > 0 ? "ml-3 border-l border-neutral-100 pl-3 md:ml-6 md:pl-5" : ""}>
+      <article className={`rounded-[16px] border bg-white p-4 md:p-5 shadow-xs ${reply.is_accepted ? "border-green-200" : "border-neutral-100"}`}>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <AuthorLine author={reply.author} createdAt={reply.created_at} />
+          <div className="flex flex-wrap items-center gap-2">
+            {reply.is_accepted && <span className="inline-flex items-center gap-1 rounded-full bg-success-bg px-2.5 py-1 text-[11px] font-bold text-green-700"><CheckCircle2 size={12} /> Đáp án</span>}
+            {reply.expert_upvote_count > 0 && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700">{reply.expert_upvote_count} expert xác nhận</span>}
+          </div>
+        </div>
+        <div className="prose prose-sm max-w-none text-neutral-700">
+          <ReactMarkdown>{reply.body}</ReactMarkdown>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <VoteButtons disabled={!canVote || votePending} up={reply.upvote_count} down={reply.downvote_count} onVote={(value) => onVote(reply.id, value)} />
+            <Button size="sm" variant="outline" onClick={() => onReply(reply)}>
+              <Reply size={14} /> Phản hồi
+            </Button>
+          </div>
+          {canAccept && !reply.is_accepted && (
+            <Button size="sm" variant="outline" onClick={() => onAccept(reply.id)} disabled={acceptPending}>
+              <CheckCircle2 size={14} /> Chọn đáp án
+            </Button>
+          )}
+        </div>
+      </article>
+      {reply.children.length > 0 && (
+        <div className="mt-3 grid gap-3">
+          {reply.children.map((child) => (
+            <ReplyCard
+              key={child.id}
+              reply={child}
+              depth={depth + 1}
+              canAccept={canAccept}
+              canVote={canVote}
+              votePending={votePending}
+              acceptPending={acceptPending}
+              onVote={onVote}
+              onAccept={onAccept}
+              onReply={onReply}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ForumThreadPage() {
   const params = useParams<{ slug: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const [replyBody, setReplyBody] = useState("");
+  const [replyTarget, setReplyTarget] = useState<ForumReply | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["forum-thread", params.slug],
@@ -63,9 +150,13 @@ export default function ForumThreadPage() {
   });
 
   const createReply = useMutation({
-    mutationFn: () => api.post(`/forum/threads/${data?.id}/replies`, { body: replyBody }),
+    mutationFn: () => api.post(`/forum/threads/${data?.id}/replies`, {
+      body: replyBody,
+      parent_reply_id: replyTarget?.id ?? null,
+    }),
     onSuccess: () => {
       setReplyBody("");
+      setReplyTarget(null);
       queryClient.invalidateQueries({ queryKey: ["forum-thread", params.slug] });
       toast.success("Đã gửi câu trả lời");
     },
@@ -85,6 +176,11 @@ export default function ForumThreadPage() {
   if (error || !data) return <div className="py-16 text-center text-red-500">Không tìm thấy chủ đề forum</div>;
 
   const canAccept = !!user && (data.author.id === user.id || ["admin", "support", "content_manager"].includes(user.role));
+  const replyTree = buildReplyTree(data.replies);
+  const startReplyTo = (reply: ForumReply) => {
+    setReplyTarget(reply);
+    document.getElementById("forum-reply-form")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   return (
     <div className="w-full max-w-[960px] mx-auto px-4 md:px-6 lg:px-8 py-8">
@@ -120,41 +216,41 @@ export default function ForumThreadPage() {
           <h2 className="m-0 flex items-center gap-2 text-xl font-extrabold"><MessageSquare size={20} /> {data.replies.length} câu trả lời</h2>
         </div>
         <div className="grid gap-4">
-          {data.replies.map((reply) => (
-            <article key={reply.id} className={`rounded-[16px] border bg-white p-4 md:p-5 shadow-xs ${reply.is_accepted ? "border-green-200" : "border-neutral-100"}`}>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <AuthorLine author={reply.author} createdAt={reply.created_at} />
-                <div className="flex flex-wrap items-center gap-2">
-                  {reply.is_accepted && <span className="inline-flex items-center gap-1 rounded-full bg-success-bg px-2.5 py-1 text-[11px] font-bold text-green-700"><CheckCircle2 size={12} /> Đáp án</span>}
-                  {reply.knowledge_status === "eligible" && <span className="rounded-full bg-teal-50 px-2.5 py-1 text-[11px] font-bold text-teal-700">AI knowledge</span>}
-                </div>
-              </div>
-              <div className="prose prose-sm max-w-none text-neutral-700">
-                <ReactMarkdown>{reply.body}</ReactMarkdown>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <VoteButtons disabled={!user || replyVote.isPending} up={reply.upvote_count} down={reply.downvote_count} onVote={(value) => replyVote.mutate({ replyId: reply.id, value })} />
-                {canAccept && !reply.is_accepted && (
-                  <Button size="sm" variant="outline" onClick={() => acceptReply.mutate(reply.id)} disabled={acceptReply.isPending}>
-                    <CheckCircle2 size={14} /> Chọn đáp án
-                  </Button>
-                )}
-              </div>
-            </article>
+          {replyTree.map((reply) => (
+            <ReplyCard
+              key={reply.id}
+              reply={reply}
+              depth={0}
+              canAccept={canAccept}
+              canVote={!!user}
+              votePending={replyVote.isPending}
+              acceptPending={acceptReply.isPending}
+              onVote={(replyId, value) => replyVote.mutate({ replyId, value })}
+              onAccept={(replyId) => acceptReply.mutate(replyId)}
+              onReply={startReplyTo}
+            />
           ))}
         </div>
       </section>
 
-      <section className="mt-8 rounded-[16px] border border-neutral-100 bg-white p-4 md:p-5 shadow-sm">
-        <h2 className="m-0 mb-3 text-lg font-extrabold">Trả lời chủ đề</h2>
+      <section id="forum-reply-form" className="mt-8 rounded-[16px] border border-neutral-100 bg-white p-4 md:p-5 shadow-sm">
+        <h2 className="m-0 mb-3 text-lg font-extrabold">{replyTarget ? "Phản hồi bình luận" : "Trả lời chủ đề"}</h2>
         {data.is_locked ? (
           <div className="rounded-lg bg-neutral-50 p-4 text-sm text-neutral-500">Chủ đề đã bị khoá trả lời.</div>
         ) : user ? (
           <div className="grid gap-3">
-            <textarea value={replyBody} onChange={(e) => setReplyBody(e.target.value)} rows={7} placeholder="Chia sẻ kinh nghiệm hoặc lời khuyên của bạn" className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-100" />
+            {replyTarget && (
+              <div className="flex items-center justify-between gap-3 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-700">
+                <span className="min-w-0 truncate">Đang phản hồi {replyTarget.author.full_name}</span>
+                <button type="button" onClick={() => setReplyTarget(null)} className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-blue-700">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+            <textarea value={replyBody} onChange={(e) => setReplyBody(e.target.value)} rows={7} placeholder={replyTarget ? "Viết phản hồi của bạn" : "Chia sẻ kinh nghiệm hoặc lời khuyên của bạn"} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-100" />
             <div className="flex justify-end">
               <Button disabled={createReply.isPending || replyBody.length < 10} onClick={() => createReply.mutate()}>
-                {createReply.isPending ? "Đang gửi..." : "Gửi trả lời"}
+                {createReply.isPending ? "Đang gửi..." : replyTarget ? "Gửi phản hồi" : "Gửi trả lời"}
               </Button>
             </div>
           </div>

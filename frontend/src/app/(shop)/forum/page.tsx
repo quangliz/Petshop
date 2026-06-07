@@ -4,12 +4,13 @@ import React, { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ChevronRight, MessageSquare, Plus, Search, Sparkles, ThumbsUp } from "lucide-react";
+import { CheckCircle2, ChevronRight, MessageSquare, Plus, Search, ThumbsUp } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import VerifiedPawBadge from "@/components/forum/VerifiedPawBadge";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 import { ForumThread } from "@/lib/types";
@@ -23,15 +24,6 @@ const SORTS = [
   { value: "answered", label: "Đã có đáp án" },
   { value: "unanswered", label: "Chưa có đáp án" },
 ] as const;
-
-function ExpertBadge({ role }: { role: string }) {
-  if (role !== "expert") return null;
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-700">
-      <Sparkles size={12} /> Chuyên gia
-    </span>
-  );
-}
 
 function ThreadRow({ thread }: { thread: ForumThread }) {
   return (
@@ -47,7 +39,6 @@ function ThreadRow({ thread }: { thread: ForumThread }) {
                 <CheckCircle2 size={12} /> Đã giải đáp
               </span>
             )}
-            <ExpertBadge role={thread.author.role} />
           </div>
           <div>
             <h2 className="m-0 text-[17px] md:text-[20px] font-extrabold leading-snug text-neutral-900 line-clamp-2">
@@ -60,6 +51,7 @@ function ThreadRow({ thread }: { thread: ForumThread }) {
           <div className="flex flex-wrap items-center justify-between gap-3 text-[12px] text-neutral-500">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <span className="font-semibold text-neutral-700">{thread.author.full_name}</span>
+              {thread.author.is_expert_verified && <VerifiedPawBadge compact />}
               {thread.tags.slice(0, 3).map((tag) => (
                 <span key={tag} className="rounded-full bg-neutral-50 px-2 py-0.5 text-neutral-500">#{tag}</span>
               ))}

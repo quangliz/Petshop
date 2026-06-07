@@ -66,6 +66,13 @@ class ForumThread(Base):
     )
     is_locked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_ai_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    knowledge_status: Mapped[KnowledgeStatusEnum] = mapped_column(
+        SQLEnum(KnowledgeStatusEnum),
+        default=KnowledgeStatusEnum.not_eligible,
+        nullable=False,
+    )
+    knowledge_score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    knowledge_indexed_at: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True), nullable=True)
     upvote_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     downvote_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     reply_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -82,8 +89,10 @@ class ForumThread(Base):
         CheckConstraint("upvote_count >= 0", name="ck_forum_threads_upvotes_nonnegative"),
         CheckConstraint("downvote_count >= 0", name="ck_forum_threads_downvotes_nonnegative"),
         CheckConstraint("reply_count >= 0", name="ck_forum_threads_reply_count_nonnegative"),
+        CheckConstraint("knowledge_score >= 0", name="ck_forum_threads_knowledge_score_nonnegative"),
         Index("ix_forum_threads_category_created", "category", "created_at"),
         Index("ix_forum_threads_status_created", "status", "created_at"),
+        Index("ix_forum_threads_knowledge_status", "knowledge_status"),
     )
 
 
@@ -95,6 +104,12 @@ class ForumReply(Base):
         UUID(as_uuid=True),
         ForeignKey("forum_threads.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
+    )
+    parent_reply_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("forum_replies.id", ondelete="CASCADE"),
+        nullable=True,
         index=True,
     )
     author_id: Mapped[Optional[uuid.UUID]] = mapped_column(
@@ -114,6 +129,7 @@ class ForumReply(Base):
     is_accepted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     upvote_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     downvote_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    expert_upvote_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     knowledge_status: Mapped[KnowledgeStatusEnum] = mapped_column(
         SQLEnum(KnowledgeStatusEnum),
         default=KnowledgeStatusEnum.not_eligible,
@@ -126,13 +142,17 @@ class ForumReply(Base):
 
     thread = relationship("ForumThread", back_populates="replies")
     author = relationship("User", back_populates="forum_replies")
+    parent = relationship("ForumReply", remote_side=[id], back_populates="children")
+    children = relationship("ForumReply", back_populates="parent", cascade="all, delete-orphan", single_parent=True)
     votes = relationship("ForumReplyVote", back_populates="reply", cascade="all, delete-orphan")
 
     __table_args__ = (
         CheckConstraint("upvote_count >= 0", name="ck_forum_replies_upvotes_nonnegative"),
         CheckConstraint("downvote_count >= 0", name="ck_forum_replies_downvotes_nonnegative"),
+        CheckConstraint("expert_upvote_count >= 0", name="ck_forum_replies_expert_upvotes_nonnegative"),
         CheckConstraint("knowledge_score >= 0", name="ck_forum_replies_knowledge_score_nonnegative"),
         Index("ix_forum_replies_thread_created", "thread_id", "created_at"),
+        Index("ix_forum_replies_parent_created", "parent_reply_id", "created_at"),
         Index("ix_forum_replies_knowledge_status", "knowledge_status"),
     )
 

@@ -46,6 +46,7 @@ class UserResponse(BaseModel):
     phone: Optional[str] = None
     address: Optional[str] = None
     role: str
+    is_expert_verified: bool = False
 
 
 class UserUpdate(BaseModel):
@@ -76,6 +77,7 @@ def _user_response(user: User) -> dict:
         "phone": user.phone,
         "address": user.address,
         "role": str(user.role.value),
+        "is_expert_verified": bool(user.is_expert_verified),
     }
 
 

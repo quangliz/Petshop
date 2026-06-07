@@ -12,8 +12,8 @@ from app.api.deps import ForumModerator, SessionDep
 from app.api.routers.forum import _reply_dict, _thread_summary
 from app.models.forum import ForumCategoryEnum, ForumReply, ForumStatusEnum, ForumThread
 from app.services.audit import log_audit
-from app.services.forum_knowledge import apply_forum_knowledge_decision
-from app.services.indexing import delete_forum_reply_embeddings
+from app.services.forum_knowledge import apply_forum_reply_quality, apply_forum_thread_knowledge_decision
+from app.services.indexing import delete_forum_thread_embeddings, reindex_one_forum_thread
 
 router = APIRouter()
 
@@ -80,10 +80,15 @@ async def admin_patch_forum_thread(
     for field, value in update_data.items():
         setattr(thread, field, value)
     for reply in thread.replies:
-        previous = reply.knowledge_status
-        apply_forum_knowledge_decision(thread=thread, reply=reply, author=reply.author)
-        if previous != reply.knowledge_status:
-            await delete_forum_reply_embeddings(db, reply.id)
+        apply_forum_reply_quality(reply=reply, author=reply.author)
+    decision = apply_forum_thread_knowledge_decision(thread, list(thread.replies))
+    if decision.status.value == "eligible":
+        try:
+            await reindex_one_forum_thread(thread)
+        except Exception:
+            pass
+    else:
+        await delete_forum_thread_embeddings(db, thread.id)
     await log_audit(
         db=db,
         user_id=admin.id,
@@ -153,10 +158,21 @@ async def admin_patch_forum_reply(
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(reply, field, value)
-    previous = reply.knowledge_status
-    apply_forum_knowledge_decision(thread=reply.thread, reply=reply, author=reply.author)
-    if previous != reply.knowledge_status:
-        await delete_forum_reply_embeddings(db, reply.id)
+    apply_forum_reply_quality(reply=reply, author=reply.author)
+    result = await db.execute(
+        select(ForumReply)
+        .where(ForumReply.thread_id == reply.thread_id)
+        .options(selectinload(ForumReply.author))
+    )
+    replies = list(result.scalars().all())
+    decision = apply_forum_thread_knowledge_decision(reply.thread, replies)
+    if decision.status.value == "eligible":
+        try:
+            await reindex_one_forum_thread(reply.thread)
+        except Exception:
+            pass
+    else:
+        await delete_forum_thread_embeddings(db, reply.thread_id)
     await log_audit(
         db=db,
         user_id=admin.id,

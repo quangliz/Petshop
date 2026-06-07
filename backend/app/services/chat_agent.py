@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
-from app.services.retrieval import search_products, search_knowledge
+from app.services.retrieval import search_forum_discussions, search_products, search_knowledge
 from app.services.pets_service import get_pet_profile_cached
 from app.models.commerce import Cart, CartItem
 from app.models.catalog import Product
@@ -36,7 +36,8 @@ SYSTEM_PROMPT_BASE = (
     "GỌI `get_pet_detail_tool` với tên hoặc id để lấy hồ sơ chi tiết (tuổi, cân nặng, dị ứng, sức khỏe) "
     "trước khi đưa lời khuyên cá nhân hoá. Nếu người dùng có nhiều thú cưng và chưa rõ đang nói về con nào, "
     "hãy hỏi lại để xác nhận.\n"
-    "- Khi trả lời dựa trên kết quả `search_knowledge`, hãy trích dẫn tên bài và link Nguồn nếu có.\n"
+    "- Khi trả lời dựa trên kết quả `search_knowledge`, hãy trích dẫn tên bài và link Nguồn nếu có. "
+    "Nếu nguồn là forum, hãy nói rõ đó là kinh nghiệm/thảo luận cộng đồng hoặc câu trả lời chuyên gia đã xác minh, không coi là chẩn đoán.\n"
     "- Có thể gọi cả hai tool nếu câu hỏi vừa cần kiến thức vừa cần gợi ý sản phẩm.\n"
     "- Sau khi có kết quả tool, trả lời ngắn gọn, có dẫn chứng. Khi muốn giới thiệu sản phẩm, "
     "viết kèm thẻ định dạng `<product>slug-cua-san-pham</product>` ngay trong câu trả lời "
@@ -50,16 +51,19 @@ class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
 
 
-def build_knowledge_context(query: str) -> str:
+async def build_knowledge_context(db: AsyncSession, query: str) -> str:
     """Return sanitized RAG context with a stable citation label."""
-    results = search_knowledge(query=query, limit=4)
+    results = search_knowledge(query=query, limit=3)
+    forum_results = await search_forum_discussions(db, query=query, limit=2)
+    results.extend(forum_results)
     if not results:
         return "Không tìm thấy kiến thức liên quan."
     parts = []
     for result in results:
         safe_content = sanitize_retrieved_content(result["content"])
         title = result.get("title") or "Tài liệu nội bộ ThePawsome"
-        source = f"Nguồn: [{title}]"
+        source_label = "Nguồn forum" if result.get("source_type") == "forum_thread" else "Nguồn"
+        source = f"{source_label}: [{title}]"
         if result.get("source_url"):
             source += f" {result['source_url']}"
         parts.append(
@@ -96,15 +100,15 @@ def _build_tools(
         return "\n".join(lines)
 
     @tool
-    def search_knowledge_tool(query: str) -> str:
-        """Tìm trong kho kiến thức chăm sóc thú cưng (dinh dưỡng, sức khỏe, huấn luyện, grooming, giống loài).
+    async def search_knowledge_tool(query: str) -> str:
+        """Tìm trong kho kiến thức chăm sóc thú cưng và các thảo luận forum tương tự.
 
         Args:
             query: Câu hỏi hoặc chủ đề cần tra cứu.
 
-        Returns: Tối đa 4 đoạn kiến thức liên quan, kèm tiêu đề bài.
+        Returns: Các đoạn kiến thức và thảo luận forum liên quan, kèm tiêu đề bài.
         """
-        return build_knowledge_context(query)
+        return await build_knowledge_context(db, query)
 
     @tool
     async def add_to_cart_tool(slug: str, quantity: int = 1) -> str:

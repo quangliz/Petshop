@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, Lock, MessageSquare, ShieldOff, Unlock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import VerifiedPawBadge from "@/components/forum/VerifiedPawBadge";
 import api from "@/lib/api";
 import { ForumReply, ForumThread } from "@/lib/types";
 
@@ -37,7 +38,10 @@ export default function AdminForumPage() {
   const patchReply = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: { status?: string; is_ai_blocked?: boolean } }) =>
       api.patch(`/admin/forum/replies/${id}`, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-forum-replies"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-forum-threads"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-forum-replies"] });
+    },
   });
 
   return (
@@ -45,7 +49,7 @@ export default function AdminForumPage() {
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="m-0 text-2xl font-bold text-gray-800">Forum moderation</h2>
-          <p className="mt-1 text-sm text-gray-500">Duyệt hiển thị và kiểm soát nội dung forum đi vào AI knowledge.</p>
+          <p className="mt-1 text-sm text-gray-500">Duyệt hiển thị và kiểm soát bài forum được dùng làm context cho AI.</p>
         </div>
         <div className="inline-flex rounded-lg border bg-white p-1">
           <button onClick={() => setTab("threads")} className={`rounded-md px-3 py-1.5 text-sm font-semibold ${tab === "threads" ? "bg-orange-600 text-white" : "text-gray-600"}`}>Threads</button>
@@ -55,22 +59,32 @@ export default function AdminForumPage() {
 
       {tab === "threads" ? (
         <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="w-full min-w-[900px] text-sm">
             <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
               <tr>
                 <th className="px-4 py-3 text-left">Chủ đề</th>
+                <th className="px-4 py-3 text-center">AI index</th>
                 <th className="px-4 py-3 text-center">Trạng thái</th>
                 <th className="px-4 py-3 text-center">Tương tác</th>
                 <th className="px-4 py-3 text-center">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {loadingThreads && <tr><td colSpan={4} className="py-10 text-center text-gray-400">Đang tải...</td></tr>}
+              {loadingThreads && <tr><td colSpan={5} className="py-10 text-center text-gray-400">Đang tải...</td></tr>}
               {threads?.items.map((thread) => (
                 <tr key={thread.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <Link href={`/forum/${thread.slug}`} className="font-semibold text-gray-800 hover:underline">{thread.title}</Link>
-                    <div className="mt-1 text-xs text-gray-400">{thread.category_label} · {thread.author.full_name}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-400">
+                      <span>{thread.category_label} · {thread.author.full_name}</span>
+                      {thread.author.is_expert_verified && <VerifiedPawBadge compact />}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${thread.knowledge_status === "eligible" ? "bg-blue-100 text-blue-700" : thread.knowledge_status === "blocked" ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-600"}`}>
+                      {thread.is_ai_blocked ? "blocked" : thread.knowledge_status}
+                    </span>
+                    <div className="mt-1 text-xs text-gray-400">score {thread.knowledge_score}</div>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${thread.status === "published" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
@@ -87,7 +101,7 @@ export default function AdminForumPage() {
                       <Button size="sm" variant="outline" onClick={() => patchThread.mutate({ id: thread.id, payload: { is_locked: !thread.is_locked } })}>
                         {thread.is_locked ? <Unlock size={14} /> : <Lock size={14} />}
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => patchThread.mutate({ id: thread.id, payload: { is_ai_blocked: true } })}>
+                      <Button size="sm" variant="outline" onClick={() => patchThread.mutate({ id: thread.id, payload: { is_ai_blocked: !thread.is_ai_blocked } })}>
                         <ShieldOff size={14} /> AI
                       </Button>
                     </div>
@@ -103,7 +117,7 @@ export default function AdminForumPage() {
             <thead className="border-b bg-gray-50 text-xs uppercase text-gray-500">
               <tr>
                 <th className="px-4 py-3 text-left">Câu trả lời</th>
-                <th className="px-4 py-3 text-center">Knowledge</th>
+                <th className="px-4 py-3 text-center">Điểm trả lời</th>
                 <th className="px-4 py-3 text-center">Trạng thái</th>
                 <th className="px-4 py-3 text-center">Thao tác</th>
               </tr>
@@ -115,13 +129,17 @@ export default function AdminForumPage() {
                   <td className="px-4 py-3">
                     <Link href={`/forum/${reply.thread.slug}`} className="font-semibold text-gray-800 hover:underline">{reply.thread.title}</Link>
                     <div className="mt-1 line-clamp-2 text-xs text-gray-500">{reply.body}</div>
-                    <div className="mt-1 text-xs text-gray-400">{reply.author.full_name} · {reply.upvote_count} vote</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-400">
+                      <span>{reply.parent_reply_id ? "Phản hồi" : "Trả lời"} · {reply.author.full_name} · {reply.upvote_count} vote</span>
+                      {reply.author.is_expert_verified && <VerifiedPawBadge compact />}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${reply.knowledge_status === "eligible" ? "bg-teal-100 text-teal-700" : reply.knowledge_status === "blocked" ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-600"}`}>
-                      {reply.knowledge_status}
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${reply.is_expert_answer ? "bg-blue-100 text-blue-700" : reply.knowledge_status === "blocked" ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-600"}`}>
+                      {reply.is_expert_answer ? "expert xác minh" : reply.is_ai_blocked ? "blocked" : "community"}
                     </span>
                     <div className="mt-1 text-xs text-gray-400">score {reply.knowledge_score}</div>
+                    {reply.expert_upvote_count > 0 && <div className="mt-1 text-xs text-blue-500">{reply.expert_upvote_count} expert xác nhận</div>}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${reply.status === "published" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
@@ -133,7 +151,7 @@ export default function AdminForumPage() {
                       <Button size="sm" variant="outline" onClick={() => patchReply.mutate({ id: reply.id, payload: { status: reply.status === "published" ? "hidden" : "published" } })}>
                         {reply.status === "published" ? <EyeOff size={14} /> : <Eye size={14} />}
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => patchReply.mutate({ id: reply.id, payload: { is_ai_blocked: true } })}>
+                      <Button size="sm" variant="outline" onClick={() => patchReply.mutate({ id: reply.id, payload: { is_ai_blocked: !reply.is_ai_blocked } })}>
                         <ShieldOff size={14} /> AI
                       </Button>
                     </div>

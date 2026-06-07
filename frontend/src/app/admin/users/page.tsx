@@ -2,8 +2,9 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
-import { ShieldCheck, ShieldOff, Sparkles } from "lucide-react";
+import { ShieldCheck, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import VerifiedPawBadge from "@/components/forum/VerifiedPawBadge";
 import { User } from "@/lib/types";
 import { AdminTableRowsSkeleton } from "@/components/skeletons/AdminSkeletons";
 
@@ -44,6 +45,13 @@ export default function AdminUsersPage() {
     onError: (e: { response?: { data?: { detail?: string } } }) => alert(e.response?.data?.detail ?? "Lỗi"),
   });
 
+  const expertVerificationMutation = useMutation({
+    mutationFn: ({ id, is_expert_verified }: { id: string; is_expert_verified: boolean }) =>
+      api.put(`/admin/users/${id}/expert-verification`, { is_expert_verified }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
+    onError: (e: { response?: { data?: { detail?: string } } }) => alert(e.response?.data?.detail ?? "Lỗi"),
+  });
+
   return (
     <div>
       <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
@@ -62,14 +70,16 @@ export default function AdminUsersPage() {
             {data?.items?.map((u: AdminUser) => (
               <tr key={u.id} className={`transition-colors hover:bg-gray-50 ${!u.is_active ? "opacity-50" : ""}`}>
                 <td className="px-4 py-3">
-                  <div className="font-medium">{u.full_name}</div>
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <span>{u.full_name}</span>
+                    {u.is_expert_verified && <VerifiedPawBadge compact />}
+                  </div>
                   <div className="text-xs text-gray-400">{u.email}</div>
                 </td>
                 <td className="px-4 py-3 text-center">
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${
                     u.role === "admin" ? "bg-purple-100 text-purple-700" : u.role === "expert" ? "bg-teal-100 text-teal-700" : "bg-gray-100 text-gray-600"
                   }`}>
-                    {u.role === "expert" && <Sparkles className="w-3 h-3" />}
                     {ROLE_LABELS[u.role] ?? u.role}
                   </span>
                 </td>
@@ -97,6 +107,18 @@ export default function AdminUsersPage() {
                     >
                       {ROLE_OPTIONS.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
                     </select>
+                    {u.role === "expert" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={u.is_expert_verified ? "text-blue-600 hover:bg-blue-50 border-blue-200" : "text-gray-600 hover:bg-gray-50 border-gray-200"}
+                        onClick={() => expertVerificationMutation.mutate({ id: u.id, is_expert_verified: !u.is_expert_verified })}
+                        disabled={expertVerificationMutation.isPending}
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 mr-1" />
+                        {u.is_expert_verified ? "Bỏ xác minh" : "Xác minh"}
+                      </Button>
+                    )}
                     {u.role !== "admin" && (
                     <Button
                       size="sm"
