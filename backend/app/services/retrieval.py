@@ -1,15 +1,19 @@
 import asyncio
+import hashlib
+import json
 import logging
 import re
+import uuid
 from typing import List, Optional
 
 from app.services.embeddings import embed_query_cached
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import case, func, literal, or_, select
+from sqlalchemy import case, func, literal, or_, select, text
 from sqlalchemy.orm import selectinload
 
 from app.models.catalog import Category, Product
-from app.services.embeddings import get_products_store, get_knowledge_store
+from app.core.redis_client import get_redis
+from app.services.embeddings import PRODUCTS_COLLECTION, get_products_store, get_knowledge_store
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +21,7 @@ SEMANTIC_SEARCH_WEIGHT = 0.25
 WORD_SEARCH_WEIGHT = 0.75
 RRF_K = 60
 MAX_WORD_CANDIDATES = 300
+SIMILAR_PRODUCTS_TTL = 900
 
 
 def _matches_species(meta_species, species_filter: Optional[List[str]]) -> bool:
@@ -112,6 +117,52 @@ async def _semantic_ranked_slugs(query: str, fetch_k: int) -> list[str]:
         )
     except Exception:  # noqa: BLE001
         logger.warning("Product semantic search failed; falling back to keyword search", exc_info=True)
+        return []
+
+    ranked_slugs: list[str] = []
+    seen: set[str] = set()
+    for doc in results:
+        slug = (doc.metadata or {}).get("slug")
+        if slug and slug not in seen:
+            seen.add(slug)
+            ranked_slugs.append(slug)
+    return ranked_slugs
+
+
+async def _stored_product_embedding(db: AsyncSession, product_id: uuid.UUID) -> list[float] | None:
+    result = await db.execute(
+        text(
+            """
+            SELECT e.embedding::text
+            FROM langchain_pg_embedding e
+            JOIN langchain_pg_collection c ON e.collection_id = c.uuid
+            WHERE c.name = :collection_name AND e.id = :product_id
+            LIMIT 1
+            """
+        ),
+        {"collection_name": PRODUCTS_COLLECTION, "product_id": str(product_id)},
+    )
+    raw = result.scalar_one_or_none()
+    if not raw:
+        return None
+    return json.loads(raw)
+
+
+async def _semantic_ranked_slugs_for_product(
+    db: AsyncSession,
+    product_id: uuid.UUID,
+    fetch_k: int,
+) -> list[str]:
+    try:
+        embedding = await _stored_product_embedding(db, product_id)
+        if embedding is None:
+            return []
+        store = await asyncio.to_thread(get_products_store)
+        results = await asyncio.to_thread(
+            store.similarity_search_by_vector, embedding, k=fetch_k
+        )
+    except Exception:  # noqa: BLE001
+        logger.warning("Stored-vector product similarity failed; falling back to keyword search", exc_info=True)
         return []
 
     ranked_slugs: list[str] = []
@@ -243,6 +294,134 @@ def _product_result(product: Product, score: float | None = None) -> dict:
     }
 
 
+def _similar_query_text(product: Product) -> str:
+    target = ", ".join(product.target_species) if product.target_species else ""
+    return (
+        f"{product.name} | {product.brand or ''} | "
+        f"{product.description or ''} | dành cho: {target}"
+    )
+
+
+def _similar_cache_key(product: Product, limit: int) -> str:
+    version_source = product.updated_at or product.created_at
+    version = version_source.isoformat() if version_source else "unknown"
+    raw = f"{product.id}:{product.slug}:{version}:{limit}"
+    return f"similar:products:v2:{hashlib.sha256(raw.encode()).hexdigest()}"
+
+
+async def _get_cached_similar_ids(product: Product, limit: int) -> list[str] | None:
+    try:
+        cached = await (await get_redis()).get(_similar_cache_key(product, limit))
+        if not cached:
+            return None
+        payload = cached.decode() if isinstance(cached, bytes) else cached
+        ids = json.loads(payload)
+        if isinstance(ids, list) and all(isinstance(item, str) for item in ids):
+            return ids
+    except Exception:  # noqa: BLE001
+        logger.debug("Similar-products cache read failed", exc_info=True)
+    return None
+
+
+async def _set_cached_similar_ids(product: Product, limit: int, product_ids: list[str]) -> None:
+    try:
+        await (await get_redis()).set(
+            _similar_cache_key(product, limit),
+            json.dumps(product_ids),
+            ex=SIMILAR_PRODUCTS_TTL,
+        )
+    except Exception:  # noqa: BLE001
+        logger.debug("Similar-products cache write failed", exc_info=True)
+
+
+async def _product_results_from_ids(db: AsyncSession, product_ids: list[str]) -> list[dict]:
+    parsed_ids: list[uuid.UUID] = []
+    for product_id in product_ids:
+        try:
+            parsed_ids.append(uuid.UUID(product_id))
+        except ValueError:
+            continue
+    if not parsed_ids:
+        return []
+
+    result = await db.execute(
+        select(Product)
+        .where(Product.id.in_(parsed_ids), Product.is_active)
+        .options(
+            selectinload(Product.category),
+            selectinload(Product.variants),
+        )
+    )
+    products_by_id = {str(product.id): product for product in result.scalars().all()}
+    return [
+        _product_result(products_by_id[product_id])
+        for product_id in product_ids
+        if product_id in products_by_id
+    ]
+
+
+async def _rank_similar_products_uncached(
+    db: AsyncSession,
+    product: Product,
+    limit: int,
+) -> list[dict]:
+    query_text = _similar_query_text(product)
+    fetch_k = min(max((limit + 1) * 6, 30), MAX_WORD_CANDIDATES)
+    semantic_slugs_task = _semantic_ranked_slugs_for_product(db, product.id, fetch_k)
+    word_products_task = _word_ranked_products(
+        db,
+        query_text,
+        fetch_k=fetch_k,
+        species=None,
+        category_slugs=None,
+        brands=None,
+        min_price=None,
+        max_price=None,
+    )
+    semantic_slugs, word_products = await asyncio.gather(semantic_slugs_task, word_products_task)
+
+    if not semantic_slugs and not word_products:
+        return []
+
+    fusion_scores: dict[str, float] = {}
+    for rank, slug in enumerate(semantic_slugs, start=1):
+        fusion_scores[slug] = fusion_scores.get(slug, 0.0) + _rrf_score(rank, SEMANTIC_SEARCH_WEIGHT)
+
+    word_products_by_slug = {word_product.slug: word_product for word_product in word_products}
+    for rank, word_product in enumerate(word_products, start=1):
+        fusion_scores[word_product.slug] = fusion_scores.get(word_product.slug, 0.0) + _rrf_score(rank, WORD_SEARCH_WEIGHT)
+
+    candidate_slugs = [slug for slug in fusion_scores if slug != product.slug]
+    if not candidate_slugs:
+        return []
+
+    result = await db.execute(
+        select(Product)
+        .where(Product.slug.in_(candidate_slugs), Product.is_active)
+        .options(
+            selectinload(Product.category),
+            selectinload(Product.variants),
+        )
+    )
+    products = result.scalars().all()
+    products_by_slug = {candidate.slug: candidate for candidate in products}
+    products_by_slug.update({
+        slug: word_product for slug, word_product in word_products_by_slug.items()
+        if slug not in products_by_slug
+    })
+
+    ranked = sorted(
+        [candidate for slug, candidate in products_by_slug.items() if slug in candidate_slugs],
+        key=lambda candidate: fusion_scores[candidate.slug],
+        reverse=True,
+    )
+    max_score = max((fusion_scores[candidate.slug] for candidate in ranked), default=1.0)
+    return [
+        _product_result(candidate, score=fusion_scores[candidate.slug] / max_score)
+        for candidate in ranked[:limit]
+    ]
+
+
 async def search_products(
     db: AsyncSession,
     query: str,
@@ -336,11 +515,16 @@ def search_knowledge(query: str, limit: int = 4) -> List[dict]:
 
 
 async def similar_products(db: AsyncSession, product: Product, limit: int = 6) -> List[dict]:
-    """Find products similar to a given Product by re-querying with its source_text."""
-    target = ", ".join(product.target_species) if product.target_species else ""
-    query_text = (
-        f"{product.name} | {product.brand or ''} | "
-        f"{product.description or ''} | dành cho: {target}"
-    )
-    results = await search_products(db, query=query_text, limit=limit + 1)
-    return [r for r in results if r["slug"] != product.slug][:limit]
+    """Find products similar to a Product using its stored vector, with cached ranking.
+
+    This avoids issuing a fresh OpenAI embedding request for every product-detail
+    page view. If the product is not indexed yet, the endpoint falls back to
+    keyword ranking rather than blocking on a new embedding call.
+    """
+    cached_ids = await _get_cached_similar_ids(product, limit)
+    if cached_ids is not None:
+        return await _product_results_from_ids(db, cached_ids)
+
+    results = await _rank_similar_products_uncached(db, product, limit)
+    await _set_cached_similar_ids(product, limit, [item["id"] for item in results])
+    return results

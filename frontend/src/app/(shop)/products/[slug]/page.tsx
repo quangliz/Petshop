@@ -23,6 +23,7 @@ export default function ProductDetailPage() {
   const queryClient = useQueryClient();
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('desc');
+  const [shouldLoadSimilar, setShouldLoadSimilar] = useState(false);
 
   const setViewingProduct = useViewingProductStore((s) => s.setViewingProduct);
 
@@ -145,11 +146,38 @@ export default function ProductDetailPage() {
     } finally { setBuyNowLoading(false); }
   };
 
-  const { data: similarData } = useQuery({
+  const similarSectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!product || shouldLoadSimilar) return;
+    const el = similarSectionRef.current;
+    if (!el) return;
+
+    if (typeof IntersectionObserver === 'undefined') {
+      const timer = window.setTimeout(() => setShouldLoadSimilar(true), 0);
+      return () => window.clearTimeout(timer);
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShouldLoadSimilar(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '600px 0px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [product, shouldLoadSimilar]);
+
+  const { data: similarData, isFetching: isFetchingSimilar } = useQuery({
     queryKey: ['similar', params.slug],
     queryFn: () => api.get(`/products/${params.slug}/similar`).then(r => r.data),
-    enabled: !!product,
+    enabled: !!product && shouldLoadSimilar,
+    staleTime: 10 * 60 * 1000,
   });
+  const similarItems: Product[] = similarData?.items ?? [];
 
   const carouselRef = useRef<HTMLDivElement>(null);
   const scrollCarousel = (dir: number) => carouselRef.current?.scrollBy({ left: dir * 400, behavior: 'smooth' });
@@ -387,8 +415,31 @@ export default function ProductDetailPage() {
         {activeTab === 'review' && <ReviewSection productId={product.id} />}
       </div>
 
+      <div ref={similarSectionRef} className="h-px" aria-hidden="true" />
+
       {/* Similar Products */}
-      {similarData?.items?.length > 0 && (
+      {shouldLoadSimilar && isFetchingSimilar && similarItems.length === 0 && (
+        <div className="mt-12">
+          <div className="h-7 w-48 rounded-lg bg-neutral-100 animate-pulse mb-5" />
+          <div className="flex gap-4 overflow-hidden pb-2 pt-1 px-1">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="w-[150px] md:w-[180px] shrink-0 bg-white border border-neutral-100 rounded-[16px] overflow-hidden"
+              >
+                <div className="aspect-square bg-neutral-100 animate-pulse" />
+                <div className="p-[10px_12px_12px] flex flex-col gap-2">
+                  <div className="h-3 w-16 rounded bg-neutral-100 animate-pulse" />
+                  <div className="h-4 w-full rounded bg-neutral-100 animate-pulse" />
+                  <div className="h-4 w-3/4 rounded bg-neutral-100 animate-pulse" />
+                  <div className="h-5 w-20 rounded bg-neutral-100 animate-pulse mt-2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {similarItems.length > 0 && (
         <div className="mt-12">
           <h2 className="text-[22px] font-extrabold tracking-[-0.02em] mb-5 text-neutral-900">Sản phẩm tương tự</h2>
           <div className="relative">
@@ -404,7 +455,7 @@ export default function ProductDetailPage() {
               className="flex gap-4 overflow-x-auto pb-2 pt-1 px-1"
               style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}
             >
-              {similarData.items.map((p: Product) => (
+              {similarItems.map((p: Product) => (
                 <Link
                   key={p.id}
                   href={`/products/${p.slug}`}
