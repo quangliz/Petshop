@@ -8,6 +8,13 @@ import { ArrowRight, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 import { Product } from '@/lib/types';
 import BannerCarousel from '@/components/BannerCarousel';
+import {
+  buildCategoryFilterHref,
+  CAT_CATEGORY_SLUG,
+  CAT_SHOP_CATEGORY_SLUGS,
+  DOG_CATEGORY_SLUG,
+  DOG_SHOP_CATEGORY_SLUGS,
+} from '@/lib/shopFilters';
 
 const Rating = ({ value, size = 12, count }: { value: number, size?: number, count?: number }) => (
   <div className="inline-flex items-center gap-1" style={{ fontSize: size, color: 'oklch(0.75 0.15 75)' }}>
@@ -53,7 +60,7 @@ const ProductCardSmall = ({ product }: { product: Product }) => (
       <div className="p-[10px_12px_12px] flex flex-col gap-1 flex-1">
         <div className="text-[10px] text-neutral-500 font-semibold uppercase tracking-[0.04em]">{product.brand || "LOCAL BRAND"}</div>
         <div className="text-[12px] font-semibold text-neutral-800 leading-[1.35] line-clamp-2 min-h-[32px]">{product.name}</div>
-        <Rating value={4.5} count={12} size={10} />
+        <Rating value={product.avg_rating || 0} count={product.review_count || 0} size={10} />
         <div className="flex items-baseline gap-1.5 mt-auto pt-1">
           <span className="text-[14px] font-bold" style={{ color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
           {product.sale_price && <span className="text-[11px] text-neutral-400 line-through">{product.price.toLocaleString()}đ</span>}
@@ -98,18 +105,20 @@ const CarouselRow = ({ items }: { items: Product[] }) => {
 
 export default function Home() {
   const { user } = useAuthStore();
+  const dogShopHref = buildCategoryFilterHref(DOG_SHOP_CATEGORY_SLUGS);
+  const catShopHref = buildCategoryFilterHref(CAT_SHOP_CATEGORY_SLUGS);
 
-  const { data: bestSellers } = useQuery({
-    queryKey: ['best-sellers'],
-    queryFn: async () => { const res = await api.get('/products/best-sellers?limit=8'); return res.data; }
+  const { data: dogProducts } = useQuery({
+    queryKey: ['products-dog'],
+    queryFn: async () => { const res = await api.get(`/products/?category_slug=${DOG_CATEGORY_SLUG}&size=20`); return res.data; }
   });
-  const { data: newArrivals } = useQuery({
-    queryKey: ['new-arrivals'],
-    queryFn: async () => { const res = await api.get('/products/new-arrivals?limit=8'); return res.data; }
+  const { data: catProducts } = useQuery({
+    queryKey: ['products-cat'],
+    queryFn: async () => { const res = await api.get(`/products/?category_slug=${CAT_CATEGORY_SLUG}&size=20`); return res.data; }
   });
   const { data: recommendations } = useQuery({
     queryKey: ['recommendations'],
-    queryFn: async () => { const res = await api.get('/products/recommendations?limit=8'); return res.data; },
+    queryFn: async () => { const res = await api.get('/products/recommendations?limit=20'); return res.data; },
     enabled: !!user,
   });
 
@@ -121,7 +130,7 @@ export default function Home() {
         <section className="px-4 md:px-12 pt-12">
           <div className="flex items-end justify-between mb-5">
             <div>
-              <h2 className="text-xl md:text-2xl font-extrabold tracking-[-0.025em] m-0">Gợi ý cho Pet của bạn</h2>
+              <h2 className="text-xl md:text-2xl font-extrabold tracking-[-0.025em] m-0">Dành cho Pet của bạn</h2>
               <p className="text-[14px] text-neutral-600 mt-1 mb-0">Sản phẩm phù hợp với loài thú cưng bạn đang nuôi</p>
             </div>
             <Link href="/shop" className="hidden sm:flex items-center gap-1 text-[13px] font-semibold no-underline" style={{ color: 'var(--primary-600)' }}>Xem tất cả <ArrowRight size={14} /></Link>
@@ -133,23 +142,23 @@ export default function Home() {
       <section className="px-4 md:px-12 pt-12">
         <div className="flex items-end justify-between mb-5">
           <div>
-            <h2 className="text-xl md:text-2xl font-extrabold tracking-[-0.025em] m-0">Bán chạy tuần này</h2>
-            <p className="text-[14px] text-neutral-600 mt-1 mb-0">Những sản phẩm được yêu thích nhất trong 7 ngày qua</p>
+            <h2 className="text-xl md:text-2xl font-extrabold tracking-[-0.025em] m-0">Dành cho Chó</h2>
+            <p className="text-[14px] text-neutral-600 mt-1 mb-0">Các sản phẩm dinh dưỡng và phụ kiện chất lượng cho chó</p>
           </div>
-          <Link href="/shop" className="hidden sm:flex items-center gap-1 text-[13px] font-semibold no-underline" style={{ color: 'var(--primary-600)' }}>Xem tất cả <ArrowRight size={14} /></Link>
+          <Link href={dogShopHref} className="hidden sm:flex items-center gap-1 text-[13px] font-semibold no-underline" style={{ color: 'var(--primary-600)' }}>Xem tất cả <ArrowRight size={14} /></Link>
         </div>
-        <CarouselRow items={bestSellers?.items || []} />
+        <CarouselRow items={dogProducts?.items || []} />
       </section>
 
       <section className="px-4 md:px-12 py-12">
         <div className="flex items-end justify-between mb-5">
           <div>
-            <h2 className="text-xl md:text-2xl font-extrabold tracking-[-0.025em] m-0">Mới về tuần này</h2>
-            <p className="text-[14px] text-neutral-600 mt-1 mb-0">Sản phẩm vừa được cập nhật tại cửa hàng trong tuần này</p>
+            <h2 className="text-xl md:text-2xl font-extrabold tracking-[-0.025em] m-0">Dành cho Mèo</h2>
+            <p className="text-[14px] text-neutral-600 mt-1 mb-0">Thức ăn ngon và đồ chơi hấp dẫn dành cho mèo</p>
           </div>
-          <Link href="/shop" className="hidden sm:flex items-center gap-1 text-[13px] font-semibold no-underline" style={{ color: 'var(--primary-600)' }}>Xem tất cả <ArrowRight size={14} /></Link>
+          <Link href={catShopHref} className="hidden sm:flex items-center gap-1 text-[13px] font-semibold no-underline" style={{ color: 'var(--primary-600)' }}>Xem tất cả <ArrowRight size={14} /></Link>
         </div>
-        <CarouselRow items={newArrivals?.items || []} />
+        <CarouselRow items={catProducts?.items || []} />
       </section>
     </div>
   );

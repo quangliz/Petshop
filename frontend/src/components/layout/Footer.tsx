@@ -3,6 +3,7 @@ import React from "react";
 import Link from "next/link";
 import { Mail, Phone } from "lucide-react";
 import BrandLogo from "./BrandLogo";
+import { buildCategoryFilterHref, CAT_SHOP_CATEGORY_SLUGS, DOG_SHOP_CATEGORY_SLUGS } from "@/lib/shopFilters";
 
 const Logo = () => <BrandLogo size={42} />;
 
@@ -24,10 +25,10 @@ export default function Footer() {
         {/* Links grid */}
         <div className="grid grid-cols-2 gap-8">
           <div>
-            <h4 className="text-white text-[13px] font-bold mb-3.5">Danh mục</h4>
+            <h4 className="text-white text-[13px] font-bold mb-3.5">Sản phẩm</h4>
             <div className="flex flex-col gap-2">
-              <Link href="/shop" className="text-[13px] text-inherit no-underline hover:text-white transition-colors">Thức ăn</Link>
-              <Link href="/shop" className="text-[13px] text-inherit no-underline hover:text-white transition-colors">Đồ chơi</Link>
+              <Link href={buildCategoryFilterHref(DOG_SHOP_CATEGORY_SLUGS)} className="text-[13px] text-inherit no-underline hover:text-white transition-colors">Sản phẩm cho chó</Link>
+              <Link href={buildCategoryFilterHref(CAT_SHOP_CATEGORY_SLUGS)} className="text-[13px] text-inherit no-underline hover:text-white transition-colors">Sản phẩm cho mèo</Link>
             </div>
           </div>
           <div>

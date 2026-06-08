@@ -1,6 +1,5 @@
 import uuid
 from typing import Any, List, Optional
-from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import desc, asc, func, String, or_, select
@@ -8,7 +7,6 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import SessionDep, OptionalUser
 from app.models.catalog import Product, Category, ProductVariant
-from app.models.commerce import Order, OrderItem
 from app.models.user import Pet
 import math
 from app.services.retrieval import search_products, similar_products
@@ -116,6 +114,30 @@ def _product_dict(p: Product, include_variants: bool = False) -> dict:
     return d
 
 
+async def _expand_category_slugs(db: SessionDep, category_slugs: List[str]) -> List[str]:
+    if not category_slugs:
+        return []
+
+    expanded = set(category_slugs)
+    result = await db.execute(
+        select(Category.id, Category.slug).where(Category.slug.in_(category_slugs))
+    )
+    current_parent_ids = {row.id for row in result.all()}
+    seen_parent_ids = set(current_parent_ids)
+
+    while current_parent_ids:
+        child_result = await db.execute(
+            select(Category.id, Category.slug).where(Category.parent_id.in_(current_parent_ids))
+        )
+        children = child_result.all()
+        expanded.update(row.slug for row in children)
+
+        current_parent_ids = {row.id for row in children if row.id not in seen_parent_ids}
+        seen_parent_ids.update(current_parent_ids)
+
+    return list(expanded)
+
+
 @router.get("/", response_model=dict)
 async def read_products(
     db: SessionDep,
@@ -125,9 +147,12 @@ async def read_products(
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     sort: Optional[str] = "newest",
+    species: Optional[str] = Query(None, description="Filter by target species"),
     page: int = Query(1, ge=1),
     size: int = Query(12, ge=1, le=100),
 ) -> Any:
+    expanded_category_slugs = await _expand_category_slugs(db, category_slug)
+
     # AI-01: Hybrid search branch — activates when q is present and non-empty
     if q and q.strip():
         q_clean = q.strip()[:500]  # ASVS V5: truncate oversized input
@@ -135,7 +160,7 @@ async def read_products(
             db,
             query=q_clean,
             limit=size,
-            category_slugs=category_slug,
+            category_slugs=expanded_category_slugs,
             brands=brand,
             min_price=min_price,
             max_price=max_price,
@@ -160,10 +185,13 @@ async def read_products(
                 Product.description.ilike(like),
                 Product.category.has(Category.name.ilike(like)),
             ))
-    if category_slug:
-        stmt = stmt.join(Product.category).where(Category.slug.in_(category_slug))
+    if expanded_category_slugs:
+        stmt = stmt.join(Product.category).where(Category.slug.in_(expanded_category_slugs))
     if brand:
         stmt = stmt.where(Product.brand.in_(brand))
+    if species:
+        species_col = func.cast(Product.target_species, String)
+        stmt = stmt.where(species_col.ilike(f"%{species}%"))
 
     effective_price = func.coalesce(Product.sale_price, Product.price)
     if min_price is not None:
@@ -207,8 +235,8 @@ async def read_brands(db: SessionDep) -> Any:
 @router.get("/facets", response_model=ProductFacetsResponse)
 async def read_product_facets(
     db: SessionDep,
-    categories_limit: int = Query(5, ge=1, le=50),
-    brands_limit: int = Query(5, ge=1, le=50),
+    categories_limit: int = Query(100, ge=1, le=500),
+    brands_limit: int = Query(100, ge=1, le=500),
 ) -> Any:
     category_rows = (
         await db.execute(
@@ -257,54 +285,7 @@ async def read_product_facets(
     }
 
 
-@router.get("/best-sellers", response_model=dict)
-async def read_best_sellers(db: SessionDep, limit: int = Query(8, ge=1, le=20)) -> Any:
-    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
-    result = await db.execute(
-        select(Product, func.sum(OrderItem.quantity).label("total_sold"))
-        .join(OrderItem, OrderItem.product_id == Product.id)
-        .join(Order, Order.id == OrderItem.order_id)
-        .where(Product.is_active, Order.created_at >= week_ago)
-        .group_by(Product.id)
-            .order_by(desc("total_sold"))
-            .limit(limit)
-            .options(selectinload(Product.category), selectinload(Product.variants))
-    )
-    rows = result.all()
-    if not rows:
-        result = await db.execute(
-            select(Product)
-            .where(Product.is_active)
-            .order_by(desc(Product.created_at))
-            .limit(limit)
-            .options(selectinload(Product.category), selectinload(Product.variants))
-        )
-        rows = [(p, 0) for p in result.scalars().all()]
-    return {"items": [_product_dict_with_rating(p) for p, _ in rows]}
 
-
-@router.get("/new-arrivals", response_model=dict)
-async def read_new_arrivals(db: SessionDep, limit: int = Query(8, ge=1, le=20)) -> Any:
-    now = datetime.now(timezone.utc)
-    monday = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-    result = await db.execute(
-        select(Product)
-        .where(Product.is_active, Product.created_at >= monday)
-        .order_by(desc(Product.created_at))
-        .limit(limit)
-        .options(selectinload(Product.category), selectinload(Product.variants))
-    )
-    products = result.scalars().all()
-    if not products:
-        result = await db.execute(
-            select(Product)
-            .where(Product.is_active)
-            .order_by(desc(Product.created_at))
-            .limit(limit)
-            .options(selectinload(Product.category), selectinload(Product.variants))
-        )
-        products = result.scalars().all()
-    return {"items": [_product_dict_with_rating(p) for p in products]}
 
 
 def _age_group(age_months: int | None) -> str:

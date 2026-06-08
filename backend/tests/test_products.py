@@ -54,6 +54,39 @@ class TestProductList:
         data = res.json()
         assert data["total"] == 0
 
+    def test_parent_category_slug_filter_expands_children(self, client):
+        categories_res = client.get("/api/v1/categories")
+        assert categories_res.status_code == 200
+        categories = categories_res.json()
+        dog_root = next((c for c in categories if c["slug"] == "cho"), None)
+        if not dog_root:
+            pytest.skip("No dog root category in database")
+
+        dog_child_names = {
+            c["name"] for c in categories if c.get("parent_id") == dog_root["id"]
+        }
+        if not dog_child_names:
+            pytest.skip("No child categories under dog root")
+
+        res = client.get("/api/v1/products?category_slug=cho&size=100")
+        assert res.status_code == 200
+        data = res.json()
+        if data["total"] == 0:
+            pytest.skip("No products under dog root category")
+
+        for item in data["items"]:
+            assert item["category_name"] in dog_child_names
+
+    def test_species_filter(self, client):
+        res = client.get("/api/v1/products?species=dog")
+        assert res.status_code == 200
+        data = res.json()
+        assert "items" in data
+        for item in data["items"]:
+            ts = item.get("target_species")
+            if ts:
+                assert "dog" in ts
+
     def test_items_contain_new_fields(self, client):
         """Verify the new fields are present in the response (gap #1, #6)."""
         res = client.get("/api/v1/products?size=3")

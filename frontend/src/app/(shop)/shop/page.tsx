@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, Suspense } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { addToGuestCart } from '@/lib/guestCart';
 import Link from 'next/link';
@@ -14,6 +15,7 @@ import { ShopPageSkeleton } from "@/components/skeletons/ProductCardSkeleton";
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
+import { getCategoryFilterTitle } from '@/lib/shopFilters';
 
 type CategoryFacet = Category & { parent_id?: number | null; product_count: number };
 type BrandFacet = { name: string; product_count: number };
@@ -62,6 +64,40 @@ const Checkbox = ({ label, count, checked, onChange, icon }: { label: React.Reac
   </label>
 );
 
+const FILTER_DEFAULT_VISIBLE = 5;
+
+const CollapsibleList = ({ items, renderItem, checkedKeys }: {
+  items: { key: string }[];
+  renderItem: (item: { key: string }, index: number) => React.ReactNode;
+  checkedKeys: string[];
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const hasMore = items.length > FILTER_DEFAULT_VISIBLE;
+  // Luôn hiện các item đang được chọn dù chưa mở rộng
+  const visibleItems = expanded
+    ? items
+    : items.slice(0, FILTER_DEFAULT_VISIBLE).concat(
+        items.slice(FILTER_DEFAULT_VISIBLE).filter(i => checkedKeys.includes(i.key))
+      ).filter((item, idx, arr) => arr.findIndex(a => a.key === item.key) === idx);
+
+  return (
+    <div>
+      {visibleItems.map((item, idx) => renderItem(item, idx))}
+      {hasMore && (
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="flex items-center gap-1 mt-1.5 text-[12px] font-semibold cursor-pointer border-none bg-transparent p-0"
+          style={{ color: 'var(--primary-600)' }}
+        >
+          {expanded
+            ? <><ChevronUp size={13} /> Thu gọn</>
+            : <><ChevronDown size={13} /> Xem thêm {items.length - FILTER_DEFAULT_VISIBLE} mục</>}
+        </button>
+      )}
+    </div>
+  );
+};
+
 const FilterSidebar = ({
   categories, brands,
   categoryFilter, setCategoryFilter,
@@ -92,9 +128,12 @@ const FilterSidebar = ({
   };
   const handleApplyPrice = () => { setPriceRangeFilter(localPriceRange); setPage(1); };
 
+  const categoryItems = (categories || []).map(c => ({ ...c, key: c.slug }));
+  const brandItems = (brands || []).map(b => ({ ...b, key: b.name }));
+
   return (
     <div className={`${className} p-1 px-5 pb-5`}>
-      <div className="flex items-center justify-between pt-[18px]">
+      <div className="flex items-center justify-between pt-[18px] pr-8 lg:pr-0">
         <div className="text-[14px] font-bold flex items-center gap-2"><FilterIcon size={14} /> Bộ lọc</div>
         <button
           onClick={() => { setCategoryFilter([]); setBrandFilter([]); setPriceRangeFilter(['', '']); setLocalPriceRange(['', '']); setPage(1); }}
@@ -106,19 +145,33 @@ const FilterSidebar = ({
       </div>
 
       <FilterGroup title="Danh mục">
-        {categories?.map(c => (
-          <Checkbox key={c.id} label={c.name}
-            count={c.product_count}
-            checked={categoryFilter.includes(c.slug)} onChange={() => toggleCategory(c.slug)} />
-        ))}
+        <CollapsibleList
+          items={categoryItems}
+          checkedKeys={categoryFilter}
+          renderItem={(item) => {
+            const c = item as typeof categoryItems[number];
+            return (
+              <Checkbox key={c.id} label={c.name}
+                count={c.product_count}
+                checked={categoryFilter.includes(c.slug)} onChange={() => toggleCategory(c.slug)} />
+            );
+          }}
+        />
       </FilterGroup>
 
       <FilterGroup title="Thương hiệu">
-        {brands?.map(b => (
-          <Checkbox key={b.name} label={b.name}
-            count={b.product_count}
-            checked={brandFilter.includes(b.name)} onChange={() => toggleBrand(b.name)} />
-        ))}
+        <CollapsibleList
+          items={brandItems}
+          checkedKeys={brandFilter}
+          renderItem={(item) => {
+            const b = item as typeof brandItems[number];
+            return (
+              <Checkbox key={b.name} label={b.name}
+                count={b.product_count}
+                checked={brandFilter.includes(b.name)} onChange={() => toggleBrand(b.name)} />
+            );
+          }}
+        />
       </FilterGroup>
 
       <FilterGroup title="Khoảng giá">
@@ -187,7 +240,7 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, on
       <div className="p-[14px_16px_16px] flex flex-col gap-1.5 flex-1">
         <div className="text-[11px] text-neutral-500 font-semibold uppercase tracking-[0.04em]">{product.brand || "LOCAL BRAND"}</div>
         <div className="text-[14px] font-semibold text-neutral-800 leading-[1.35] line-clamp-2 min-h-[38px]">{product.name}</div>
-        <Rating value={4.5} count={product.review_count || 0} size={11} />
+        <Rating value={product.avg_rating || 0} count={product.review_count || 0} size={11} />
         <div className="flex items-baseline gap-2 mt-auto pt-1.5">
           <span className="text-[17px] font-bold" style={{ color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
           {product.sale_price && <span className="text-[12px] text-neutral-400 line-through">{product.price.toLocaleString()}đ</span>}
@@ -215,13 +268,19 @@ export default function ShopPage() {
 function ShopListing() {
   const searchParams = useSearchParams();
   const search = searchParams.get('q') || '';
+  const urlCategoryFilter = searchParams.getAll('category_slug').filter(Boolean);
+  const routeFilterKey = `${search}:${urlCategoryFilter.join(',')}`;
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState('newest');
-  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string[]>(urlCategoryFilter);
   const [brandFilter, setBrandFilter] = useState<string[]>([]);
   const [priceRangeFilter, setPriceRangeFilter] = useState<[number | '', number | '']>(['', '']);
-  const [prevSearch, setPrevSearch] = useState(search);
-  if (prevSearch !== search) { setPrevSearch(search); if (page !== 1) setPage(1); }
+  const [prevRouteFilterKey, setPrevRouteFilterKey] = useState(routeFilterKey);
+  if (prevRouteFilterKey !== routeFilterKey) {
+    setPrevRouteFilterKey(routeFilterKey);
+    setCategoryFilter(urlCategoryFilter);
+    if (page !== 1) setPage(1);
+  }
 
   const size = 12;
   const router = useRouter();
@@ -230,10 +289,10 @@ function ShopListing() {
 
   const { data: facets } = useQuery({
     queryKey: ['product-facets'],
-    queryFn: async () => (await api.get('/products/facets')).data as { categories: CategoryFacet[]; brands: BrandFacet[] }
+    queryFn: async () => (await api.get('/products/facets?categories_limit=100&brands_limit=100')).data as { categories: CategoryFacet[]; brands: BrandFacet[] }
   });
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ['products', page, size, sort, search, categoryFilter, brandFilter, priceRangeFilter],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), size: String(size), sort });
@@ -244,7 +303,8 @@ function ShopListing() {
       if (priceRangeFilter[1] !== '') params.set('max_price', String(priceRangeFilter[1]));
       const res = await api.get(`/products/?${params.toString()}`);
       return res.data;
-    }
+    },
+    placeholderData: keepPreviousData,
   });
 
   const [pendingProductId, setPendingProductId] = useState<string | null>(null);
@@ -270,6 +330,7 @@ function ShopListing() {
   if (error) return <div className="p-[100px] text-center" style={{ color: 'var(--danger)' }}>Có lỗi khi tải sản phẩm</div>;
 
   const paginationItems = getPaginationItems(page, data.pages);
+  const categoryTitle = getCategoryFilterTitle(categoryFilter);
 
   return (
     <div className="w-full max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 py-8 overflow-x-hidden">
@@ -283,9 +344,12 @@ function ShopListing() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl sm:text-[28px] md:text-[32px] font-extrabold tracking-[-0.025em] m-0">
-            {search ? `Kết quả cho "${search}"` : 'Tất cả sản phẩm'}
+            {search ? `Kết quả cho "${search}"` : categoryTitle || 'Tất cả sản phẩm'}
           </h1>
-          <p className="text-[14px] text-neutral-500 mt-1">Hiển thị {data.items.length} trong số {data.total} sản phẩm</p>
+          <p className="text-[14px] text-neutral-500 mt-1 flex items-center gap-2">
+            Hiển thị {data.items.length} trong số {data.total} sản phẩm
+            {isFetching && <Spinner size={14} className="text-neutral-400" />}
+          </p>
         </div>
         <div className="flex gap-3 items-center justify-end">
           <div className="lg:hidden">
@@ -330,7 +394,7 @@ function ShopListing() {
           />
         </aside>
 
-        <div className="flex-1 min-w-0">
+        <div className={`flex-1 min-w-0 transition-opacity duration-200 ${isFetching ? 'opacity-60 pointer-events-none' : ''}`}>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {data.items.map((prod: Product) => (
               <ProductCard

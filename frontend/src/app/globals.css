@@ -153,7 +153,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--teal-500);
+  background: var(--primary-500);
   animation: dot-bounce 1.2s ease-in-out infinite both;
 }
 @keyframes dot-bounce {
