@@ -2,19 +2,17 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import ReactMarkdown from 'react-markdown';
 import api from '@/lib/api';
 import { addToGuestCart } from '@/lib/guestCart';
 import Link from 'next/link';
 import { useAuthStore, useViewingProductStore } from '@/lib/store';
-import { Minus, Plus, ShoppingCart, ChevronLeft, ChevronRight, ShieldCheck, RefreshCw, Truck, MessageSquare } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, ChevronLeft, ChevronRight, ShieldCheck, Truck, MessageSquare } from 'lucide-react';
 import ReviewSection from '@/components/reviews/ReviewSection';
 import StarRating from '@/components/reviews/StarRating';
 import Image from 'next/image';
 import { Product, Variant, AttrImage } from '@/lib/types';
 import { ProductDetailSkeleton } from "@/components/skeletons/ProductDetailSkeleton";
 import { toast } from 'sonner';
-import { Spinner } from '@/components/ui/spinner';
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -282,12 +280,6 @@ export default function ProductDetailPage() {
   if (isLoading) return <ProductDetailSkeleton />;
   if (!product) return <div className="py-[100px] text-center" style={{ color: 'var(--danger)' }}>Không tìm thấy sản phẩm</div>;
 
-  const discountPct = selectedVariant
-    ? (selectedVariant.sale_price ? Math.round((1 - selectedVariant.sale_price / selectedVariant.price) * 100) : 0)
-    : (product.sale_price ? Math.round((1 - product.sale_price / product.price) * 100) : 0);
-
-  const infoItemCls = "px-4 py-3 rounded-[12px] border border-neutral-100 flex flex-col gap-0.5";
-
   const cleanedDescription = product?.description
     ? product.description.replace(/^```(?:markdown)?\s*/i, "").replace(/```\s*$/, "")
     : "";
@@ -305,7 +297,7 @@ export default function ProductDetailPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-8 lg:gap-16 items-start">
         {/* Gallery */}
-        <div className="relative md:sticky md:top-24">
+        <div className="relative lg:sticky lg:top-24 lg:self-start">
           <div className="group/gallery bg-white border border-neutral-100 rounded-[20px] shadow-sm aspect-square overflow-hidden relative">
             <div 
               ref={imageContainerRef}
@@ -675,49 +667,50 @@ export default function ProductDetailPage() {
               <span>Chính hãng 100% • Đổi trả miễn phí 15 ngày</span>
             </div>
           </div>
+
+          {/* Tabs */}
+          <div className="grid grid-cols-2 mt-8 border-b border-neutral-200">
+            {[
+              { id: 'desc', label: 'Mô tả' },
+              { id: 'review', label: 'Đánh giá', count: product.review_count || undefined },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className="w-full min-w-0 px-2 py-4 text-[15px] font-semibold bg-none border-none cursor-pointer transition-all duration-200 -mb-px flex items-center justify-center gap-1 whitespace-nowrap"
+                style={{
+                  color: activeTab === tab.id ? 'var(--neutral-900)' : 'var(--neutral-500)',
+                  borderBottom: activeTab === tab.id ? '2px solid var(--primary-500)' : '2px solid transparent',
+                }}
+              >
+                <span>{tab.label}</span>
+                {tab.count && <span className="text-[13px] text-neutral-400 font-normal">({tab.count})</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
+          <div className="py-7 text-[15px] leading-[1.8] text-neutral-700 w-full break-words [word-break:break-word] overflow-hidden">
+            {activeTab === 'desc' && (
+              cleanedDescription ? (
+                <div className="whitespace-pre-line break-words">
+                  {cleanedDescription}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  <p className="text-[16px] font-medium text-neutral-900">{product.name}</p>
+                  <p>Sản phẩm chất lượng cao dành cho thú cưng của bạn. Đã được kiểm định an toàn và khuyên dùng bởi các chuyên gia y tế.</p>
+                  <ul className="pl-5 flex flex-col gap-2">
+                    <li><b>Dinh dưỡng tối ưu</b> — hỗ trợ phát triển toàn diện</li>
+                    <li><b>Thành phần tự nhiên</b> — an toàn tuyệt đối cho sức khỏe</li>
+                    <li><b>Hương vị hấp dẫn</b> — kích thích vị giác của thú cưng</li>
+                  </ul>
+                </div>
+              )
+            )}
+            {activeTab === 'review' && <ReviewSection productId={product.id} />}
+          </div>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 md:gap-8 mt-12 md:mt-16 border-b border-neutral-200 overflow-x-auto scrollbar-hide">
-        {[
-          { id: 'desc', label: 'Mô tả' },
-          { id: 'review', label: 'Đánh giá', count: product.review_count || undefined },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className="px-6 py-4 text-[15px] font-semibold bg-none border-none cursor-pointer transition-all duration-200 -mb-px shrink-0"
-            style={{
-              color: activeTab === tab.id ? 'var(--neutral-900)' : 'var(--neutral-500)',
-              borderBottom: activeTab === tab.id ? '2px solid var(--primary-500)' : '2px solid transparent',
-            }}
-          >
-            {tab.label} {tab.count && <span className="text-[13px] text-neutral-400 font-normal">({tab.count})</span>}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      <div className="py-8 text-[15px] leading-[1.8] text-neutral-700 max-w-[800px] w-full break-words [word-break:break-word] overflow-hidden">
-        {activeTab === 'desc' && (
-          cleanedDescription ? (
-            <div className="whitespace-pre-line break-words">
-              {cleanedDescription}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              <p className="text-[16px] font-medium text-neutral-900">{product.name}</p>
-              <p>Sản phẩm chất lượng cao dành cho thú cưng của bạn. Đã được kiểm định an toàn và khuyên dùng bởi các chuyên gia y tế.</p>
-              <ul className="pl-5 flex flex-col gap-2">
-                <li><b>Dinh dưỡng tối ưu</b> — hỗ trợ phát triển toàn diện</li>
-                <li><b>Thành phần tự nhiên</b> — an toàn tuyệt đối cho sức khỏe</li>
-                <li><b>Hương vị hấp dẫn</b> — kích thích vị giác của thú cưng</li>
-              </ul>
-            </div>
-          )
-        )}
-        {activeTab === 'review' && <ReviewSection productId={product.id} />}
       </div>
 
       <div ref={similarSectionRef} className="h-px" aria-hidden="true" />
