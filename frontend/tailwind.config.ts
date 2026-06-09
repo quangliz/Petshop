@@ -151,6 +151,13 @@ const config: Config = {
         "contact-slide-in": "contact-slide-in 360ms cubic-bezier(0.22,1,0.36,1) backwards",
         "dot-bounce":       "dot-bounce 1.2s ease-in-out infinite both",
       },
+      transitionDuration: {
+        "120": "120ms",
+        "160": "160ms",
+      },
+      transitionTimingFunction: {
+        "ease": "ease",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

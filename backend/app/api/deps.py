@@ -50,7 +50,7 @@ async def get_current_user(db: SessionDep, token: TokenDep) -> User:
 
     result = await db.execute(select(User).where(User.id == uuid_obj))
     user = result.scalar_one_or_none()
-    if user is None:
+    if user is None or not user.is_active:
         raise credentials_exception
     return user
 
@@ -67,12 +67,15 @@ async def get_optional_user(
         return None
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != "access":
+            return None
         user_id: str = payload.get("sub")
         if user_id is None:
             return None
         uuid_obj = uuid.UUID(user_id)
         result = await db.execute(select(User).where(User.id == uuid_obj))
-        return result.scalar_one_or_none()
+        user = result.scalar_one_or_none()
+        return user if user and user.is_active else None
     except (JWTError, ValueError):
         return None
 
@@ -91,3 +94,23 @@ async def require_admin(current_user: CurrentUser) -> User:
 
 
 AdminUser = Annotated[User, Depends(require_admin)]
+
+
+def require_roles(*allowed_roles: RoleEnum):
+    async def dependency(current_user: CurrentUser) -> User:
+        if current_user.role == RoleEnum.admin:
+            return current_user
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Bạn không có quyền thực hiện hành động này",
+            )
+        return current_user
+    return dependency
+
+
+CatalogManager = Annotated[User, Depends(require_roles(RoleEnum.catalog_manager))]
+OrderOperator = Annotated[User, Depends(require_roles(RoleEnum.order_operator))]
+ContentManager = Annotated[User, Depends(require_roles(RoleEnum.content_manager))]
+SupportOperator = Annotated[User, Depends(require_roles(RoleEnum.support))]
+ForumModerator = Annotated[User, Depends(require_roles(RoleEnum.support, RoleEnum.content_manager))]

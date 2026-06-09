@@ -1,5 +1,5 @@
 "use client";
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useParams } from 'next/navigation';
@@ -25,6 +25,13 @@ export default function OrderDetailPage() {
     queryKey: ['order', params.id],
     queryFn: async () => { const res = await api.get(`/orders/${params.id}`); return res.data; }
   });
+
+  const canReturn = useMemo(() => {
+    if (!order || order.status !== 'completed') return false;
+    const orderDate = new Date(order.updated_at || order.created_at);
+    const diffDays = (new Date().getTime() - orderDate.getTime()) / (1000 * 3600 * 24);
+    return diffDays <= 7;
+  }, [order]);
 
   const cancelOrderMutation = useMutation({
     mutationFn: async () => { const res = await api.put(`/orders/${params.id}/cancel`); return res.data; },
@@ -69,6 +76,15 @@ export default function OrderDetailPage() {
           >
             {cancelOrderMutation.isPending ? "Đang huỷ..." : "Huỷ đơn hàng"}
           </button>
+        )}
+        {canReturn && (
+            <Link
+              href={`/orders/${order.id}/return`}
+              className="self-start sm:self-auto px-4 py-2.5 rounded-xl text-sm font-bold border-[1.5px] border-[var(--primary-600)] text-[var(--primary-600)] bg-transparent text-center cursor-pointer transition-all duration-150 hover:bg-[var(--primary-600)] hover:text-white flex items-center justify-center"
+              style={{ textDecoration: 'none' }}
+            >
+              Yêu cầu đổi/trả
+            </Link>
         )}
       </div>
 

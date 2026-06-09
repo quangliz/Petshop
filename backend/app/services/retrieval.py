@@ -1,15 +1,25 @@
 import asyncio
+import hashlib
+import json
 import logging
 import re
+import uuid
 from typing import List, Optional
 
 from app.services.embeddings import embed_query_cached
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import case, func, literal, or_, select
+from sqlalchemy import case, func, literal, or_, select, text
 from sqlalchemy.orm import selectinload
 
 from app.models.catalog import Category, Product
-from app.services.embeddings import get_products_store, get_knowledge_store
+from app.models.forum import ForumReply, ForumStatusEnum, ForumThread
+from app.core.redis_client import get_redis
+from app.services.embeddings import PRODUCTS_COLLECTION, get_products_store, get_knowledge_store
+from app.services.forum_knowledge import (
+    forum_reply_answer_score,
+    forum_thread_quality_score,
+    is_verified_expert,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +27,7 @@ SEMANTIC_SEARCH_WEIGHT = 0.25
 WORD_SEARCH_WEIGHT = 0.75
 RRF_K = 60
 MAX_WORD_CANDIDATES = 300
+SIMILAR_PRODUCTS_TTL = 900
 
 
 def _matches_species(meta_species, species_filter: Optional[List[str]]) -> bool:
@@ -112,6 +123,52 @@ async def _semantic_ranked_slugs(query: str, fetch_k: int) -> list[str]:
         )
     except Exception:  # noqa: BLE001
         logger.warning("Product semantic search failed; falling back to keyword search", exc_info=True)
+        return []
+
+    ranked_slugs: list[str] = []
+    seen: set[str] = set()
+    for doc in results:
+        slug = (doc.metadata or {}).get("slug")
+        if slug and slug not in seen:
+            seen.add(slug)
+            ranked_slugs.append(slug)
+    return ranked_slugs
+
+
+async def _stored_product_embedding(db: AsyncSession, product_id: uuid.UUID) -> list[float] | None:
+    result = await db.execute(
+        text(
+            """
+            SELECT e.embedding::text
+            FROM langchain_pg_embedding e
+            JOIN langchain_pg_collection c ON e.collection_id = c.uuid
+            WHERE c.name = :collection_name AND e.id = :product_id
+            LIMIT 1
+            """
+        ),
+        {"collection_name": PRODUCTS_COLLECTION, "product_id": str(product_id)},
+    )
+    raw = result.scalar_one_or_none()
+    if not raw:
+        return None
+    return json.loads(raw)
+
+
+async def _semantic_ranked_slugs_for_product(
+    db: AsyncSession,
+    product_id: uuid.UUID,
+    fetch_k: int,
+) -> list[str]:
+    try:
+        embedding = await _stored_product_embedding(db, product_id)
+        if embedding is None:
+            return []
+        store = await asyncio.to_thread(get_products_store)
+        results = await asyncio.to_thread(
+            store.similarity_search_by_vector, embedding, k=fetch_k
+        )
+    except Exception:  # noqa: BLE001
+        logger.warning("Stored-vector product similarity failed; falling back to keyword search", exc_info=True)
         return []
 
     ranked_slugs: list[str] = []
@@ -243,6 +300,134 @@ def _product_result(product: Product, score: float | None = None) -> dict:
     }
 
 
+def _similar_query_text(product: Product) -> str:
+    target = ", ".join(product.target_species) if product.target_species else ""
+    return (
+        f"{product.name} | {product.brand or ''} | "
+        f"{product.description or ''} | dành cho: {target}"
+    )
+
+
+def _similar_cache_key(product: Product, limit: int) -> str:
+    version_source = product.updated_at or product.created_at
+    version = version_source.isoformat() if version_source else "unknown"
+    raw = f"{product.id}:{product.slug}:{version}:{limit}"
+    return f"similar:products:v2:{hashlib.sha256(raw.encode()).hexdigest()}"
+
+
+async def _get_cached_similar_ids(product: Product, limit: int) -> list[str] | None:
+    try:
+        cached = await (await get_redis()).get(_similar_cache_key(product, limit))
+        if not cached:
+            return None
+        payload = cached.decode() if isinstance(cached, bytes) else cached
+        ids = json.loads(payload)
+        if isinstance(ids, list) and all(isinstance(item, str) for item in ids):
+            return ids
+    except Exception:  # noqa: BLE001
+        logger.debug("Similar-products cache read failed", exc_info=True)
+    return None
+
+
+async def _set_cached_similar_ids(product: Product, limit: int, product_ids: list[str]) -> None:
+    try:
+        await (await get_redis()).set(
+            _similar_cache_key(product, limit),
+            json.dumps(product_ids),
+            ex=SIMILAR_PRODUCTS_TTL,
+        )
+    except Exception:  # noqa: BLE001
+        logger.debug("Similar-products cache write failed", exc_info=True)
+
+
+async def _product_results_from_ids(db: AsyncSession, product_ids: list[str]) -> list[dict]:
+    parsed_ids: list[uuid.UUID] = []
+    for product_id in product_ids:
+        try:
+            parsed_ids.append(uuid.UUID(product_id))
+        except ValueError:
+            continue
+    if not parsed_ids:
+        return []
+
+    result = await db.execute(
+        select(Product)
+        .where(Product.id.in_(parsed_ids), Product.is_active)
+        .options(
+            selectinload(Product.category),
+            selectinload(Product.variants),
+        )
+    )
+    products_by_id = {str(product.id): product for product in result.scalars().all()}
+    return [
+        _product_result(products_by_id[product_id])
+        for product_id in product_ids
+        if product_id in products_by_id
+    ]
+
+
+async def _rank_similar_products_uncached(
+    db: AsyncSession,
+    product: Product,
+    limit: int,
+) -> list[dict]:
+    query_text = _similar_query_text(product)
+    fetch_k = min(max((limit + 1) * 6, 30), MAX_WORD_CANDIDATES)
+    semantic_slugs_task = _semantic_ranked_slugs_for_product(db, product.id, fetch_k)
+    word_products_task = _word_ranked_products(
+        db,
+        query_text,
+        fetch_k=fetch_k,
+        species=None,
+        category_slugs=None,
+        brands=None,
+        min_price=None,
+        max_price=None,
+    )
+    semantic_slugs, word_products = await asyncio.gather(semantic_slugs_task, word_products_task)
+
+    if not semantic_slugs and not word_products:
+        return []
+
+    fusion_scores: dict[str, float] = {}
+    for rank, slug in enumerate(semantic_slugs, start=1):
+        fusion_scores[slug] = fusion_scores.get(slug, 0.0) + _rrf_score(rank, SEMANTIC_SEARCH_WEIGHT)
+
+    word_products_by_slug = {word_product.slug: word_product for word_product in word_products}
+    for rank, word_product in enumerate(word_products, start=1):
+        fusion_scores[word_product.slug] = fusion_scores.get(word_product.slug, 0.0) + _rrf_score(rank, WORD_SEARCH_WEIGHT)
+
+    candidate_slugs = [slug for slug in fusion_scores if slug != product.slug]
+    if not candidate_slugs:
+        return []
+
+    result = await db.execute(
+        select(Product)
+        .where(Product.slug.in_(candidate_slugs), Product.is_active)
+        .options(
+            selectinload(Product.category),
+            selectinload(Product.variants),
+        )
+    )
+    products = result.scalars().all()
+    products_by_slug = {candidate.slug: candidate for candidate in products}
+    products_by_slug.update({
+        slug: word_product for slug, word_product in word_products_by_slug.items()
+        if slug not in products_by_slug
+    })
+
+    ranked = sorted(
+        [candidate for slug, candidate in products_by_slug.items() if slug in candidate_slugs],
+        key=lambda candidate: fusion_scores[candidate.slug],
+        reverse=True,
+    )
+    max_score = max((fusion_scores[candidate.slug] for candidate in ranked), default=1.0)
+    return [
+        _product_result(candidate, score=fusion_scores[candidate.slug] / max_score)
+        for candidate in ranked[:limit]
+    ]
+
+
 async def search_products(
     db: AsyncSession,
     query: str,
@@ -322,25 +507,182 @@ async def search_products(
 
 def search_knowledge(query: str, limit: int = 4) -> List[dict]:
     store = get_knowledge_store()
-    results = store.similarity_search_with_score(query, k=limit)
+    results = store.similarity_search_with_score(query, k=max(12, limit * 4))
+    ranked = []
+    for doc, distance in results:
+        metadata = doc.metadata or {}
+        if metadata.get("source_type") == "forum_thread":
+            continue
+        base_score = float(1 - distance)
+        ranked.append((base_score, doc, metadata))
+    ranked.sort(key=lambda item: item[0], reverse=True)
     return [
         {
-            "title": (doc.metadata or {}).get("title"),
-            "category": (doc.metadata or {}).get("category"),
-            "source_url": (doc.metadata or {}).get("source_url"),
+            "title": metadata.get("title"),
+            "category": metadata.get("category"),
+            "source_url": metadata.get("source_url"),
+            "source_type": metadata.get("source_type", "curated"),
             "content": doc.page_content,
-            "score": float(1 - distance),
+            "score": score,
+            "raw_score": score,
         }
-        for doc, distance in results
+        for score, doc, metadata in ranked[:limit]
     ]
 
 
-async def similar_products(db: AsyncSession, product: Product, limit: int = 6) -> List[dict]:
-    """Find products similar to a given Product by re-querying with its source_text."""
-    target = ", ".join(product.target_species) if product.target_species else ""
-    query_text = (
-        f"{product.name} | {product.brand or ''} | "
-        f"{product.description or ''} | dành cho: {target}"
+async def search_forum_discussions(db: AsyncSession, query: str, limit: int = 3) -> List[dict]:
+    try:
+        store = get_knowledge_store()
+        results = await asyncio.to_thread(
+            store.similarity_search_with_score,
+            query,
+            k=max(12, limit * 4),
+        )
+    except Exception:  # noqa: BLE001
+        logger.warning("Forum semantic retrieval failed", exc_info=True)
+        return []
+
+    candidates: list[tuple[float, str, dict]] = []
+    seen: set[str] = set()
+    for doc, distance in results:
+        metadata = doc.metadata or {}
+        if metadata.get("source_type") != "forum_thread":
+            continue
+        thread_id = metadata.get("thread_id")
+        if not thread_id or thread_id in seen:
+            continue
+        seen.add(thread_id)
+        candidates.append((float(1 - distance), thread_id, metadata))
+    if not candidates:
+        return []
+
+    parsed_ids: list[uuid.UUID] = []
+    id_order: list[str] = []
+    for _, thread_id, _ in candidates:
+        try:
+            parsed_ids.append(uuid.UUID(thread_id))
+            id_order.append(thread_id)
+        except ValueError:
+            continue
+    if not parsed_ids:
+        return []
+
+    result = await db.execute(
+        select(ForumThread)
+        .where(
+            ForumThread.id.in_(parsed_ids),
+            ForumThread.status == ForumStatusEnum.published,
+            ForumThread.is_ai_blocked.is_(False),
+        )
+        .options(
+            selectinload(ForumThread.author),
+            selectinload(ForumThread.replies).selectinload(ForumReply.author),
+        )
     )
-    results = await search_products(db, query=query_text, limit=limit + 1)
-    return [r for r in results if r["slug"] != product.slug][:limit]
+    threads_by_id = {str(thread.id): thread for thread in result.scalars().all()}
+    candidate_scores = {thread_id: semantic_score for semantic_score, thread_id, _ in candidates}
+
+    discussions: list[dict] = []
+    for thread_id in id_order:
+        thread = threads_by_id.get(thread_id)
+        if not thread:
+            continue
+        replies = [
+            reply for reply in thread.replies
+            if reply.status == ForumStatusEnum.published and not reply.is_ai_blocked
+        ]
+        if not replies:
+            continue
+        has_expert_answer = any(is_verified_expert(reply.author) for reply in replies)
+        if not (
+            thread.accepted_reply_id
+            or has_expert_answer
+            or (thread.upvote_count or 0) >= 3
+        ):
+            continue
+
+        ranked_replies = sorted(
+            replies,
+            key=lambda reply: forum_reply_answer_score(reply, reply.author),
+            reverse=True,
+        )
+        selected = [
+            reply for reply in ranked_replies
+            if _is_selectable_forum_answer(reply)
+        ][:3]
+        if not selected:
+            continue
+        semantic_score = candidate_scores.get(thread_id, 0.0)
+        quality_score = forum_thread_quality_score(thread, replies)
+        discussions.append({
+            "title": f"Forum: {thread.title}",
+            "category": thread.category.value if thread.category else None,
+            "source_url": f"/forum/{thread.slug}",
+            "source_type": "forum_thread",
+            "score": semantic_score + min(quality_score, 20) / 100,
+            "content": _forum_discussion_context(thread, selected),
+            "thread_id": str(thread.id),
+            "thread_slug": thread.slug,
+            "quality_score": quality_score,
+            "semantic_score": semantic_score,
+        })
+
+    return sorted(discussions, key=lambda item: item["score"], reverse=True)[:limit]
+
+
+def _forum_discussion_context(thread: ForumThread, replies: list[ForumReply]) -> str:
+    lines = [
+        f"Bài đăng forum: {thread.title}",
+        f"Chủ đề: {thread.category.value}",
+        f"Upvote bài đăng: {thread.upvote_count}",
+        f"Đã giải quyết: {'có' if thread.accepted_reply_id else 'chưa'}",
+        "",
+        f"Nội dung bài đăng: {thread.body}",
+        "",
+        "Các câu trả lời được chọn:",
+    ]
+    for reply in replies:
+        author = reply.author
+        expert_answer = is_verified_expert(author)
+        author_label = "chuyên gia đã xác minh" if expert_answer else "người dùng"
+        answer_score = forum_reply_answer_score(reply, author)
+        markers = []
+        if reply.is_accepted:
+            markers.append("accepted")
+        if expert_answer:
+            markers.append("expert")
+        if reply.expert_upvote_count:
+            markers.append(f"{reply.expert_upvote_count} expert-upvote")
+        lines.extend([
+            f"- Tác giả: {author.full_name if author else 'Người dùng đã xoá'} ({author_label}); điểm={answer_score}; {', '.join(markers) or 'community'}",
+            f"  Nội dung: {reply.body}",
+        ])
+    return "\n".join(lines)
+
+
+def _is_selectable_forum_answer(reply: ForumReply) -> bool:
+    if reply.status != ForumStatusEnum.published or reply.is_ai_blocked:
+        return False
+    if is_verified_expert(reply.author):
+        return True
+    if reply.is_accepted:
+        return True
+    if (reply.expert_upvote_count or 0) > 0:
+        return True
+    return (reply.upvote_count or 0) >= 5
+
+
+async def similar_products(db: AsyncSession, product: Product, limit: int = 6) -> List[dict]:
+    """Find products similar to a Product using its stored vector, with cached ranking.
+
+    This avoids issuing a fresh OpenAI embedding request for every product-detail
+    page view. If the product is not indexed yet, the endpoint falls back to
+    keyword ranking rather than blocking on a new embedding call.
+    """
+    cached_ids = await _get_cached_similar_ids(product, limit)
+    if cached_ids is not None:
+        return await _product_results_from_ids(db, cached_ids)
+
+    results = await _rank_similar_products_uncached(db, product, limit)
+    await _set_cached_similar_ids(product, limit, [item["id"] for item in results])
+    return results

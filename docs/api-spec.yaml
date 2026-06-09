@@ -1,632 +1,917 @@
 openapi: 3.1.0
 info:
   title: ThePawsome API
+  version: "1.0.0"
   description: |
-    API specification cho hệ thống Pet shop tích hợp AI.
-    Sản phẩm Ngày 5 – Tuần 1. Sẽ được implement dần qua Tuần 2–5.
-
-    **Phiên bản base URL:** `/api/v1`
-
-    **Auth:** Bearer JWT (access token ngắn hạn 15p, refresh token 7 ngày).
-
-    **Streaming:** Endpoint chat dùng `text/event-stream` (SSE) khi query param `stream=true`.
-  version: "0.1.0"
-  contact:
-    name: ThePawsome — DATN
+    API contract tham khảo theo implementation hiện tại.
+    Base path của backend là `/api/v1`.
 servers:
   - url: http://localhost:8000/api/v1
-    description: Dev local
-  - url: https://api.petshop-ai.example.com/api/v1
-    description: Production (deploy Tuần 7)
-
-tags:
-  - name: auth
-  - name: users
-  - name: pets
-  - name: categories
-  - name: products
-  - name: cart
-  - name: orders
-  - name: payments
-  - name: chat
-  - name: recommendations
-  - name: admin
+    description: Local development
+  - url: /api/v1
+    description: Production behind Nginx
 
 security:
   - bearerAuth: []
 
+tags:
+  - name: auth
+  - name: products
+  - name: categories
+  - name: banners
+  - name: cart
+  - name: orders
+  - name: payments
+  - name: pets
+  - name: chat
+  - name: reviews
+  - name: admin
+
 paths:
-  # ─────────────── AUTH ───────────────
   /auth/register:
     post:
       tags: [auth]
-      summary: Đăng ký user mới
       security: []
+      summary: Register a user
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/RegisterInput' }
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
       responses:
-        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResponse' } } } }
-        '409': { description: Email đã tồn tại }
-        '422': { description: Validation error }
+        "200":
+          $ref: "#/components/responses/UserResponse"
+        "400":
+          $ref: "#/components/responses/Error"
 
   /auth/login:
     post:
       tags: [auth]
-      summary: Đăng nhập
       security: []
+      summary: Login with OAuth2 password form
       requestBody:
         required: true
         content:
-          application/json:
-            schema: { $ref: '#/components/schemas/LoginInput' }
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  format: email
+                password:
+                  type: string
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResponse' } } } }
-        '401': { description: Sai email/mật khẩu }
+        "200":
+          $ref: "#/components/responses/TokenResponse"
 
   /auth/refresh:
     post:
       tags: [auth]
-      summary: Đổi refresh token lấy access token mới
       security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { type: object, properties: { refresh_token: { type: string } }, required: [refresh_token] }
+      summary: Issue a new access token from refresh cookie
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResponse' } } } }
+        "200":
+          $ref: "#/components/responses/TokenResponse"
+        "401":
+          $ref: "#/components/responses/Error"
 
   /auth/logout:
     post:
       tags: [auth]
-      summary: Đăng xuất (blacklist refresh token)
-      responses: { '204': { description: No content } }
-
-  /auth/me:
-    get:
-      tags: [auth]
-      summary: Thông tin user hiện tại
+      security: []
+      summary: Clear refresh cookie
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        "200":
+          $ref: "#/components/responses/Message"
 
   /auth/forgot-password:
     post:
       tags: [auth]
-      summary: Gửi link reset password vào email
       security: []
+      summary: Send reset password email
       requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { type: object, properties: { email: { type: string, format: email } }, required: [email] }
-      responses: { '204': { description: Email gửi (idempotent, luôn 204 để tránh enumeration) } }
+        $ref: "#/components/requestBodies/ForgotPassword"
+      responses:
+        "200":
+          $ref: "#/components/responses/Message"
 
   /auth/reset-password:
     post:
       tags: [auth]
-      summary: Reset password bằng token trong email
       security: []
+      summary: Reset password with token
       requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { type: object, properties: { token: { type: string }, new_password: { type: string, minLength: 8 } }, required: [token, new_password] }
-      responses: { '204': { description: Success } }
-
-  # ─────────────── USER ───────────────
-  /users/me:
-    patch:
-      tags: [users]
-      summary: Cập nhật hồ sơ user
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/UserUpdate' }
+        $ref: "#/components/requestBodies/ResetPassword"
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        "200":
+          $ref: "#/components/responses/Message"
 
-  /users/me/change-password:
+  /auth/change-password:
     post:
-      tags: [users]
-      summary: Đổi mật khẩu (biết mật khẩu cũ)
+      tags: [auth]
+      summary: Change current user's password
+      requestBody:
+        $ref: "#/components/requestBodies/ChangePassword"
+      responses:
+        "200":
+          $ref: "#/components/responses/Message"
+
+  /auth/google:
+    post:
+      tags: [auth]
+      security: []
+      summary: Login with Google authorization code
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [old_password, new_password]
+              required: [code, redirect_uri]
               properties:
-                old_password: { type: string }
-                new_password: { type: string, minLength: 8 }
-      responses: { '204': { description: Success } }
-
-  # ─────────────── PET ───────────────
-  /pets:
-    get:
-      tags: [pets]
-      summary: Danh sách pet của user hiện tại
+                code:
+                  type: string
+                redirect_uri:
+                  type: string
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/Pet' } }
-    post:
-      tags: [pets]
-      summary: Thêm pet mới
+        "200":
+          $ref: "#/components/responses/TokenResponse"
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          $ref: "#/components/responses/UserResponse"
+    put:
+      tags: [auth]
+      summary: Update current user
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/PetInput' }
-      responses:
-        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Pet' } } } }
-
-  /pets/{pet_id}:
-    parameters:
-      - $ref: '#/components/parameters/PetId'
-    get:
-      tags: [pets]
-      summary: Chi tiết pet
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Pet' } } } }
-        '404': { description: Not found }
-    patch:
-      tags: [pets]
-      summary: Cập nhật pet
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/PetInput' }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Pet' } } } }
-    delete:
-      tags: [pets]
-      summary: Xoá pet
-      responses: { '204': { description: Deleted } }
-
-  /pets/{pet_id}/avatar:
-    parameters:
-      - $ref: '#/components/parameters/PetId'
-    post:
-      tags: [pets]
-      summary: Upload ảnh avatar (multipart)
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
             schema:
-              type: object
-              properties:
-                file: { type: string, format: binary }
+              $ref: "#/components/schemas/UserUpdate"
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { type: object, properties: { avatar_url: { type: string } } }
+        "200":
+          $ref: "#/components/responses/UserResponse"
 
-  # ─────────────── CATEGORY ───────────────
-  /categories:
+  /categories/:
     get:
       tags: [categories]
-      summary: Danh sách danh mục (cây 2 cấp)
       security: []
+      summary: List categories
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/Category' } }
+        "200":
+          $ref: "#/components/responses/List"
 
-  # ─────────────── PRODUCT ───────────────
-  /products:
+  /banners:
+    get:
+      tags: [banners]
+      security: []
+      summary: List active public banners
+      responses:
+        "200":
+          $ref: "#/components/responses/List"
+
+  /products/:
     get:
       tags: [products]
-      summary: List + search + filter sản phẩm
       security: []
+      summary: List/search/filter products
       parameters:
-        - { name: q, in: query, schema: { type: string }, description: Từ khoá search }
-        - { name: category_id, in: query, schema: { type: integer } }
-        - { name: species, in: query, schema: { type: string, enum: [dog, cat, bird, fish, rabbit, other] } }
-        - { name: brand, in: query, schema: { type: string } }
-        - { name: min_price, in: query, schema: { type: integer } }
-        - { name: max_price, in: query, schema: { type: integer } }
-        - { name: sort, in: query, schema: { type: string, enum: [newest, price_asc, price_desc, popular], default: newest } }
-        - { name: page, in: query, schema: { type: integer, default: 1, minimum: 1 } }
-        - { name: size, in: query, schema: { type: integer, default: 20, minimum: 1, maximum: 100 } }
+        - $ref: "#/components/parameters/SearchQuery"
+        - name: category_slug
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+        - name: brand
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+        - name: min_price
+          in: query
+          schema:
+            type: number
+        - name: max_price
+          in: query
+          schema:
+            type: number
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, price_asc, price_desc]
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ProductPage' }
+        "200":
+          $ref: "#/components/responses/Page"
+
+  /products/brands:
+    get:
+      tags: [products]
+      security: []
+      summary: List product brands
+      responses:
+        "200":
+          $ref: "#/components/responses/List"
+
+  /products/facets:
+    get:
+      tags: [products]
+      security: []
+      summary: List category and brand facets
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /products/best-sellers:
+    get:
+      tags: [products]
+      security: []
+      summary: Best-selling products
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/Page"
+
+  /products/new-arrivals:
+    get:
+      tags: [products]
+      security: []
+      summary: New arrival products
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/Page"
+
+  /products/recommendations:
+    get:
+      tags: [products]
+      summary: Product recommendations for current user
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/Page"
+
+  /products/{slug}/similar:
+    get:
+      tags: [products]
+      security: []
+      summary: Similar products by slug
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          $ref: "#/components/responses/Page"
 
   /products/{slug}:
-    parameters:
-      - { name: slug, in: path, required: true, schema: { type: string } }
     get:
       tags: [products]
-      summary: Chi tiết sản phẩm theo slug
       security: []
+      summary: Product detail by slug
+      parameters:
+        - $ref: "#/components/parameters/Slug"
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Product' } } } }
-        '404': { description: Not found }
+        "200":
+          $ref: "#/components/responses/Object"
+        "404":
+          $ref: "#/components/responses/Error"
 
-  # ─────────────── CART ───────────────
-  /cart:
+  /products/{product_id}/reviews:
+    post:
+      tags: [reviews]
+      summary: Create a product review
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+    get:
+      tags: [reviews]
+      security: []
+      summary: List product reviews
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          $ref: "#/components/responses/Page"
+
+  /products/{product_id}/rating-summary:
+    get:
+      tags: [reviews]
+      security: []
+      summary: Get product rating summary
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /products/{product_id}/can-review:
+    get:
+      tags: [reviews]
+      summary: Check if current user can review product
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /products/{product_id}/reviews/{review_id}:
+    delete:
+      tags: [reviews]
+      summary: Delete own product review
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+        - $ref: "#/components/parameters/ReviewId"
+      responses:
+        "204":
+          description: Deleted
+
+  /cart/:
     get:
       tags: [cart]
-      summary: Lấy giỏ hàng hiện tại
+      summary: Get current user's cart
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Cart' } } } }
+        "200":
+          $ref: "#/components/responses/Object"
 
   /cart/items:
     post:
       tags: [cart]
-      summary: Thêm item vào giỏ (nếu đã có thì UPDATE quantity)
+      summary: Add item to cart
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /cart/items/{item_id}:
+    put:
+      tags: [cart]
+      summary: Update cart item quantity
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+    delete:
+      tags: [cart]
+      summary: Remove cart item
+      parameters:
+        - $ref: "#/components/parameters/ItemId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /orders/checkout:
+    post:
+      tags: [orders]
+      summary: Checkout current user's cart
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /orders/guest-checkout:
+    post:
+      tags: [orders]
+      security: []
+      summary: Checkout as guest
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /orders/:
+    get:
+      tags: [orders]
+      summary: List current user's orders
+      responses:
+        "200":
+          $ref: "#/components/responses/List"
+
+  /orders/guest-lookup:
+    post:
+      tags: [orders]
+      security: []
+      summary: Look up guest order by email and order code
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [product_id, quantity]
+              required: [email, order_code]
               properties:
-                product_id: { type: string, format: uuid }
-                quantity: { type: integer, minimum: 1 }
+                email:
+                  type: string
+                  format: email
+                order_code:
+                  type: string
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Cart' } } } }
-
-  /cart/items/{item_id}:
-    parameters:
-      - { name: item_id, in: path, required: true, schema: { type: string, format: uuid } }
-    patch:
-      tags: [cart]
-      summary: Cập nhật quantity của cart item
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { type: object, properties: { quantity: { type: integer, minimum: 1 } }, required: [quantity] }
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Cart' } } } }
-    delete:
-      tags: [cart]
-      summary: Xoá 1 dòng khỏi giỏ
-      responses: { '204': { description: Deleted } }
-
-  /cart/clear:
-    post:
-      tags: [cart]
-      summary: Xoá toàn bộ giỏ
-      responses: { '204': { description: Cleared } }
-
-  # ─────────────── ORDER ───────────────
-  /orders:
-    get:
-      tags: [orders]
-      summary: Lịch sử đơn của user
-      parameters:
-        - { name: status, in: query, schema: { $ref: '#/components/schemas/OrderStatus' } }
-        - { name: page, in: query, schema: { type: integer, default: 1 } }
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/OrderPage' }
-    post:
-      tags: [orders]
-      summary: Tạo đơn từ giỏ hiện tại (checkout)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/CheckoutInput' }
-      responses:
-        '201':
-          description: Created. Nếu payment_method=vnpay, trả thêm `payment_url` để redirect
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/Order'
-                  - type: object
-                    properties:
-                      payment_url: { type: string, nullable: true }
+        "200":
+          $ref: "#/components/responses/Object"
 
   /orders/{order_id}:
-    parameters:
-      - { name: order_id, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       tags: [orders]
-      summary: Chi tiết đơn (user chỉ thấy đơn của mình)
+      summary: Get order detail
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Order' } } } }
+        "200":
+          $ref: "#/components/responses/Object"
 
-  /orders/{order_id}/cancel:
-    parameters:
-      - { name: order_id, in: path, required: true, schema: { type: string, format: uuid } }
-    post:
-      tags: [orders]
-      summary: User huỷ đơn khi status=pending
-      responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Order' } } } }
-        '409': { description: Không thể huỷ ở trạng thái hiện tại }
-
-  # ─────────────── PAYMENT ───────────────
-  /payments/vnpay/callback:
+  /payments/vnpay/status/{merchant_ref}:
     get:
       tags: [payments]
-      summary: VNPay redirect về sau khi thanh toán
-      security: []
+      summary: Poll persisted VNPay payment status
       parameters:
-        - { name: vnp_TxnRef, in: query, schema: { type: string } }
-        - { name: vnp_ResponseCode, in: query, schema: { type: string } }
-        - { name: vnp_TransactionNo, in: query, schema: { type: string } }
-        - { name: vnp_SecureHash, in: query, schema: { type: string } }
+        - name: merchant_ref
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/GuestOrderToken"
       responses:
-        '302': { description: Redirect về /orders/{id} ở frontend }
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /orders/{order_id}/cancel:
+    put:
+      tags: [orders]
+      summary: Cancel pending order
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Message"
+
+  /payments/vnpay/create/{order_id}:
+    post:
+      tags: [payments]
+      summary: Create VNPay payment URL
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/GuestOrderToken"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
 
   /payments/vnpay/ipn:
     get:
       tags: [payments]
-      summary: VNPay IPN (server-to-server notification)
       security: []
+      summary: VNPay IPN callback
       responses:
-        '200': { description: Luôn 200 theo spec VNPay }
+        "200":
+          $ref: "#/components/responses/Object"
 
-  # ─────────────── CHAT (AI ★) ───────────────
+  /pets/:
+    get:
+      tags: [pets]
+      summary: List current user's pets
+      responses:
+        "200":
+          $ref: "#/components/responses/List"
+    post:
+      tags: [pets]
+      summary: Create pet profile
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /pets/{pet_id}:
+    put:
+      tags: [pets]
+      summary: Update pet profile
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+    delete:
+      tags: [pets]
+      summary: Delete pet profile
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Message"
+
+  /pets/{pet_id}/avatar:
+    post:
+      tags: [pets]
+      summary: Upload pet avatar
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      requestBody:
+        $ref: "#/components/requestBodies/MultipartFile"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
   /chat/sessions:
     get:
       tags: [chat]
-      summary: List phiên chat của user (sidebar)
+      summary: List chat sessions
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/ChatSession' } }
-    post:
-      tags: [chat]
-      summary: Tạo phiên chat mới (có thể gắn pet_id làm context)
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                pet_id: { type: string, format: uuid, nullable: true }
-                initial_message: { type: string, nullable: true }
-      responses:
-        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/ChatSession' } } } }
-
-  /chat/sessions/{session_id}:
-    parameters:
-      - { name: session_id, in: path, required: true, schema: { type: string, format: uuid } }
-    get:
-      tags: [chat]
-      summary: Chi tiết phiên + toàn bộ messages
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ChatSession'
-                  - type: object
-                    properties:
-                      messages: { type: array, items: { $ref: '#/components/schemas/ChatMessage' } }
-    delete:
-      tags: [chat]
-      summary: Xoá phiên chat
-      responses: { '204': { description: Deleted } }
+        "200":
+          $ref: "#/components/responses/List"
 
   /chat/sessions/{session_id}/messages:
-    parameters:
-      - { name: session_id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [chat]
+      summary: List chat messages in a session
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /chat/stream:
     post:
       tags: [chat]
-      summary: Gửi tin nhắn và nhận phản hồi AI (streaming qua SSE khi stream=true)
-      parameters:
-        - { name: stream, in: query, schema: { type: boolean, default: true } }
+      summary: Stream AI chat response with SSE
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [content]
-              properties:
-                content: { type: string, maxLength: 4000 }
+              $ref: "#/components/schemas/ChatRequest"
       responses:
-        '200':
-          description: |
-            Nếu `stream=true`: `text/event-stream` với events `token`, `tool_call`, `product_ref`, `done`.
-            Nếu `stream=false`: JSON message assistant đầy đủ.
+        "200":
+          description: text/event-stream with message, products, cart_updated, done, error events
           content:
             text/event-stream:
-              schema: { type: string }
-            application/json:
-              schema: { $ref: '#/components/schemas/ChatMessage' }
-
-  # ─────────────── RECOMMENDATION (AI ★) ───────────────
-  /recommendations:
-    get:
-      tags: [recommendations]
-      summary: Gợi ý sản phẩm cho 1 pet (content-based + embedding)
-      parameters:
-        - { name: pet_id, in: query, required: true, schema: { type: string, format: uuid } }
-        - { name: limit, in: query, schema: { type: integer, default: 6, maximum: 20 } }
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
               schema:
-                type: object
-                properties:
-                  pet_id: { type: string }
-                  items: { type: array, items: { $ref: '#/components/schemas/Product' } }
-                  explanation: { type: string, description: "Lý giải ngắn tại sao gợi ý (cho UX minh bạch)" }
+                type: string
 
-  # ─────────────── ADMIN ───────────────
-  /admin/stats/overview:
+  /admin/stats:
     get:
       tags: [admin]
-      summary: Số liệu tổng quan dashboard
+      summary: Admin dashboard stats
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  revenue_today: { type: integer }
-                  revenue_7d: { type: integer }
-                  orders_pending: { type: integer }
-                  users_total: { type: integer }
-                  top_products_7d: { type: array, items: { $ref: '#/components/schemas/Product' } }
-
-  /admin/stats/revenue:
-    get:
-      tags: [admin]
-      summary: Doanh thu theo ngày (cho chart)
-      parameters:
-        - { name: from, in: query, schema: { type: string, format: date } }
-        - { name: to, in: query, schema: { type: string, format: date } }
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    date: { type: string, format: date }
-                    revenue: { type: integer }
-                    orders_count: { type: integer }
+        "200":
+          $ref: "#/components/responses/Object"
 
   /admin/products:
     get:
       tags: [admin]
-      summary: List sản phẩm (bao gồm cả ẩn)
-      parameters:
-        - { name: q, in: query, schema: { type: string } }
-        - { name: is_active, in: query, schema: { type: boolean } }
+      summary: List products for admin
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ProductPage' } } } }
+        "200":
+          $ref: "#/components/responses/Page"
     post:
       tags: [admin]
-      summary: Tạo sản phẩm mới
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/ProductInput' }
+      summary: Create product
       responses:
-        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Product' } } } }
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/products/full:
+    post:
+      tags: [admin]
+      summary: Create product with variants/images payload
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
 
   /admin/products/{product_id}:
-    parameters:
-      - { name: product_id, in: path, required: true, schema: { type: string, format: uuid } }
-    patch:
+    put:
       tags: [admin]
-      summary: Cập nhật sản phẩm
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/ProductInput' }
+      summary: Update product
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Product' } } } }
+        "200":
+          $ref: "#/components/responses/Object"
     delete:
       tags: [admin]
-      summary: Soft delete (set is_active=false)
-      responses: { '204': { description: Deleted } }
+      summary: Delete product
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Message"
 
-  /admin/products/{product_id}/images:
-    parameters:
-      - { name: product_id, in: path, required: true, schema: { type: string, format: uuid } }
+  /admin/products/{product_id}/full:
+    put:
+      tags: [admin]
+      summary: Update product with variants/images payload
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/products/{product_id}/detail:
+    get:
+      tags: [admin]
+      summary: Product detail for admin editor
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/products/{product_id}/image:
     post:
       tags: [admin]
-      summary: Upload ảnh sản phẩm (multipart, N ảnh)
+      summary: Upload main product image
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
       requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                files:
-                  type: array
-                  items: { type: string, format: binary }
+        $ref: "#/components/requestBodies/MultipartFile"
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { type: object, properties: { images: { type: array, items: { type: string } } } }
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/products/{product_id}/images:
+    post:
+      tags: [admin]
+      summary: Upload product gallery images
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      requestBody:
+        $ref: "#/components/requestBodies/MultipartFile"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/products/{product_id}/images/{image_id}:
+    delete:
+      tags: [admin]
+      summary: Delete product image
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+        - $ref: "#/components/parameters/ImageId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Message"
+
+  /admin/products/{product_id}/variants:
+    post:
+      tags: [admin]
+      summary: Create product variant
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/products/{product_id}/variants/{variant_id}:
+    put:
+      tags: [admin]
+      summary: Update product variant
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+        - $ref: "#/components/parameters/VariantId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+    delete:
+      tags: [admin]
+      summary: Delete product variant
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+        - $ref: "#/components/parameters/VariantId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Message"
+
+  /admin/products/{product_id}/variants/{variant_id}/image:
+    post:
+      tags: [admin]
+      summary: Upload variant image
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+        - $ref: "#/components/parameters/VariantId"
+      requestBody:
+        $ref: "#/components/requestBodies/MultipartFile"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/products/{product_id}/attr-images:
+    post:
+      tags: [admin]
+      summary: Upload attribute image
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      requestBody:
+        $ref: "#/components/requestBodies/MultipartFile"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/products/{product_id}/sync-thumbnail:
+    post:
+      tags: [admin]
+      summary: Sync legacy thumbnail from product images
+      parameters:
+        - $ref: "#/components/parameters/ProductId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/rewrite-markdown:
+    post:
+      tags: [admin]
+      summary: Rewrite product description markdown with AI
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
 
   /admin/orders:
     get:
       tags: [admin]
-      summary: List đơn hàng (admin)
-      parameters:
-        - { name: status, in: query, schema: { $ref: '#/components/schemas/OrderStatus' } }
-        - { name: page, in: query, schema: { type: integer, default: 1 } }
+      summary: List all orders
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/OrderPage' } } } }
+        "200":
+          $ref: "#/components/responses/List"
 
   /admin/orders/{order_id}/status:
-    parameters:
-      - { name: order_id, in: path, required: true, schema: { type: string, format: uuid } }
-    patch:
+    put:
       tags: [admin]
-      summary: Cập nhật trạng thái đơn
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [status]
-              properties:
-                status: { $ref: '#/components/schemas/OrderStatus' }
-                note: { type: string, nullable: true }
+      summary: Update order status
+      parameters:
+        - $ref: "#/components/parameters/OrderId"
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Order' } } } }
+        "200":
+          $ref: "#/components/responses/Object"
 
   /admin/users:
     get:
       tags: [admin]
-      summary: List user
+      summary: List users
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/User' } }
+        "200":
+          $ref: "#/components/responses/List"
 
   /admin/users/{user_id}/toggle-active:
-    parameters:
-      - { name: user_id, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      tags: [admin]
+      summary: Toggle user active flag
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/banners:
+    get:
+      tags: [admin]
+      summary: List banners
+      responses:
+        "200":
+          $ref: "#/components/responses/List"
     post:
       tags: [admin]
-      summary: Khoá / mở tài khoản user
+      summary: Create banner
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/banners/{banner_id}:
+    put:
+      tags: [admin]
+      summary: Update banner
+      parameters:
+        - name: banner_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+    delete:
+      tags: [admin]
+      summary: Delete banner
+      parameters:
+        - name: banner_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          $ref: "#/components/responses/Message"
+
+  /admin/banners/{banner_id}/image:
+    post:
+      tags: [admin]
+      summary: Upload banner image
+      parameters:
+        - name: banner_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        $ref: "#/components/requestBodies/MultipartFile"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/knowledge:
+    get:
+      tags: [admin]
+      summary: List knowledge docs
+      responses:
+        "200":
+          $ref: "#/components/responses/List"
+    post:
+      tags: [admin]
+      summary: Create knowledge doc
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/knowledge/{doc_id}:
+    get:
+      tags: [admin]
+      summary: Get knowledge doc
+      parameters:
+        - $ref: "#/components/parameters/DocId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+    put:
+      tags: [admin]
+      summary: Update knowledge doc
+      parameters:
+        - $ref: "#/components/parameters/DocId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+    delete:
+      tags: [admin]
+      summary: Delete knowledge doc
+      parameters:
+        - $ref: "#/components/parameters/DocId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Message"
+
+  /admin/embeddings/{collection}:
+    get:
+      tags: [admin]
+      summary: List embeddings in collection
+      parameters:
+        - $ref: "#/components/parameters/Collection"
+      responses:
+        "200":
+          $ref: "#/components/responses/List"
+
+  /admin/embeddings/{collection}/reindex:
+    post:
+      tags: [admin]
+      summary: Reindex products or knowledge collection
+      parameters:
+        - $ref: "#/components/parameters/Collection"
+      responses:
+        "200":
+          $ref: "#/components/responses/Object"
+
+  /admin/embeddings/{collection}/{embedding_id}:
+    delete:
+      tags: [admin]
+      summary: Delete embedding by id
+      parameters:
+        - $ref: "#/components/parameters/Collection"
+        - name: embedding_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/Message"
 
 components:
   securitySchemes:
@@ -636,243 +921,319 @@ components:
       bearerFormat: JWT
 
   parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    GuestOrderToken:
+      name: X-Guest-Order-Token
+      in: header
+      required: false
+      schema:
+        type: string
+    SearchQuery:
+      name: q
+      in: query
+      schema:
+        type: string
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Size:
+      name: size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 12
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 20
+        default: 8
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+    ProductId:
+      name: product_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ReviewId:
+      name: review_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ItemId:
+      name: item_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    OrderId:
+      name: order_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     PetId:
       name: pet_id
       in: path
       required: true
-      schema: { type: string, format: uuid }
+      schema:
+        type: string
+        format: uuid
+    SessionId:
+      name: session_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ImageId:
+      name: image_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    VariantId:
+      name: variant_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DocId:
+      name: doc_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Collection:
+      name: collection
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [products, knowledge]
+
+  requestBodies:
+    ForgotPassword:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [email]
+            properties:
+              email:
+                type: string
+                format: email
+    ResetPassword:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [token, new_password]
+            properties:
+              token:
+                type: string
+              new_password:
+                type: string
+                minLength: 8
+    ChangePassword:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [current_password, new_password]
+            properties:
+              current_password:
+                type: string
+              new_password:
+                type: string
+                minLength: 8
+    MultipartFile:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              file:
+                type: string
+                format: binary
+
+  responses:
+    TokenResponse:
+      description: JWT access token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Token"
+    UserResponse:
+      description: User object
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/User"
+    Object:
+      description: JSON object
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+    List:
+      description: JSON array
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              type: object
+              additionalProperties: true
+    Page:
+      description: Paginated/list response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              items:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+              total:
+                type: integer
+              page:
+                type: integer
+              size:
+                type: integer
+              pages:
+                type: integer
+            additionalProperties: true
+    Message:
+      description: Message response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+            additionalProperties: true
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                oneOf:
+                  - type: string
+                  - type: array
+            additionalProperties: true
 
   schemas:
-    # ─ Auth ─
     RegisterInput:
       type: object
       required: [email, password, full_name]
       properties:
-        email: { type: string, format: email }
-        password: { type: string, minLength: 8 }
-        full_name: { type: string, minLength: 1 }
-        phone: { type: string, nullable: true }
-
-    LoginInput:
-      type: object
-      required: [email, password]
-      properties:
-        email: { type: string, format: email }
-        password: { type: string }
-
-    AuthResponse:
-      type: object
-      properties:
-        access_token: { type: string }
-        refresh_token: { type: string }
-        token_type: { type: string, enum: [bearer] }
-        expires_in: { type: integer, description: Giây }
-        user: { $ref: '#/components/schemas/User' }
-
-    # ─ User ─
-    User:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        email: { type: string }
-        full_name: { type: string }
-        phone: { type: string, nullable: true }
-        address: { type: string, nullable: true }
-        role: { type: string, enum: [user, admin] }
-        is_active: { type: boolean }
-        created_at: { type: string, format: date-time }
-
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 100
     UserUpdate:
       type: object
       properties:
-        full_name: { type: string }
-        phone: { type: string }
-        address: { type: string }
-
-    # ─ Pet ─
-    Pet:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        phone:
+          type: string
+          maxLength: 30
+        address:
+          type: string
+          maxLength: 500
+    Token:
+      type: object
+      required: [access_token, token_type]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          example: bearer
+    User:
       type: object
       properties:
-        id: { type: string, format: uuid }
-        user_id: { type: string, format: uuid }
-        name: { type: string }
-        species: { type: string, enum: [dog, cat, bird, fish, rabbit, other] }
-        breed: { type: string, nullable: true }
-        age_months: { type: integer, nullable: true }
-        weight_kg: { type: number, nullable: true }
-        gender: { type: string, enum: [male, female, unknown] }
-        health_notes: { type: string, nullable: true }
-        allergies: { type: string, nullable: true }
-        avatar_url: { type: string, nullable: true }
-        created_at: { type: string, format: date-time }
-
-    PetInput:
-      type: object
-      required: [name, species]
-      properties:
-        name: { type: string, minLength: 1, maxLength: 100 }
-        species: { type: string, enum: [dog, cat, bird, fish, rabbit, other] }
-        breed: { type: string }
-        age_months: { type: integer, minimum: 0, maximum: 360 }
-        weight_kg: { type: number, minimum: 0, maximum: 200 }
-        gender: { type: string, enum: [male, female, unknown] }
-        health_notes: { type: string }
-        allergies: { type: string }
-
-    # ─ Category ─
-    Category:
-      type: object
-      properties:
-        id: { type: integer }
-        name: { type: string }
-        slug: { type: string }
-        parent_id: { type: integer, nullable: true }
-        image_url: { type: string, nullable: true }
-        children:
-          type: array
-          items: { $ref: '#/components/schemas/Category' }
-
-    # ─ Product ─
-    Product:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        category_id: { type: integer, nullable: true }
-        name: { type: string }
-        slug: { type: string }
-        description: { type: string }
-        price: { type: integer }
-        sale_price: { type: integer, nullable: true }
-        stock_qty: { type: integer }
-        brand: { type: string, nullable: true }
-        images: { type: array, items: { type: string } }
-        target_species:
-          type: array
-          items: { type: string, enum: [dog, cat, bird, fish, rabbit, other] }
-        attributes: { type: object, additionalProperties: true }
-        is_active: { type: boolean }
-
-    ProductInput:
-      type: object
-      required: [name, price, category_id]
-      properties:
-        name: { type: string }
-        category_id: { type: integer }
-        description: { type: string }
-        price: { type: integer, minimum: 1 }
-        sale_price: { type: integer, nullable: true }
-        stock_qty: { type: integer, minimum: 0 }
-        brand: { type: string }
-        target_species:
-          type: array
-          items: { type: string }
-        attributes: { type: object }
-
-    ProductPage:
-      type: object
-      properties:
-        items: { type: array, items: { $ref: '#/components/schemas/Product' } }
-        total: { type: integer }
-        page: { type: integer }
-        size: { type: integer }
-
-    # ─ Cart / Order ─
-    CartItem:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        product: { $ref: '#/components/schemas/Product' }
-        quantity: { type: integer }
-        line_total: { type: integer }
-
-    Cart:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        items: { type: array, items: { $ref: '#/components/schemas/CartItem' } }
-        subtotal: { type: integer }
-        total_qty: { type: integer }
-
-    CheckoutInput:
-      type: object
-      required: [ship_name, ship_phone, ship_address, payment_method]
-      properties:
-        ship_name: { type: string }
-        ship_phone: { type: string }
-        ship_address: { type: string }
-        payment_method: { type: string, enum: [cod, vnpay] }
-        note: { type: string }
-
-    OrderStatus:
-      type: string
-      enum: [pending, confirmed, shipping, completed, cancelled]
-
-    OrderItem:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        product_id: { type: string, format: uuid, nullable: true }
-        product_name_snapshot: { type: string }
-        unit_price_snapshot: { type: integer }
-        quantity: { type: integer }
-
-    Order:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        order_code: { type: string }
-        status: { $ref: '#/components/schemas/OrderStatus' }
-        subtotal: { type: integer }
-        shipping_fee: { type: integer }
-        total: { type: integer }
-        ship_name: { type: string }
-        ship_phone: { type: string }
-        ship_address: { type: string }
-        payment_method: { type: string, enum: [cod, vnpay] }
-        payment_status: { type: string, enum: [unpaid, paid, failed, refunded] }
-        items: { type: array, items: { $ref: '#/components/schemas/OrderItem' } }
-        created_at: { type: string, format: date-time }
-
-    OrderPage:
-      type: object
-      properties:
-        items: { type: array, items: { $ref: '#/components/schemas/Order' } }
-        total: { type: integer }
-        page: { type: integer }
-
-    # ─ Chat ─
-    ChatSession:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        pet_id: { type: string, format: uuid, nullable: true }
-        title: { type: string }
-        updated_at: { type: string, format: date-time }
-        message_count: { type: integer }
-
-    ChatMessage:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        role: { type: string, enum: [user, assistant, system, tool] }
-        content: { type: string }
-        tool_calls:
-          type: array
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        phone:
+          type: string
           nullable: true
-          items:
-            type: object
-            properties:
-              name: { type: string }
-              arguments: { type: object }
-        product_refs:
-          type: array
-          description: Danh sách sản phẩm được bot gợi ý (render card trong UI)
-          items: { $ref: '#/components/schemas/Product' }
-        created_at: { type: string, format: date-time }
-
-    # ─ Common error ─
-    Error:
+        address:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [user, admin]
+    ChatRequest:
       type: object
+      required: [message]
       properties:
-        detail: { type: string }
-        code: { type: string, nullable: true }
+        message:
+          type: string
+        session_id:
+          type: string
+          format: uuid
+          nullable: true
+        pet_id:
+          type: string
+          format: uuid
+          nullable: true
+        product_slug:
+          type: string
+          nullable: true

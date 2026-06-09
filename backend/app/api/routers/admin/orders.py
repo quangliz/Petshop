@@ -7,15 +7,16 @@ from sqlalchemy import func, desc, select
 from sqlalchemy.orm import selectinload
 import uuid
 
-from app.api.deps import SessionDep, AdminUser
+from app.api.deps import SessionDep, OrderOperator as AdminUser
 from app.models.commerce import Order, OrderStatusEnum, PaymentMethodEnum
 from app.models.catalog import Product
+from app.services.audit import log_audit
 
 router = APIRouter()
 
 
 class OrderStatusUpdate(BaseModel):
-    status: str
+    status: OrderStatusEnum
 
 
 @router.get("/orders")
@@ -50,21 +51,18 @@ async def admin_list_orders(
 
 @router.put("/orders/{order_id}/status")
 async def admin_update_order_status(
-    order_id: str, body: OrderStatusUpdate, db: SessionDep, _admin: AdminUser
+    order_id: uuid.UUID, body: OrderStatusUpdate, db: SessionDep, _admin: AdminUser
 ) -> Any:
     result = await db.execute(
         select(Order)
-        .where(Order.id == uuid.UUID(order_id))
+        .where(Order.id == order_id)
         .options(selectinload(Order.order_items))
     )
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng")
 
-    try:
-        new_status = OrderStatusEnum(body.status)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Trạng thái không hợp lệ")
+    new_status = body.status
 
     # Increment sold_count for COD orders when transitioning TO 'confirmed' for the first time
     should_increment = (
@@ -84,6 +82,16 @@ async def admin_update_order_status(
                 if oi.product_id and oi.product_id in prods:
                     prods[oi.product_id].sold_count += oi.quantity
 
+    old_status = order.status.value
     order.status = new_status
+    await log_audit(
+        db=db,
+        user_id=getattr(_admin, "id", None),
+        action="order.status_update",
+        resource_type="Order",
+        resource_id=str(order.id),
+        old_values={"status": old_status},
+        new_values={"status": new_status.value},
+    )
     await db.commit()
     return {"message": "Đã cập nhật", "status": order.status.value}

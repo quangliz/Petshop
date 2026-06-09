@@ -1,218 +1,262 @@
-# Quyết định thiết kế Database — ThePawsome
+# Database Design Decisions - ThePawsome
 
-> Tài liệu này giải thích **"tại sao lại làm như vậy"** cho từng quyết định thiết kế DB quan trọng. Dùng để:
-> - Viết **Chương 4 – Thiết kế hệ thống** của báo cáo (copy gần như nguyên văn)
-> - Trả lời câu hỏi của hội đồng trong buổi bảo vệ
-> - Tự check sau mỗi lần schema thay đổi xem còn hợp lý không
+Tài liệu này giải thích các quyết định thiết kế dữ liệu quan trọng để dùng trong báo cáo và khi bảo vệ.
 
-Mỗi quyết định theo cấu trúc: **Bối cảnh → Phương án → Quyết định → Hệ quả**.
+## 1. UUID và integer primary key
 
----
+Quyết định:
 
-## 1. UUID vs SERIAL cho Primary Key
+- UUID cho các entity user-facing hoặc có thể xuất hiện trong URL/log: `users`, `pets`, `products`, `product_variants`, `product_images`, `carts`, `cart_items`, `orders`, `order_items`, `payments`, `reviews`, `chat_sessions`, `chat_messages`, `knowledge_docs`.
+- Integer autoincrement cho bảng nhỏ, ít rủi ro đoán số lượng: `categories`, `banners`.
 
-**Bối cảnh:** Cần chọn kiểu PK cho các bảng.
+Lý do:
 
-**Phương án:**
-- `SERIAL` (int auto-increment): gọn, index nhanh, hiển thị URL đẹp (`/orders/42`)
-- `UUID`: không lộ số lượng bản ghi, sinh ở client được, tránh conflict khi merge DB
+- UUID giảm rủi ro ID enumeration so với `/orders/42`.
+- Product vẫn dùng `slug` cho URL thân thiện.
+- Category/banner là dữ liệu admin nhỏ, integer đơn giản hơn.
 
-**Quyết định:**
-- UUID cho: `users`, `pets`, `products`, `orders`, `cart_items`, `chat_*` — các entity user-facing hoặc có thể xuất hiện trên URL
-- SERIAL cho: `categories` — ít bản ghi (dưới 50), không sợ lộ số lượng
+## 2. Một user có một cart lifetime
 
-**Hệ quả:**
-- Tránh được tấn công IDOR kiểu "đoán URL" (`/orders/43`, `/orders/44`…)
-- Index UUID nặng hơn int ~2x → chấp nhận được vì dataset không quá lớn
-- URL dài hơn nhưng dùng slug (`/products/royal-canin-kitten-2kg`) thay vì UUID
+`carts.user_id` là unique. Sau checkout, hệ thống xóa các `cart_items` đã chọn thay vì xóa row `carts`.
 
----
+Lý do:
 
-## 2. Một user — một giỏ hàng (lifetime cart)
+- Luồng add-to-cart đơn giản: tìm cart theo user, nếu chưa có thì tạo.
+- Không cần tạo cart mới sau mỗi đơn.
+- Dễ mở rộng thống kê hành vi cart sau này.
 
-**Bối cảnh:** Sau khi checkout, giỏ hàng làm gì?
+## 3. Order item dùng snapshot
 
-**Phương án:**
-- (A) Xoá giỏ + tạo giỏ mới mỗi lần đặt đơn → clean nhưng mất data
-- (B) Giữ nguyên row `carts`, chỉ xoá `cart_items` → đơn giản, có thể thống kê lifetime
+`order_items` lưu:
 
-**Quyết định:** Chọn (B). `carts.user_id` có `UNIQUE` ràng buộc ở DB layer.
+- `product_name_snapshot`
+- `variant_sku_snapshot`
+- `variant_attributes_snapshot`
+- `unit_price_snapshot`
 
-**Hệ quả:** Code thêm sản phẩm vào giỏ trở thành: `SELECT cart WHERE user_id = ? → INSERT/UPDATE cart_items`. Không cần kiểm tra "user đã có cart chưa" phức tạp.
+Lý do:
 
----
+- Giá/tên/SKU có thể đổi sau khi mua.
+- Lịch sử đơn phải phản ánh thời điểm checkout.
+- `product_id` và `variant_id` nullable với `ON DELETE SET NULL` để đơn cũ không vỡ nếu product/variant bị xóa.
 
-## 3. Snapshot giá & tên trong `order_items`
+## 4. Guest checkout
 
-**Bối cảnh:** Giá và tên sản phẩm có thể thay đổi. Nếu chỉ lưu `product_id`, khi join để hiển thị lịch sử đơn, user sẽ thấy giá hiện tại chứ không phải giá lúc mua.
+`orders.user_id` nullable và `orders.guest_email` lưu email tra cứu đơn.
 
-**Phương án:**
-- (A) Không lưu snapshot, join `product_id` khi hiển thị → sai lệch
-- (B) Lưu `product_name_snapshot` + `unit_price_snapshot` trong `order_items`
+Lý do:
 
-**Quyết định:** (B). Đồng thời cho `product_id` nullable với `ON DELETE SET NULL` để khi admin xoá sản phẩm, lịch sử không vỡ.
+- Guest có thể mua mà không tạo tài khoản.
+- User order vẫn bảo vệ theo owner.
+- Guest lookup ưu tiên `order_code + email` thay vì chỉ dựa vào order id.
 
-**Hệ quả:**
-- Denormalize có chủ ý — chấp nhận trùng data để đổi lấy tính đúng đắn lịch sử
-- Đây là pattern chuẩn của mọi e-commerce (Shopee, Tiki cũng làm vậy)
+Phase 0 hardening:
 
----
+- Không còn order detail public bằng UUID.
+- Guest checkout trả signed guest-order token ngắn hạn cho payment/status.
+- Guest lookup dùng `POST` với `order_code + email`, rate limit và lỗi không tiết lộ order có tồn tại hay không.
 
-## 4. Tách `product_embeddings` thành bảng riêng
+## 5. Product variant tách bảng riêng
 
-**Bối cảnh:** Mỗi sản phẩm có vector 1536 chiều ~ 6KB. Nếu đặt trong `products` chính:
-- Bảng `products` bị phình, mọi query SELECT đều kéo thêm 6KB/row không cần thiết
-- Khi đổi embedding model, phải ALTER bảng chính
+Sản phẩm có thể không có variant hoặc có nhiều variant. Variant được tách thành `product_variants` với `sku`, giá, sale price, stock và attributes JSONB.
 
-**Phương án:**
-- (A) Thêm cột `embedding VECTOR(1536)` vào `products`
-- (B) Bảng riêng `product_embeddings` với PK = FK = `product_id` (1-1)
+Lý do:
 
-**Quyết định:** (B).
+- Tồn kho/giá của từng phân loại độc lập.
+- Cart/order cần tham chiếu đúng variant.
+- SKU có unique constraint để chống trùng trong race condition.
 
-**Hệ quả:**
-- Query e-commerce bình thường KHÔNG cần touch vector → hiệu năng tốt
-- AI worker chỉ query 1 bảng nhỏ → cache tốt
-- Đổi model embedding = `DROP TABLE product_embeddings + recreate` — không ảnh hưởng `products`
-- Đây là pattern "extension table" trong DB design
+## 6. Product images tách bảng riêng nhưng giữ `products.images`
 
----
+Schema hiện có cả:
 
-## 5. Sử dụng pgvector thay vì Pinecone/Weaviate
+- `products.images`: JSONB fallback/legacy, thường có `main`.
+- `product_images`: bảng ảnh chi tiết, có `variant_id`, `attr_key`, `attr_value`, `is_main`, `sort_order`.
 
-**Bối cảnh:** Cần vector DB cho RAG & recommendation.
+Lý do:
 
-**Phương án:**
-| | Pinecone | Weaviate | pgvector |
-|---|---|---|---|
-| Hosting | SaaS | Self-host/SaaS | Extension Postgres |
-| Cost | Free tier 100K vectors | Free self-host | Free |
-| JOIN với data thường | ❌ phải gọi 2 DB | ❌ | ✅ JOIN trực tiếp |
-| Học thêm | Phải học API | Phải học API | Chỉ cần SQL |
-| Deploy | Gắn external API | Thêm 1 service | 1 Postgres là đủ |
+- Frontend cũ và listing nhanh vẫn đọc `images.main`.
+- Product detail/admin cần gallery, variant image và attr image linh hoạt hơn.
+- `sync-thumbnail` giúp đồng bộ thumbnail legacy từ bảng ảnh mới.
 
-**Quyết định:** pgvector.
+## 7. JSONB cho attributes và target_species
 
-**Hệ quả:**
-- Giảm 1 service phải maintain → deploy đơn giản trên Railway free tier
-- JOIN được: `SELECT p.* FROM products p JOIN product_embeddings pe ON p.id = pe.product_id ORDER BY pe.embedding <=> :query_vec LIMIT 10` — 1 câu query thay vì 2 vòng gọi API
-- Nhược: pgvector ivfflat index build tốn RAM khi > 1M vector, nhưng dataset ~500 sản phẩm thì quá ổn
-- **Defense talking point:** *"Em chọn pgvector vì dataset scale nhỏ, JOIN được với data quan hệ, giảm chi phí vận hành. Nếu scale tới hàng triệu sản phẩm thì mới cân nhắc Pinecone."*
+Các cột JSONB:
 
----
+- `products.target_species`
+- `products.attributes`
+- `product_variants.attributes`
+- `order_items.variant_attributes_snapshot`
+- `payments.raw_response`
+- `chat_messages.tool_calls`
+- `chat_messages.token_usage`
 
-## 6. ENUM PostgreSQL native vs VARCHAR + CHECK
+Lý do:
 
-**Phương án:**
-- (A) `status VARCHAR(20) CHECK (status IN ('pending','confirmed',...))` → dễ thêm giá trị mới
-- (B) `CREATE TYPE order_status AS ENUM (...)` → type safety cao, index gọn
+- Thuộc tính sản phẩm/variant thay đổi theo loại hàng.
+- Snapshot variant cần giữ nguyên cấu trúc tại thời điểm mua.
+- Gateway/LLM metadata không ổn định đủ để ép schema cứng.
 
-**Quyết định:** (B) ENUM native cho các cột status cố định.
+Trade-off:
 
-**Hệ quả:** Khi thêm status mới phải `ALTER TYPE ... ADD VALUE` (Alembic hỗ trợ). Đổi lại: SQLAlchemy map sang Python `enum.Enum` → IDE autocomplete, không gõ nhầm string.
+- Query/filter sâu trong JSONB cần index riêng nếu scale lớn.
+- Validation phải nằm ở Pydantic/business logic.
 
----
+## 8. LangChain PGVector thay cho embedding tables tự quản
 
-## 7. JSONB cho `images`, `target_species`, `attributes`
+Legacy tables `product_embeddings` và `knowledge_chunks` đã bị drop. Vector store hiện do `langchain-postgres` quản lý qua:
 
-**Bối cảnh:** 
-- `images`: 1 sản phẩm có N ảnh (~3–8 ảnh) — không đủ phức tạp để làm bảng riêng
-- `target_species`: 1 sản phẩm có thể dùng được cho nhiều loài (`["dog","cat"]`)
-- `attributes`: mỗi loại sản phẩm có attribute khác nhau (hạt có `weight_g`, vòng cổ có `material`)
+- `langchain_pg_collection`
+- `langchain_pg_embedding`
 
-**Phương án:**
-- (A) Bảng riêng `product_images`, `product_species`, `product_attributes` — chuẩn 3NF
-- (B) JSONB cột trong `products`
+Collections:
 
-**Quyết định:** (B) JSONB.
+- `petshop_products`
+- `petshop_knowledge`
 
-**Hệ quả:**
-- Chấp nhận vi phạm 3NF có chủ ý — đổi lấy tính linh hoạt + giảm JOIN
-- Postgres có thể index JSONB (`CREATE INDEX ... USING GIN`) nếu cần filter theo `target_species`
-- **Defense talking point:** *"Em đã cân nhắc 3NF, nhưng với attributes động theo loại sản phẩm, JSONB schema-less là hợp lý hơn — tương tự pattern mà Shopee dùng cho variant products."*
+Lý do:
 
----
+- LangChain PGVector phù hợp trực tiếp với retriever/indexing code.
+- Không cần tự duy trì schema vector/chunk riêng.
+- Có thể reindex qua admin endpoints và `app/services/indexing.py`.
 
-## 8. Chat messages — lưu cả `role`, `tool_calls`, `token_usage`
+Trade-off:
 
-**Bối cảnh:** Chatbot là phần AI trọng tâm, cần lưu đủ để:
-- Hiển thị lại lịch sử cho user
-- Debug khi AI trả lời sai
-- Đánh giá cost ($) cho báo cáo
+- App không có SQLAlchemy model riêng cho embedding rows.
+- Metadata schema nằm trong document metadata, cần giữ contract trong indexing service.
 
-**Quyết định:** Schema theo chuẩn OpenAI Chat Completions — `role` enum gồm `user/assistant/system/tool`, `tool_calls` JSONB để lưu khi LLM gọi tool (search_products…), `token_usage` JSONB.
+## 9. Hybrid product search
 
-**Hệ quả:**
-- Dễ dàng replay một conversation cho LLM (đọc DB → ghép thành messages array → gọi API)
-- `token_usage` cho phép viết 1 truy vấn kiểu: *"Hôm nay app tốn bao nhiêu $?"* → viết được trong báo cáo
-- Dễ migrate sang LangGraph vì chuẩn format giống nhau
+Product retrieval dùng:
 
----
+- Semantic ranking từ PGVector.
+- Keyword ranking trực tiếp trên bảng `products`.
+- Weighted Reciprocal Rank Fusion để hợp nhất.
 
-## 9. Tại sao không dùng MongoDB?
+Lý do:
 
-**Bối cảnh:** Có thể bị hỏi *"sao không NoSQL cho e-commerce linh hoạt?"*.
+- Vector search giúp bắt intent.
+- Keyword fallback giúp tìm được sản phẩm chưa kịp embed hoặc keyword chính xác.
+- Phù hợp demo vì dữ liệu có thể thay đổi qua admin/importer.
 
-**Phản biện:**
-- E-commerce có nhiều quan hệ cứng (order → order_items → product, payment → order). JOIN là native của RDBMS, NoSQL phải embedded hoặc multi-query → phức tạp hơn.
-- Transaction ACID khi checkout (trừ tồn kho + tạo đơn + tạo payment) cần PostgreSQL-level, MongoDB transaction yếu hơn.
-- pgvector giải quyết cả vector search → không cần 2 DB.
-- Nhược điểm của Postgres (schema cứng) đã được mitigate bằng JSONB cho phần cần linh hoạt.
+## 10. PostgreSQL native enum
 
-**Kết luận:** PostgreSQL là "best of both worlds" cho use case này.
+Các trạng thái dùng enum SQLAlchemy/PostgreSQL thay vì string tự do:
 
----
+- Role, species, gender.
+- Order/payment/transaction status.
+- Chat role.
+- Knowledge category.
 
-## 10. Chiến lược Index
+Lý do:
 
-| Bảng | Index | Mục đích |
-|---|---|---|
-| `users` | `email` UK | Login nhanh |
-| `products` | `slug` UK, `category_id`, `is_active`, `brand` | Filter trang shop |
-| `products` | GIN `to_tsvector(name + description)` | Full-text search |
-| `orders` | `user_id`, `status`, `created_at DESC` | List đơn user, dashboard admin |
-| `chat_sessions` | `user_id`, `updated_at DESC` | Sidebar chat gần nhất |
-| `product_embeddings` | `ivfflat (embedding vector_cosine_ops)` | Similarity search |
-| `knowledge_chunks` | `ivfflat (embedding vector_cosine_ops)` | RAG retrieval |
+- Giảm lỗi gõ sai string.
+- Pydantic/SQLAlchemy map rõ sang enum Python.
+- Checkout không fallback payment method ngầm.
 
-**Nguyên tắc:**
-- Index cột WHERE hay xuất hiện
-- Không index bừa — mỗi index tốn disk + chậm INSERT
-- Composite index `(user_id, status)` nếu query luôn có cả 2 trong WHERE
+Trade-off:
 
----
+- Thêm giá trị enum cần migration.
 
-## 11. Chiến lược Migration (Alembic)
+## 11. Integrity constraints ở DB
 
-**Rule:** 1 feature = 1 migration. Không sửa migration đã push lên main.
+Migration `c9f1a2b3d4e5_add_business_integrity_constraints.py` thêm:
 
-**Thứ tự migrations dự kiến:**
-1. `001_initial_tables` — users, pets, categories, products (cuối Tuần 1)
-2. `002_auth_columns` — thêm refresh_token nếu cần (Tuần 2)
-3. `003_commerce` — carts, cart_items, orders, order_items, payments (Tuần 3)
-4. `004_chat` — chat_sessions, chat_messages (Tuần 4)
-5. `005_pgvector` — `CREATE EXTENSION vector`, `product_embeddings`, `knowledge_*` (Tuần 5)
+- Price > 0.
+- Sale price > 0 và nhỏ hơn price.
+- Stock >= 0.
+- Cart/order item quantity > 0.
+- Order totals >= 0.
+- Payment amount > 0.
+- Unique SKU.
+- Unique external transaction id.
 
-**Rollback:** mỗi migration phải có `downgrade()` chạy được. Test bằng `alembic downgrade -1 && alembic upgrade head` trước khi commit.
+Lý do:
 
----
+- Validation frontend/backend không đủ để chống ghi sai do bug/race/manual SQL.
+- DB là lớp bảo vệ cuối cùng cho dữ liệu thương mại.
 
-## 12. Normalization Level
+## 12. Stock reservation tại checkout
 
-**Mức áp dụng:** 3NF cho phần core commerce, cố tình vi phạm 3NF ở:
-- `order.total` (denormalize cho query nhanh) — nhưng được `trigger` hoặc application layer đảm bảo consistency
-- `order_items.product_name_snapshot` (snapshot pattern)
-- `products.images/attributes` (JSONB thay vì bảng riêng)
+Checkout lock sản phẩm/variant bằng `SELECT ... FOR UPDATE`, kiểm tra tồn kho rồi trừ available stock. Với VNPay, hệ thống đồng thời tạo `inventory_reservations` ở trạng thái `held`.
 
-**Defense talking point:** *"Em không theo 3NF cứng nhắc mà chọn level phù hợp. Denormalize có chủ ý ở các chỗ đọc nhiều hơn ghi, còn phần transaction-critical vẫn normalize."*
+Lý do:
 
----
+- Tránh oversell trong concurrent checkout.
+- VNPay có TTL 15 phút và grace 5 phút; worker riêng release đúng một lần bằng row lock/`SKIP LOCKED`.
+- IPN thành công commit reservation. Late success thử reacquire nguyên tử; thiếu hàng thì payment vẫn được ghi nhận và chuyển `requires_review`.
+
+Trade-off:
+
+- COD vẫn trừ kho trực tiếp vì không có cửa sổ chờ gateway.
+- Reconciliation thiếu hàng cần xử lý thủ công; workflow tổng quát thuộc Phase 1.
+
+## 13. Checkout và payment idempotency
+
+`orders` lưu scope, idempotency key và SHA-256 của canonical request. Advisory transaction lock bảo đảm concurrent duplicate chỉ tạo một order và trừ kho một lần.
+
+`payments` có unique merchant reference, idempotency key, payment URL và expiry. IPN retry cập nhật cùng payment attempt thay vì tạo giao dịch mới.
+
+Lý do:
+
+- Retry từ browser/proxy là hành vi bình thường, không được tạo đơn hoặc thanh toán trùng.
+- Cùng key nhưng payload khác trả `409` để phát hiện client reuse sai.
+
+## 14. Review aggregate trên products
+
+`products.avg_rating` và `products.review_count` là aggregate denormalized từ `reviews`.
+
+Lý do:
+
+- Listing/product card đọc rating nhanh.
+- Không cần aggregate query mỗi lần render grid.
+
+Trade-off:
+
+- Khi thêm/xóa review phải cập nhật aggregate nhất quán.
+
+## 15. Chat history lưu đủ để replay/debug
+
+`chat_messages` lưu role/content/tool_calls/token_usage.
+
+Lý do:
+
+- Frontend hiển thị lại lịch sử chat.
+- Có thể debug tool call và token usage.
+- Có cơ sở làm AI evaluation/cost tracking.
+
+## 16. Refresh session rotation
+
+Refresh JWT chứa `jti` và ánh xạ tới `refresh_sessions`. Mỗi lần refresh sẽ revoke session cũ và tạo session thay thế; replay thu hồi toàn bộ session của user. Logout, đổi và reset mật khẩu cũng revoke session.
+
+Lý do:
+
+- JWT refresh stateless thuần túy không thể chống token bị sao chép dùng lại.
+- Bảng session cho phép thu hồi có mục tiêu mà vẫn giữ access token ngắn hạn.
+
+## 17. Index strategy
+
+Các index/unique quan trọng:
+
+- `users.email`
+- `categories.slug`
+- `products.slug`
+- `product_variants.sku`
+- `payments.external_txn_id`
+- Index product/order/payment được bổ sung trong migration performance.
+
+Nguyên tắc:
+
+- Index cột dùng trong lookup/filter/sort thường xuyên.
+- Không index bừa các JSONB field khi chưa có query thực tế.
+- Với dataset đồ án, ưu tiên schema rõ và migration đúng hơn tối ưu quá sớm.
 
 ## Tổng kết
 
-Database này được thiết kế với **3 ưu tiên**:
-1. **Chính xác lịch sử** — snapshot giá/tên trong đơn hàng, audit trail trong payments
-2. **Hiệu năng query thường xuyên** — index đúng chỗ, tách embedding ra bảng riêng
-3. **Dễ scale AI** — pgvector cho phép 1 DB lo cả data + vector, giảm complexity deploy
+Database của ThePawsome ưu tiên:
 
-Mỗi quyết định đều có trade-off, và trade-off đó được cân nhắc ở mức đồ án chứ không phải production-ready-Amazon-scale.
+1. Đúng lịch sử đơn hàng.
+2. Dữ liệu commerce có constraint ở DB.
+3. Catalog đủ linh hoạt cho variant/ảnh/attributes.
+4. AI/RAG tích hợp qua PGVector nhưng không làm phình schema domain.
+5. Dễ giải thích và demo trong phạm vi đồ án tốt nghiệp.

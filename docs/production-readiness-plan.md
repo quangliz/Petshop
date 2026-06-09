@@ -1,6 +1,6 @@
 # Production Readiness Plan — ThePawsome
 
-Ngày cập nhật: 2026-05-12
+Ngày cập nhật: 2026-06-03
 
 ## 1. Vì sao dự án hiện tại chưa đạt tầm đồ án tốt nghiệp
 
@@ -37,10 +37,10 @@ Ngày cập nhật: 2026-05-12
 - Cần guardrail rõ cho câu hỏi y tế thú cưng: cảnh báo không thay bác sĩ thú y, escalation với triệu chứng nguy hiểm.
 - Cần fallback khi OpenAI timeout/quota hết để hệ thống vẫn dùng được.
 
-### 1.7 Tài liệu có nhưng chưa khớp tuyệt đối với implementation
-- API spec còn vài điểm lệch endpoint/schema thực tế.
-- NFR ghi coverage/lint/performance mục tiêu, nhưng cần kết quả đo và script tái lập.
-- Cần traceability matrix cập nhật: requirement -> endpoint -> UI -> test.
+### 1.7 Tài liệu cần được duy trì liên tục
+- API spec và traceability matrix đã được cập nhật theo API surface hiện tại, nhưng cần cập nhật tiếp mỗi khi đổi endpoint/schema.
+- NFR ghi coverage/lint/performance mục tiêu, nhưng vẫn cần kết quả đo và script tái lập.
+- AI evaluation còn cần script async-compatible và báo cáo kết quả định lượng.
 
 ## 2. Mục tiêu production-grade
 
@@ -168,6 +168,7 @@ Một đồ án đạt mức production-grade tối thiểu nên chứng minh đ
 - VNPay IPN xử lý duplicate paid callback an toàn hơn và validate amount không crash.
 - Thêm DB constraints qua Alembic migration cho giá/tồn kho/số lượng/tổng tiền/SKU/transaction id.
 - Thêm Docker healthcheck backend/frontend.
+- Cập nhật README, requirements, ERD, data dictionary, API spec, wireframes và DB design decisions theo implementation hiện tại.
 
 ## 5. Tiêu chí “đạt để bảo vệ”
 

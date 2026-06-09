@@ -1,240 +1,295 @@
-# Data Dictionary — ThePawsome
+# Data Dictionary - ThePawsome
 
-> Từ điển dữ liệu chi tiết cho từng bảng. Đây là **source of truth** — khi schema thay đổi, update file này TRƯỚC, sau đó mới code.
->
-> Ký hiệu:
-> - **PK** = Primary Key · **FK** = Foreign Key · **UK** = Unique · **NN** = NOT NULL
-> - Kiểu dữ liệu viết theo PostgreSQL. Map SQLAlchemy tương ứng (`String`, `Integer`, `Numeric`, `UUID`, `JSONB`, `Vector` từ pgvector).
+Tài liệu này mô tả các bảng/cột chính theo SQLAlchemy models và Alembic migrations hiện tại.
 
----
+Ký hiệu: PK = primary key, FK = foreign key, UK = unique, NN = not null.
 
-## 1. `users` — Tài khoản
+## Enums
 
-| Cột | Kiểu | Ràng buộc | Mô tả |
-|---|---|---|---|
-| `id` | UUID | PK, default `gen_random_uuid()` | Khoá chính |
-| `email` | VARCHAR(255) | UK, NN, index | Email đăng nhập, lowercase khi lưu |
-| `hashed_password` | VARCHAR(255) | NN | bcrypt hash, cost factor 12 |
-| `full_name` | VARCHAR(255) | NN | Họ tên đầy đủ |
-| `phone` | VARCHAR(20) | nullable | Số điện thoại VN (10 số) |
-| `address` | TEXT | nullable | Địa chỉ mặc định để điền sẵn khi checkout |
-| `role` | ENUM('user','admin') | NN, default `'user'` | Phân quyền |
-| `is_active` | BOOLEAN | NN, default `true` | Soft delete; admin có thể khoá user |
-| `created_at` | TIMESTAMPTZ | NN, default `now()` | |
-| `updated_at` | TIMESTAMPTZ | NN, default `now()` on update | |
+| Enum | Giá trị |
+|---|---|
+| `RoleEnum` | `user`, `admin` |
+| `SpeciesEnum` | `dog`, `cat`, `bird`, `fish`, `rabbit`, `other` |
+| `GenderEnum` | `male`, `female`, `unknown` |
+| `OrderStatusEnum` | `pending`, `confirmed`, `shipping`, `completed`, `cancelled` |
+| `PaymentMethodEnum` | `cod`, `vnpay` |
+| `PaymentStatusEnum` | `unpaid`, `paid`, `failed`, `refunded` |
+| `TxnStatusEnum` | `pending`, `success`, `failed`, `refunded` |
+| `ChatRoleEnum` | `user`, `assistant`, `system`, `tool` |
+| `DocCategoryEnum` | `nutrition`, `health`, `training`, `grooming`, `breed`, `product` |
 
-**Indexes:** `idx_users_email` (unique), `idx_users_role` *(để list admin nhanh)*
-
----
-
-## 2. `pets` — Hồ sơ thú cưng
+## `users`
 
 | Cột | Kiểu | Ràng buộc | Mô tả |
 |---|---|---|---|
-| `id` | UUID | PK | |
-| `user_id` | UUID | FK → `users.id` ON DELETE CASCADE, NN, index | Chủ pet |
-| `name` | VARCHAR(100) | NN | Tên pet (Miu, Lu…) |
-| `species` | ENUM('dog','cat','bird','fish','rabbit','other') | NN | Loài — dùng để filter sản phẩm |
-| `breed` | VARCHAR(100) | nullable | Giống (Anh lông ngắn, Golden Retriever…) |
-| `age_months` | INTEGER | nullable, CHECK (0–360) | Tuổi tính theo tháng. Tại sao tháng? — chó mèo con &lt; 12 tháng cần thức ăn khác |
-| `weight_kg` | NUMERIC(5,2) | nullable, CHECK (&gt; 0 AND &lt; 200) | Cân nặng, quan trọng để tính khẩu phần |
-| `gender` | ENUM('male','female','unknown') | NN, default `'unknown'` | |
-| `health_notes` | TEXT | nullable | Ghi chú sức khoẻ free-form (bot đọc cái này) |
-| `allergies` | TEXT | nullable | Dị ứng (gà, cá hồi…) — **critical cho AI** |
-| `avatar_url` | VARCHAR(500) | nullable | Cloudinary URL |
-| `created_at`, `updated_at` | TIMESTAMPTZ | | |
+| `id` | UUID | PK | Khóa chính |
+| `email` | String | UK, index, NN | Email đăng nhập |
+| `hashed_password` | String | NN | bcrypt hash |
+| `full_name` | String | NN | Họ tên |
+| `phone` | String | nullable | Số điện thoại |
+| `address` | Text | nullable | Địa chỉ mặc định |
+| `role` | Enum | default `user` | Phân quyền |
+| `is_active` | Boolean | default true | Khóa/mở tài khoản |
+| `created_at` | DateTimeTZ | server default now | Ngày tạo |
+| `updated_at` | DateTimeTZ | nullable | Ngày cập nhật |
 
-**Indexes:** `idx_pets_user_id`, `idx_pets_species`
+Quan hệ: one-to-many `pets`, `orders`, `chat_sessions`, `reviews`; one-to-one `carts`.
 
----
-
-## 3. `categories` — Danh mục
+## `pets`
 
 | Cột | Kiểu | Ràng buộc | Mô tả |
 |---|---|---|---|
-| `id` | SERIAL | PK | Int thay vì UUID vì ít, hiển thị URL slug-based |
-| `name` | VARCHAR(100) | NN | "Thức ăn hạt" |
-| `slug` | VARCHAR(120) | UK, NN, index | "thuc-an-hat" — dùng trong URL |
-| `parent_id` | INTEGER | FK → `categories.id` ON DELETE SET NULL, nullable | Danh mục cha (null = root) |
-| `image_url` | VARCHAR(500) | nullable | Icon hiển thị trên menu |
-| `created_at` | TIMESTAMPTZ | NN, default `now()` | |
+| `id` | UUID | PK | Khóa chính |
+| `user_id` | UUID | FK `users.id` cascade, NN | Chủ sở hữu |
+| `name` | String | NN | Tên thú cưng |
+| `species` | Enum | NN | Loài |
+| `breed` | String | nullable | Giống |
+| `age_months` | Integer | nullable | Tuổi theo tháng |
+| `weight_kg` | Numeric(5,2) | nullable | Cân nặng |
+| `gender` | Enum | default `unknown` | Giới tính |
+| `health_notes` | Text | nullable | Ghi chú sức khỏe |
+| `allergies` | Text | nullable | Dị ứng |
+| `avatar_url` | String | nullable | Ảnh đại diện |
+| `created_at`, `updated_at` | DateTimeTZ | | Audit |
 
-**Indexes:** `idx_categories_slug` (unique), `idx_categories_parent_id`
-
----
-
-## 4. `products` — Sản phẩm
-
-| Cột | Kiểu | Ràng buộc | Mô tả |
-|---|---|---|---|
-| `id` | UUID | PK | |
-| `category_id` | INTEGER | FK → `categories.id` ON DELETE SET NULL, index | |
-| `name` | VARCHAR(255) | NN | |
-| `slug` | VARCHAR(280) | UK, NN, index | URL-friendly |
-| `description` | TEXT | nullable | Mô tả dài, Markdown |
-| `price` | NUMERIC(12,0) | NN, CHECK (&gt; 0) | VND, không có phần thập phân |
-| `sale_price` | NUMERIC(12,0) | nullable, CHECK (&gt; 0 AND ≤ `price`) | Giá sau giảm |
-| `stock_qty` | INTEGER | NN, default 0, CHECK (≥ 0) | Tồn kho |
-| `brand` | VARCHAR(100) | nullable, index | Royal Canin, Pedigree… |
-| `images` | JSONB | NN, default `'[]'` | Array URL Cloudinary |
-| `target_species` | JSONB | NN, default `'[]'` | `["dog","cat"]` — để filter theo pet |
-| `attributes` | JSONB | NN, default `'{}'` | `{weight_g:1500, age_range:"adult", grain_free:true}` |
-| `is_active` | BOOLEAN | NN, default `true`, index | Admin ẩn sản phẩm thay vì xoá |
-| `created_at`, `updated_at` | TIMESTAMPTZ | | |
-
-**Indexes:** `idx_products_slug` (unique), `idx_products_category_id`, `idx_products_is_active`, `idx_products_brand`, `idx_products_name_fts` (GIN trên `to_tsvector('simple', name || ' ' || description)` cho full-text search)
-
----
-
-## 5. `product_embeddings` — Vector embedding
+## `categories`
 
 | Cột | Kiểu | Ràng buộc | Mô tả |
 |---|---|---|---|
-| `product_id` | UUID | PK & FK → `products.id` ON DELETE CASCADE | PK trùng FK — 1-1 relation |
-| `embedding` | VECTOR(1536) | NN | Vector từ `text-embedding-3-small` |
-| `source_text` | TEXT | NN | Text gốc đã embed, để re-embed khi đổi model |
-| `updated_at` | TIMESTAMPTZ | NN, default `now()` on update | |
+| `id` | Integer | PK autoincrement | Khóa chính |
+| `name` | String | NN | Tên danh mục |
+| `slug` | String | UK, NN | Slug URL |
+| `parent_id` | Integer | FK `categories.id`, nullable | Danh mục cha |
+| `image_url` | String | nullable | Ảnh danh mục |
+| `created_at` | DateTimeTZ | server default now | Ngày tạo |
 
-**Indexes:** `idx_product_embeddings_vector` — `USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)` *(cho similarity search nhanh)*
-
----
-
-## 6. `carts` — Giỏ hàng
+## `banners`
 
 | Cột | Kiểu | Ràng buộc | Mô tả |
 |---|---|---|---|
-| `id` | UUID | PK | |
-| `user_id` | UUID | FK → `users.id` ON DELETE CASCADE, **UK**, NN | 1 user đúng 1 cart |
-| `created_at`, `updated_at` | TIMESTAMPTZ | | |
+| `id` | Integer | PK autoincrement | Khóa chính |
+| `image_url` | String | NN | Ảnh fallback |
+| `desktop_image_url` | String | nullable | Ảnh desktop |
+| `mobile_image_url` | String | nullable | Ảnh mobile |
+| `title` | String | nullable | Tiêu đề |
+| `subtitle` | String | nullable | Phụ đề |
+| `link_url` | String | nullable | Link khi click |
+| `sort_order` | Integer | default 0 | Thứ tự |
+| `is_active` | Boolean | default true | Có hiển thị không |
+| `created_at`, `updated_at` | DateTimeTZ | | Audit |
 
----
-
-## 7. `cart_items`
-
-| Cột | Kiểu | Ràng buộc | Mô tả |
-|---|---|---|---|
-| `id` | UUID | PK | |
-| `cart_id` | UUID | FK → `carts.id` ON DELETE CASCADE, NN | |
-| `product_id` | UUID | FK → `products.id` ON DELETE CASCADE, NN | |
-| `quantity` | INTEGER | NN, CHECK (&gt; 0) | |
-| `added_at` | TIMESTAMPTZ | NN, default `now()` | |
-
-**Constraints:** `UNIQUE (cart_id, product_id)` — không cho trùng, nếu thêm lại thì UPDATE quantity
-
----
-
-## 8. `orders` — Đơn hàng
+## `products`
 
 | Cột | Kiểu | Ràng buộc | Mô tả |
 |---|---|---|---|
-| `id` | UUID | PK | |
-| `user_id` | UUID | FK → `users.id` ON DELETE RESTRICT, NN, index | Không xoá user còn đơn |
-| `order_code` | VARCHAR(30) | UK, NN, index | Format: `PSH-20260417-A3F2` — user-facing |
-| `status` | ENUM | NN, default `'pending'`, index | `pending` → `confirmed` → `shipping` → `completed` \| `cancelled` |
-| `subtotal` | NUMERIC(12,0) | NN | Tổng tiền sản phẩm |
-| `shipping_fee` | NUMERIC(12,0) | NN, default 0 | |
-| `total` | NUMERIC(12,0) | NN | `subtotal + shipping_fee` — denormalized để query nhanh |
-| `ship_name` | VARCHAR(255) | NN | Snapshot từ form checkout |
-| `ship_phone` | VARCHAR(20) | NN | |
-| `ship_address` | TEXT | NN | |
-| `payment_method` | ENUM('cod','vnpay') | NN | |
-| `payment_status` | ENUM | NN, default `'unpaid'` | `unpaid` \| `paid` \| `failed` \| `refunded` |
-| `note` | TEXT | nullable | Ghi chú khách hàng |
-| `created_at`, `updated_at` | TIMESTAMPTZ | | |
+| `id` | UUID | PK | Khóa chính |
+| `category_id` | Integer | FK `categories.id` set null | Danh mục |
+| `name` | String | NN | Tên sản phẩm |
+| `slug` | String | UK, NN | Slug chi tiết |
+| `description` | Text | nullable | Mô tả |
+| `price` | Numeric(10,2) | NN, CHECK `> 0` | Giá gốc |
+| `sale_price` | Numeric(10,2) | nullable, CHECK `> 0` và `< price` | Giá sale |
+| `stock_qty` | Integer | default 0, CHECK `>= 0` | Tồn kho cho sản phẩm không có variant |
+| `brand` | String | nullable | Thương hiệu |
+| `images` | JSONB | nullable | Ảnh legacy/fallback, thường có key `main` |
+| `target_species` | JSONB | nullable | Danh sách loài phù hợp |
+| `attributes` | JSONB | nullable | Thuộc tính sản phẩm |
+| `is_active` | Boolean | default true | Có bán không |
+| `sold_count` | Integer | default 0 | Số đã bán |
+| `avg_rating` | Numeric(3,2) | nullable | Rating trung bình |
+| `review_count` | Integer | default 0 | Số review |
+| `created_at`, `updated_at` | DateTimeTZ | | Audit |
 
-**Indexes:** `idx_orders_user_id`, `idx_orders_status`, `idx_orders_created_at` (DESC cho list đơn mới nhất)
+Quan hệ: category, variants, product_images, cart_items, order_items, reviews.
 
----
-
-## 9. `order_items`
-
-| Cột | Kiểu | Ràng buộc | Mô tả |
-|---|---|---|---|
-| `id` | UUID | PK | |
-| `order_id` | UUID | FK → `orders.id` ON DELETE CASCADE, NN, index | |
-| `product_id` | UUID | FK → `products.id` ON DELETE SET NULL, nullable | Giữ lịch sử nếu sản phẩm bị xoá |
-| `product_name_snapshot` | VARCHAR(255) | NN | Tên lúc mua, đề phòng admin đổi tên |
-| `unit_price_snapshot` | NUMERIC(12,0) | NN | Giá bán thực tại thời điểm mua (`sale_price` nếu có, ngược lại `price`) |
-| `quantity` | INTEGER | NN, CHECK (&gt; 0) | |
-
----
-
-## 10. `payments`
+## `product_variants`
 
 | Cột | Kiểu | Ràng buộc | Mô tả |
 |---|---|---|---|
-| `id` | UUID | PK | |
-| `order_id` | UUID | FK → `orders.id` ON DELETE CASCADE, NN, index | |
-| `method` | ENUM('cod','vnpay') | NN | |
-| `amount` | NUMERIC(12,0) | NN | |
-| `status` | ENUM | NN | `pending` \| `success` \| `failed` \| `refunded` |
-| `external_txn_id` | VARCHAR(100) | nullable, index | `vnp_TransactionNo` từ VNPay |
-| `raw_response` | JSONB | nullable | Full response từ gateway để debug |
-| `created_at` | TIMESTAMPTZ | NN, default `now()` | |
+| `id` | UUID | PK | Khóa chính |
+| `product_id` | UUID | FK `products.id` cascade, NN | Sản phẩm cha |
+| `sku` | String | UK, nullable | SKU |
+| `price` | Numeric(10,2) | NN, CHECK `> 0` | Giá variant |
+| `sale_price` | Numeric(10,2) | nullable, CHECK `> 0` và `< price` | Giá sale variant |
+| `stock_qty` | Integer | default 0, CHECK `>= 0` | Tồn kho variant |
+| `attributes` | JSONB | nullable | Ví dụ màu, size, trọng lượng |
+| `is_active` | Boolean | default true | Có bán không |
+| `created_at` | DateTimeTZ | server default now | Ngày tạo |
 
----
-
-## 11. `chat_sessions`
-
-| Cột | Kiểu | Ràng buộc | Mô tả |
-|---|---|---|---|
-| `id` | UUID | PK | |
-| `user_id` | UUID | FK → `users.id` ON DELETE CASCADE, NN, index | |
-| `pet_id` | UUID | FK → `pets.id` ON DELETE SET NULL, nullable | Pet được chọn làm context |
-| `title` | VARCHAR(200) | NN, default `'Cuộc trò chuyện mới'` | Auto-generate từ câu đầu user gửi |
-| `created_at`, `updated_at` | TIMESTAMPTZ | | |
-
-**Indexes:** `idx_chat_sessions_user_id`, `idx_chat_sessions_updated_at` DESC
-
----
-
-## 12. `chat_messages`
+## `product_images`
 
 | Cột | Kiểu | Ràng buộc | Mô tả |
 |---|---|---|---|
-| `id` | UUID | PK | |
-| `session_id` | UUID | FK → `chat_sessions.id` ON DELETE CASCADE, NN, index | |
-| `role` | ENUM('user','assistant','system','tool') | NN | Theo chuẩn OpenAI Chat Completions |
-| `content` | TEXT | NN | Nội dung text (Markdown) |
-| `tool_calls` | JSONB | nullable | Khi assistant gọi tool (`search_products`…) |
-| `token_usage` | JSONB | nullable | `{prompt_tokens, completion_tokens, total_tokens}` — để tính cost |
-| `created_at` | TIMESTAMPTZ | NN, default `now()`, index | |
+| `id` | UUID | PK | Khóa chính |
+| `product_id` | UUID | FK `products.id` cascade, NN | Sản phẩm |
+| `variant_id` | UUID | FK `product_variants.id` set null | Variant liên quan |
+| `attr_key` | String | nullable | Tên thuộc tính ảnh đại diện |
+| `attr_value` | String | nullable | Giá trị thuộc tính |
+| `url` | String | NN | URL ảnh |
+| `alt_text` | String | nullable | Alt text |
+| `is_main` | Boolean | default false | Ảnh chính |
+| `sort_order` | Integer | default 0 | Thứ tự |
 
----
-
-## 13. `knowledge_docs` — Tài liệu gốc cho RAG
-
-| Cột | Kiểu | Ràng buộc | Mô tả |
-|---|---|---|---|
-| `id` | UUID | PK | |
-| `title` | VARCHAR(300) | NN | |
-| `source_url` | VARCHAR(500) | nullable | Link nguồn gốc (để trích dẫn trong báo cáo) |
-| `category` | ENUM | NN, index | `nutrition` \| `health` \| `training` \| `grooming` \| `breed` |
-| `content` | TEXT | NN | Nội dung đầy đủ (Markdown) |
-| `created_at`, `updated_at` | TIMESTAMPTZ | | |
-
----
-
-## 14. `knowledge_chunks`
+## `carts`
 
 | Cột | Kiểu | Ràng buộc | Mô tả |
 |---|---|---|---|
-| `id` | UUID | PK | |
-| `doc_id` | UUID | FK → `knowledge_docs.id` ON DELETE CASCADE, NN, index | |
-| `chunk_index` | INTEGER | NN, CHECK (≥ 0) | Thứ tự trong doc |
-| `content` | TEXT | NN | Đoạn ~500 token |
-| `embedding` | VECTOR(1536) | NN | |
+| `id` | UUID | PK | Khóa chính |
+| `user_id` | UUID | FK `users.id` cascade, UK, NN | Mỗi user có một cart |
+| `created_at`, `updated_at` | DateTimeTZ | | Audit |
 
-**Indexes:** `idx_knowledge_chunks_embedding ivfflat`, `UNIQUE (doc_id, chunk_index)`
+## `cart_items`
 
----
+| Cột | Kiểu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính |
+| `cart_id` | UUID | FK `carts.id` cascade, NN | Giỏ hàng |
+| `product_id` | UUID | FK `products.id` cascade, NN | Sản phẩm |
+| `variant_id` | UUID | FK `product_variants.id` cascade, nullable | Variant |
+| `quantity` | Integer | default 1, CHECK `> 0` | Số lượng |
+| `added_at` | DateTimeTZ | server default now | Ngày thêm |
 
-## Convention chung
+## `orders`
 
-- **Primary key:** UUID cho các entity user-facing (có thể lộ trên URL), SERIAL cho bảng master ít (`categories`)
-- **Timestamp:** luôn `TIMESTAMPTZ` (có timezone), default `now()`
-- **Soft delete:** chỉ áp dụng cho `users` và `products` (cột `is_active`), còn lại hard delete + CASCADE
-- **Money:** `NUMERIC(12,0)` — VND không phần thập phân, đủ chứa tới 999 tỷ
-- **Naming:** `snake_case`, bảng số nhiều (`products`), FK là `<entity>_id`
-- **JSON:** dùng `JSONB` không phải `JSON` (index được, nhanh hơn)
-- **Enum:** Postgres native ENUM (không dùng VARCHAR + CHECK) để tận dụng validation + type safety trong SQLAlchemy
+| Cột | Kiểu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính |
+| `user_id` | UUID | FK `users.id` restrict, nullable | Null khi guest checkout |
+| `order_code` | String | UK, NN | Mã đơn hiển thị |
+| `status` | Enum | default `pending` | Trạng thái vận hành |
+| `subtotal` | Numeric(10,2) | CHECK `>= 0` | Tổng tiền hàng |
+| `shipping_fee` | Numeric(10,2) | default 0, CHECK `>= 0` | Phí ship |
+| `total` | Numeric(10,2) | CHECK `>= 0` | Tổng thanh toán |
+| `ship_name` | String | NN | Người nhận |
+| `ship_phone` | String | NN | SĐT nhận |
+| `ship_address` | Text | NN | Địa chỉ nhận |
+| `payment_method` | Enum | NN | `cod` hoặc `vnpay` |
+| `payment_status` | Enum | default `unpaid` | Trạng thái thanh toán |
+| `note` | Text | nullable | Ghi chú |
+| `guest_email` | String | nullable | Email tra cứu đơn guest |
+| `idempotency_scope` | String(160) | composite UK, nullable | Scope user/guest |
+| `idempotency_key` | String(128) | composite UK, nullable | Khóa retry checkout |
+| `request_hash` | String(64) | nullable | SHA-256 canonical request |
+| `created_at`, `updated_at` | DateTimeTZ | | Audit |
+
+## `order_items`
+
+| Cột | Kiểu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính |
+| `order_id` | UUID | FK `orders.id` cascade, NN | Đơn hàng |
+| `product_id` | UUID | FK `products.id` set null | Product gốc |
+| `variant_id` | UUID | FK `product_variants.id` set null | Variant gốc |
+| `product_name_snapshot` | String | NN | Tên tại thời điểm mua |
+| `variant_sku_snapshot` | String | nullable | SKU tại thời điểm mua |
+| `variant_attributes_snapshot` | JSONB | nullable | Thuộc tính tại thời điểm mua |
+| `unit_price_snapshot` | Numeric(10,2) | CHECK `> 0` | Đơn giá tại thời điểm mua |
+| `quantity` | Integer | CHECK `> 0` | Số lượng |
+
+## `payments`
+
+| Cột | Kiểu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính |
+| `order_id` | UUID | FK `orders.id` cascade, NN | Đơn hàng |
+| `method` | Enum | NN | COD/VNPay |
+| `amount` | Numeric(10,2) | CHECK `> 0` | Số tiền |
+| `status` | Enum | default `pending` | Trạng thái giao dịch |
+| `external_txn_id` | String | UK, nullable | Mã giao dịch VNPay |
+| `merchant_ref` | String(64) | UK, nullable | Mã payment attempt gửi VNPay |
+| `idempotency_key` | String(128) | UK theo order, nullable | Khóa retry tạo payment |
+| `payment_url` | Text | nullable | URL VNPay đã tạo |
+| `expires_at` | DateTimeTZ | nullable, indexed | Hạn payment attempt |
+| `requires_review` | Boolean | default false | Cần đối soát thủ công |
+| `raw_response` | JSONB | nullable | Payload gateway |
+| `created_at` | DateTimeTZ | server default now | Ngày tạo |
+
+## `inventory_reservations`
+
+| Cột | Kiểu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính |
+| `order_id` | UUID | FK `orders.id` cascade | Đơn giữ hàng |
+| `order_item_id` | UUID | FK `order_items.id` cascade, UK | Dòng đơn |
+| `product_id`, `variant_id` | UUID | FK set null | Đối tượng tồn kho |
+| `quantity` | Integer | CHECK `> 0` | Số lượng giữ |
+| `status` | Enum | held/committed/released | Trạng thái reservation |
+| `expires_at` | DateTimeTZ | indexed | Hạn giữ hàng gồm grace |
+| `released_at`, `committed_at` | DateTimeTZ | nullable | Thời điểm chuyển trạng thái |
+
+## `refresh_sessions`
+
+| Cột | Kiểu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính |
+| `user_id` | UUID | FK `users.id` cascade | Chủ session |
+| `jti` | String(64) | UK | ID refresh token |
+| `expires_at` | DateTimeTZ | indexed | Hạn token |
+| `revoked_at` | DateTimeTZ | nullable | Thời điểm thu hồi |
+| `replaced_by_jti` | String(64) | nullable | Token rotation kế tiếp |
+
+## `reviews`
+
+| Cột | Kiểu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính |
+| `user_id` | UUID | FK `users.id` cascade, NN | Người review |
+| `product_id` | UUID | FK `products.id` cascade, NN | Sản phẩm |
+| `rating` | Integer | NN | Điểm sao |
+| `comment` | Text | nullable | Nội dung |
+| `created_at` | DateTimeTZ | server default now | Ngày tạo |
+
+## `chat_sessions`
+
+| Cột | Kiểu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính |
+| `user_id` | UUID | FK `users.id` cascade, NN | Chủ phiên chat |
+| `pet_id` | UUID | FK `pets.id` set null, nullable | Pet context |
+| `title` | String | NN | Tiêu đề phiên |
+| `created_at`, `updated_at` | DateTimeTZ | | Audit |
+
+## `chat_messages`
+
+| Cột | Kiểu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính |
+| `session_id` | UUID | FK `chat_sessions.id` cascade, NN | Phiên chat |
+| `role` | Enum | NN | user/assistant/system/tool |
+| `content` | Text | NN | Nội dung |
+| `tool_calls` | JSONB | nullable | Metadata tool call |
+| `token_usage` | JSONB | nullable | Token/cost metadata |
+| `created_at` | DateTimeTZ | server default now | Ngày tạo |
+
+## `knowledge_docs`
+
+| Cột | Kiểu | Ràng buộc | Mô tả |
+|---|---|---|---|
+| `id` | UUID | PK | Khóa chính |
+| `title` | String | NN | Tiêu đề bài |
+| `source_url` | String | nullable | Nguồn tham khảo |
+| `category` | Enum | NN | Nhóm kiến thức |
+| `content` | Text | NN | Nội dung |
+| `created_at`, `updated_at` | DateTimeTZ | | Audit |
+
+## LangChain PGVector tables
+
+Hai bảng này do `langchain-postgres` tạo/quản lý:
+
+| Bảng | Vai trò |
+|---|---|
+| `langchain_pg_collection` | Lưu collection name như `petshop_products`, `petshop_knowledge` |
+| `langchain_pg_embedding` | Lưu document, metadata JSONB và vector embedding |
+
+Không chỉnh trực tiếp bằng model app. Reindex qua `app/services/indexing.py` hoặc admin endpoints.
+
+## Constraints và indexes đáng chú ý
+
+- `products.slug` unique.
+- `categories.slug` unique.
+- `product_variants.sku` unique.
+- `payments.external_txn_id` unique để hỗ trợ idempotency.
+- `payments.merchant_ref` và `(order_id, idempotency_key)` unique.
+- `(orders.idempotency_scope, orders.idempotency_key)` unique.
+- Check constraints cho price/sale_price/stock/quantity/order totals/payment amount.
+- Index hiệu năng được thêm trong migration `f3aeb0091cb2_add_perf_indexes.py`.

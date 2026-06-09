@@ -178,7 +178,7 @@ export default function GeneralProfilePage() {
             ))}
             <div
               onClick={() => setPetFormVisible(true)}
-              className="rounded-[20px] border-2 border-dashed border-neutral-200 flex flex-col items-center justify-center gap-3 p-10 cursor-pointer text-neutral-400 transition-all duration-[120ms] hover:border-[var(--primary-300)] hover:text-[var(--primary-500)] hover:bg-[var(--primary-25)]"
+              className="rounded-[20px] border-2 border-dashed border-neutral-200 flex flex-col items-center justify-center gap-3 p-10 cursor-pointer text-neutral-400 transition-all duration-120 hover:border-[var(--primary-300)] hover:text-[var(--primary-500)] hover:bg-[var(--primary-25)]"
             >
               <div className="w-12 h-12 rounded-full bg-current flex items-center justify-center text-white">
                 <Plus size={24} />

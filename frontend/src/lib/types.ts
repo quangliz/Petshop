@@ -61,6 +61,7 @@ export interface User {
   phone?: string;
   address?: string;
   role: string;
+  is_expert_verified?: boolean;
 }
 
 export interface Category {
@@ -103,4 +104,54 @@ export interface Banner {
   link_url?: string | null;
   sort_order: number;
   is_active: boolean;
+}
+
+export interface ForumAuthor {
+  id: string | null;
+  full_name: string;
+  role: string;
+  is_expert: boolean;
+  is_expert_verified: boolean;
+}
+
+export interface ForumThread {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+  category_label: string;
+  body?: string;
+  body_preview?: string;
+  tags: string[];
+  status: string;
+  is_locked: boolean;
+  is_ai_blocked: boolean;
+  knowledge_status: string;
+  knowledge_score: number;
+  upvote_count: number;
+  downvote_count: number;
+  reply_count: number;
+  accepted_reply_id: string | null;
+  author: ForumAuthor;
+  last_activity_at: string | null;
+  created_at: string | null;
+}
+
+export interface ForumReply {
+  id: string;
+  thread_id: string;
+  parent_reply_id: string | null;
+  body: string;
+  status: string;
+  is_ai_blocked: boolean;
+  is_expert_answer: boolean;
+  is_accepted: boolean;
+  upvote_count: number;
+  downvote_count: number;
+  expert_upvote_count: number;
+  knowledge_status: string;
+  knowledge_score: number;
+  author: ForumAuthor;
+  created_at: string | null;
+  updated_at: string | null;
 }

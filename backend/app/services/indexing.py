@@ -13,6 +13,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.catalog import Product
+from app.models.forum import ForumThread, KnowledgeStatusEnum
 from app.models.knowledge import KnowledgeDoc
 from app.services.embeddings import (
     PRODUCTS_COLLECTION,
@@ -20,6 +21,7 @@ from app.services.embeddings import (
     get_products_store,
     get_knowledge_store,
 )
+from app.services.forum_knowledge import forum_thread_source_text
 
 logger = logging.getLogger(__name__)
 
@@ -140,11 +142,53 @@ def _knowledge_chunks(doc: KnowledgeDoc) -> tuple[list[str], list[Document]]:
     return ids, documents
 
 
+def _forum_thread_chunks(thread: ForumThread) -> tuple[list[str], list[Document]]:
+    ids: list[str] = []
+    documents: list[Document] = []
+    for i, chunk in enumerate(_chunk_text(forum_thread_source_text(thread))):
+        ids.append(f"forum-thread-{thread.id}-{i}")
+        title = f"Forum: {thread.title}"
+        documents.append(Document(
+            page_content=chunk,
+            metadata={
+                "source_type": "forum_thread",
+                "thread_id": str(thread.id),
+                "thread_slug": thread.slug,
+                "category": thread.category.value if thread.category else None,
+                "title": title,
+                "source_url": f"/forum/{thread.slug}",
+                "knowledge_score": thread.knowledge_score,
+                "is_solved": bool(thread.accepted_reply_id),
+                "upvote_count": thread.upvote_count,
+                "chunk_index": i,
+            },
+        ))
+    return ids, documents
+
+
+async def reindex_one_forum_thread(thread: ForumThread) -> None:
+    if thread.knowledge_status != KnowledgeStatusEnum.eligible:
+        return
+    ids, documents = _forum_thread_chunks(thread)
+    store = get_knowledge_store()
+    try:
+        await asyncio.to_thread(store.delete, ids=ids)
+    except Exception:  # noqa: BLE001
+        logger.warning("Could not delete old forum thread embedding for %s", thread.id)
+    if documents:
+        await asyncio.to_thread(store.add_documents, documents, ids=ids)
+
+
 async def reindex_knowledge(db: AsyncSession) -> int:
     result = await db.execute(select(KnowledgeDoc))
     docs_db = result.scalars().all()
+    forum_result = await db.execute(
+        select(ForumThread)
+        .where(ForumThread.knowledge_status == KnowledgeStatusEnum.eligible)
+    )
+    forum_threads = forum_result.scalars().all()
     store = get_knowledge_store()
-    if not docs_db:
+    if not docs_db and not forum_threads:
         await _wipe_collection(db, KNOWLEDGE_COLLECTION)
         return 0
 
@@ -152,6 +196,10 @@ async def reindex_knowledge(db: AsyncSession) -> int:
     all_docs: list[Document] = []
     for d in docs_db:
         ids, documents = _knowledge_chunks(d)
+        all_ids.extend(ids)
+        all_docs.extend(documents)
+    for thread in forum_threads:
+        ids, documents = _forum_thread_chunks(thread)
         all_ids.extend(ids)
         all_docs.extend(documents)
 
@@ -164,3 +212,25 @@ async def reindex_knowledge(db: AsyncSession) -> int:
 async def delete_embedding_ids(collection: str, ids: Iterable[str]) -> None:
     store = get_products_store() if collection == "products" else get_knowledge_store()
     await asyncio.to_thread(store.delete, ids=list(ids))
+
+
+async def _delete_forum_embeddings_by_prefix(db: AsyncSession, prefix: str) -> None:
+    table_exists = (await db.execute(text("SELECT to_regclass('langchain_pg_embedding')"))).scalar_one()
+    if not table_exists:
+        return
+    await db.execute(
+        text(
+            "DELETE FROM langchain_pg_embedding WHERE collection_id = "
+            "(SELECT uuid FROM langchain_pg_collection WHERE name = :name) "
+            "AND id LIKE :prefix"
+        ),
+        {"name": KNOWLEDGE_COLLECTION, "prefix": prefix},
+    )
+
+
+async def delete_forum_reply_embeddings(db: AsyncSession, reply_id) -> None:
+    await _delete_forum_embeddings_by_prefix(db, f"forum-reply-{reply_id}-%")
+
+
+async def delete_forum_thread_embeddings(db: AsyncSession, thread_id) -> None:
+    await _delete_forum_embeddings_by_prefix(db, f"forum-thread-{thread_id}-%")

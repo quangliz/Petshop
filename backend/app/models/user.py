@@ -1,5 +1,5 @@
-from sqlalchemy import Boolean, String, Text, Numeric, DateTime, Enum as SQLEnum, ForeignKey, Integer, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, String, Text, Numeric, DateTime, Enum as SQLEnum, ForeignKey, Integer, Index, func
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import uuid
 from typing import Optional
@@ -10,6 +10,11 @@ from app.database import Base
 class RoleEnum(str, enum.Enum):
     user = "user"
     admin = "admin"
+    catalog_manager = "catalog_manager"
+    order_operator = "order_operator"
+    support = "support"
+    content_manager = "content_manager"
+    expert = "expert"
 
 class SpeciesEnum(str, enum.Enum):
     dog = "dog"
@@ -34,6 +39,8 @@ class User(Base):
     phone: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     role: Mapped[RoleEnum] = mapped_column(SQLEnum(RoleEnum), default=RoleEnum.user)
+    scopes: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    is_expert_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
@@ -43,6 +50,30 @@ class User(Base):
     orders = relationship("Order", back_populates="user")
     chat_sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
+    refresh_sessions = relationship("RefreshSession", back_populates="user", cascade="all, delete-orphan")
+    forum_threads = relationship("ForumThread", back_populates="author")
+    forum_replies = relationship("ForumReply", back_populates="author")
+
+
+class RefreshSession(Base):
+    __tablename__ = "refresh_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
+    )
+    jti: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[Optional[DateTime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    replaced_by_jti: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="refresh_sessions")
+
+    __table_args__ = (
+        Index("ix_refresh_sessions_user_id", "user_id"),
+        Index("ix_refresh_sessions_expires_at", "expires_at"),
+    )
 
 class Pet(Base):
     __tablename__ = "pets"

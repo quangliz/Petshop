@@ -1,8 +1,8 @@
 import cloudinary
 import cloudinary.uploader
 from typing import Any, List, Optional
-from fastapi import APIRouter, HTTPException, UploadFile, File
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, UploadFile, File, Request
+from pydantic import BaseModel, Field
 import logging
 import uuid
 from sqlalchemy import select
@@ -10,6 +10,7 @@ from sqlalchemy import select
 from app.api.deps import SessionDep, CurrentUser
 from app.models.user import Pet, SpeciesEnum, GenderEnum
 from app.core.config import settings
+from app.core.limiter import limiter
 
 cloudinary.config(
     cloud_name=settings.CLOUDINARY_CLOUD_NAME,
@@ -24,22 +25,22 @@ router = APIRouter()
 
 
 class PetCreate(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=100)
     species: SpeciesEnum
     breed: Optional[str] = None
-    age_months: Optional[int] = None
-    weight_kg: Optional[float] = None
+    age_months: Optional[int] = Field(default=None, ge=0, le=600)
+    weight_kg: Optional[float] = Field(default=None, gt=0, le=500)
     gender: GenderEnum = GenderEnum.unknown
     health_notes: Optional[str] = None
     allergies: Optional[str] = None
 
 
 class PetUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     species: Optional[SpeciesEnum] = None
     breed: Optional[str] = None
-    age_months: Optional[int] = None
-    weight_kg: Optional[float] = None
+    age_months: Optional[int] = Field(default=None, ge=0, le=600)
+    weight_kg: Optional[float] = Field(default=None, gt=0, le=500)
     gender: Optional[GenderEnum] = None
     health_notes: Optional[str] = None
     allergies: Optional[str] = None
@@ -101,9 +102,9 @@ async def create_pet(pet_in: PetCreate, db: SessionDep, current_user: CurrentUse
 
 
 @router.put("/{pet_id}", response_model=PetResponse)
-async def update_pet(pet_id: str, pet_in: PetUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
+async def update_pet(pet_id: uuid.UUID, pet_in: PetUpdate, db: SessionDep, current_user: CurrentUser) -> Any:
     result = await db.execute(
-        select(Pet).where(Pet.id == uuid.UUID(pet_id), Pet.user_id == current_user.id)
+        select(Pet).where(Pet.id == pet_id, Pet.user_id == current_user.id)
     )
     pet = result.scalar_one_or_none()
     if not pet:
@@ -119,9 +120,9 @@ async def update_pet(pet_id: str, pet_in: PetUpdate, db: SessionDep, current_use
 
 
 @router.delete("/{pet_id}")
-async def delete_pet(pet_id: str, db: SessionDep, current_user: CurrentUser) -> Any:
+async def delete_pet(pet_id: uuid.UUID, db: SessionDep, current_user: CurrentUser) -> Any:
     result = await db.execute(
-        select(Pet).where(Pet.id == uuid.UUID(pet_id), Pet.user_id == current_user.id)
+        select(Pet).where(Pet.id == pet_id, Pet.user_id == current_user.id)
     )
     pet = result.scalar_one_or_none()
     if not pet:
@@ -132,13 +133,27 @@ async def delete_pet(pet_id: str, db: SessionDep, current_user: CurrentUser) -> 
 
 
 @router.post("/{pet_id}/avatar")
-async def upload_avatar(pet_id: str, db: SessionDep, current_user: CurrentUser, file: UploadFile = File(...)) -> Any:
+@limiter.limit("10/minute")
+async def upload_avatar(
+    pet_id: uuid.UUID,
+    request: Request,
+    db: SessionDep,
+    current_user: CurrentUser,
+    file: UploadFile = File(...),
+) -> Any:
     result = await db.execute(
-        select(Pet).where(Pet.id == uuid.UUID(pet_id), Pet.user_id == current_user.id)
+        select(Pet).where(Pet.id == pet_id, Pet.user_id == current_user.id)
     )
     pet = result.scalar_one_or_none()
     if not pet:
         raise HTTPException(status_code=404, detail="Không tìm thấy Pet")
+
+    if file.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(status_code=415, detail="Chỉ hỗ trợ ảnh JPEG, PNG hoặc WebP")
+    content = await file.read(settings.PET_AVATAR_MAX_BYTES + 1)
+    if len(content) > settings.PET_AVATAR_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Ảnh vượt quá giới hạn 5 MB")
+    await file.seek(0)
 
     try:
         upload_result = cloudinary.uploader.upload(file.file)
@@ -146,5 +161,6 @@ async def upload_avatar(pet_id: str, db: SessionDep, current_user: CurrentUser, 
         pet.avatar_url = url
         await db.commit()
         return {"avatar_url": url}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi upload ảnh: {str(e)}")
+    except Exception:
+        logger.exception("Pet avatar upload failed")
+        raise HTTPException(status_code=502, detail="Không thể tải ảnh lên. Vui lòng thử lại.")

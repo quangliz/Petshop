@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { X, Send, User, Plus, History, ArrowLeft, Phone, Mail } from "lucide-react";
 import { useAuthStore, useViewingProductStore } from "@/lib/store";
 import CatbotLogo from "./CatbotLogo";
@@ -70,33 +71,29 @@ function renderInlineContent(content: string, products: ChatProduct[] | undefine
 const iconBtnCls = "border-none bg-white/10 text-white w-[30px] h-[30px] rounded-[8px] cursor-pointer flex items-center justify-center shrink-0 hover:bg-white/20 transition-colors";
 
 export default function ChatWidget() {
+  const pathname = usePathname();
+  const hasBottomTab = pathname.startsWith("/products/");
   const { user } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [view, setView] = useState<"chat" | "history">("chat");
-  const closePanel = () => {
+  const closePanel = useCallback(() => {
     if (isClosing) return;
     setIsClosing(true);
     const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
     setTimeout(() => { setIsOpen(false); setIsClosing(false); }, isMobile ? 280 : 200);
-  };
+  }, [isClosing]);
   const togglePanel = () => { if (isOpen) closePanel(); else setIsOpen(true); };
 
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [selectedPet, setSelectedPet] = useState<string>("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionTitle, setSessionTitle] = useState<string>("");
 
   const viewingProduct = useViewingProductStore((s) => s.viewingProduct);
+  const widgetRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
-
-  const { data: pets } = useQuery({
-    queryKey: ["pets"],
-    queryFn: async () => (await api.get("/pets/")).data,
-    enabled: !!user,
-  });
 
   const { data: sessions, refetch: refetchSessions } = useQuery<ChatSessionMeta[]>({
     queryKey: ["chat-sessions"],
@@ -105,12 +102,42 @@ export default function ChatWidget() {
   });
 
   useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    window.addEventListener("open-catbot-chat", handleOpen);
+    return () => window.removeEventListener("open-catbot-chat", handleOpen);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node) || widgetRef.current?.contains(target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      const blockNextClick = (clickEvent: MouseEvent) => {
+        window.clearTimeout(cleanupClickBlocker);
+        clickEvent.preventDefault();
+        clickEvent.stopPropagation();
+        clickEvent.stopImmediatePropagation();
+      };
+      const cleanupClickBlocker = window.setTimeout(() => {
+        document.removeEventListener("click", blockNextClick, true);
+      }, 750);
+      document.addEventListener("click", blockNextClick, { capture: true, once: true });
+      closePanel();
+    };
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+  }, [closePanel, isOpen]);
+
+  useEffect(() => {
     if (isOpen) endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping, isOpen]);
 
   if (!user) return null;
 
-  const startNewChat = () => { setMessages([]); setSessionId(null); setSessionTitle(""); setSelectedPet(""); setView("chat"); };
+  const startNewChat = () => { setMessages([]); setSessionId(null); setSessionTitle(""); setView("chat"); };
 
   const loadSession = async (sid: string) => {
     try {
@@ -134,7 +161,7 @@ export default function ChatWidget() {
       const response = await fetch(backendUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message: userMsg, session_id: sessionId, pet_id: selectedPet || null, product_slug: viewingProduct?.slug || null }),
+        body: JSON.stringify({ message: userMsg, session_id: sessionId, product_slug: viewingProduct?.slug || null }),
       });
       if (!response.ok) { const errText = await response.text().catch(() => ""); throw new Error(`HTTP ${response.status}: ${errText || "Lấy phản hồi thất bại"}`); }
       if (!response.body) return;
@@ -183,18 +210,21 @@ export default function ChatWidget() {
   };
 
   return (
-    <div className="fixed bottom-[76px] right-4 md:bottom-8 md:right-8 z-[1000] flex flex-col items-end gap-4">
+    <div ref={widgetRef} className={`fixed ${hasBottomTab ? "bottom-[72px]" : "bottom-4"} right-4 md:bottom-8 md:right-8 z-[1000] flex flex-col items-end gap-4`}>
       {isOpen && (
         <div
-          className={`chat-panel ${isClosing ? "chat-panel-closing" : ""} w-[calc(100vw-2rem)] h-[calc(100dvh-164px)] md:w-[400px] md:h-[600px] flex flex-col overflow-hidden bg-white rounded-2xl border border-neutral-100`}
-          style={{ boxShadow: "0 20px 40px rgba(26, 24, 20, 0.15)" }}
+          className={`chat-panel ${isClosing ? "chat-panel-closing" : ""} w-[calc(100vw-2rem)] ${hasBottomTab ? "h-[calc(100dvh-220px)]" : "h-[calc(100dvh-164px)]"} md:w-[400px] md:h-[600px] flex flex-col overflow-hidden bg-white rounded-2xl border`}
+          style={{
+            borderColor: "var(--primary-200)",
+            boxShadow: "0 20px 44px rgba(193, 79, 39, 0.22), 0 6px 16px rgba(66, 60, 51, 0.08)",
+          }}
         >
           {/* Header */}
-          <div className="px-5 py-4 text-white flex items-center gap-3" style={{ background: "linear-gradient(135deg, var(--teal-600) 0%, var(--teal-700) 100%)" }}>
+          <div className="px-5 py-4 text-white flex items-center gap-3" style={{ background: "linear-gradient(135deg, var(--primary-500) 0%, var(--primary-700) 100%)" }}>
             {view === "history" ? (
               <button onClick={() => setView("chat")} className={iconBtnCls}><ArrowLeft size={18} /></button>
             ) : (
-              <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center"><CatbotLogo size={24} /></div>
+              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center"><CatbotLogo size={24} /></div>
             )}
             <div className="flex-1 min-w-0">
               <div className="text-[15px] font-extrabold overflow-hidden text-ellipsis whitespace-nowrap">
@@ -203,7 +233,7 @@ export default function ChatWidget() {
               {view === "chat" && (
                 <div className="text-[11px] text-white/70 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                  Trực tuyến · {viewingProduct ? `Đang xem: ${viewingProduct.name.slice(0, 20)}` : selectedPet ? "Hồ sơ pet" : "Tư vấn chung"}
+                  Trực tuyến · {viewingProduct ? `Đang xem: ${viewingProduct.name.slice(0, 20)}` : "Tư vấn chung"}
                 </div>
               )}
             </div>
@@ -226,7 +256,7 @@ export default function ChatWidget() {
                     key={s.id}
                     onClick={() => loadSession(s.id)}
                     className="w-full text-left px-5 py-3.5 border-b border-neutral-100 cursor-pointer flex flex-col gap-1 hover:bg-neutral-50 transition-colors"
-                    style={{ background: s.id === sessionId ? "var(--teal-50)" : undefined, border: "none", borderBottom: "1px solid var(--neutral-100)" }}
+                    style={{ background: s.id === sessionId ? "var(--primary-50)" : undefined, border: "none", borderBottom: "1px solid var(--neutral-100)" }}
                   >
                     <span className="text-[13px] font-semibold text-neutral-800 overflow-hidden text-ellipsis whitespace-nowrap block">{s.title}</span>
                     {s.created_at && (
@@ -238,27 +268,15 @@ export default function ChatWidget() {
             </div>
           ) : (
             <>
-              {/* Pet Selector */}
-              <div className="px-5 py-2 bg-neutral-50 border-b border-neutral-100 flex items-center justify-between">
-                <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-[0.05em]">Đang tư vấn cho:</span>
-                <select
-                  className="border-none bg-transparent text-[12px] font-bold cursor-pointer outline-none disabled:opacity-60"
-                  style={{ color: "var(--teal-700)" }}
-                  value={selectedPet}
-                  onChange={(e) => setSelectedPet(e.target.value)}
-                  disabled={!!sessionId}
-                >
-                  <option value="">Tư vấn chung</option>
-                  {pets?.map((p: { id: string, name: string }) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
-
               {/* Messages */}
               <div className="flex-1 p-5 overflow-y-auto flex flex-col gap-4 bg-neutral-25">
                 {messages.length === 0 && (
                   <div className="text-center py-10 px-5 text-neutral-500 text-[14px] leading-relaxed">
                     Chào <strong>{user.full_name}</strong>! 🐱<br />
-                    Mình là <strong>Catbot</strong> — trợ lý AI của ThePawsome. Hỏi mình bất cứ điều gì về sức khoẻ, dinh dưỡng hoặc sản phẩm cho pet nhé!
+                    Mình là <strong>Catbot</strong> — trợ lý AI của ThePawsome. Hỏi mình về sức khoẻ, dinh dưỡng hoặc sản phẩm cho pet nhé!
+                    <span className="block mt-2 text-[12px]">
+                      Nội dung chỉ mang tính tham khảo, không thay thế chẩn đoán hoặc điều trị của bác sĩ thú y.
+                    </span>
                   </div>
                 )}
 
@@ -266,7 +284,7 @@ export default function ChatWidget() {
                   <div key={idx} className={`flex gap-2.5 items-end ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
                     <div
                       className="w-[30px] h-[30px] rounded-[10px] shrink-0 flex items-center justify-center"
-                      style={{ background: m.role === "user" ? "var(--primary-100)" : "var(--teal-100)", color: m.role === "user" ? "var(--primary-600)" : "var(--teal-600)" }}
+                      style={{ background: "var(--primary-100)", color: "var(--primary-700)" }}
                     >
                       {m.role === "user" ? <User size={15} /> : <CatbotLogo size={18} />}
                     </div>
@@ -291,7 +309,7 @@ export default function ChatWidget() {
 
                 {isTyping && (messages.length === 0 || messages[messages.length - 1].role !== "assistant" || !messages[messages.length - 1].content) && (
                   <div className="flex gap-2.5">
-                    <div className="w-[30px] h-[30px] rounded-[10px] flex items-center justify-center" style={{ background: "var(--teal-100)", color: "var(--teal-600)" }}>
+                    <div className="w-[30px] h-[30px] rounded-[10px] flex items-center justify-center" style={{ background: "var(--primary-100)", color: "var(--primary-700)" }}>
                       <CatbotLogo size={18} />
                     </div>
                     <div className="px-3.5 py-2.5 bg-white rounded-[14px] border border-neutral-100 flex gap-1.5 items-center" style={{ boxShadow: "var(--shadow-sm)", borderBottomLeftRadius: 4 }}>
@@ -305,23 +323,28 @@ export default function ChatWidget() {
               </div>
 
               {/* Composer */}
-              <div className="px-5 py-4 bg-white border-t border-neutral-100 flex gap-2.5">
-                <input
-                  placeholder="Nhập câu hỏi cho AI..."
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                  disabled={isTyping}
-                  className="flex-1 border-none bg-neutral-50 px-3.5 py-2.5 rounded-[10px] text-[13px] outline-none disabled:opacity-60"
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={!input.trim() || isTyping}
-                  className="w-10 h-10 rounded-[10px] text-white border-none cursor-pointer flex items-center justify-center shrink-0 disabled:opacity-50 transition-opacity"
-                  style={{ background: "var(--teal-600)" }}
-                >
-                  <Send size={16} />
-                </button>
+              <div className="px-5 py-3 bg-white border-t border-neutral-100">
+                <div className="flex gap-2.5">
+                  <input
+                    placeholder="Nhập câu hỏi cho Catbot..."
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                    disabled={isTyping}
+                    className="flex-1 border-none bg-neutral-50 px-3.5 py-2.5 rounded-[10px] text-[13px] outline-none disabled:opacity-60"
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={!input.trim() || isTyping}
+                    className="w-10 h-10 rounded-[10px] text-white border-none cursor-pointer flex items-center justify-center shrink-0 disabled:opacity-50 transition-opacity"
+                    style={{ background: "var(--primary-600)" }}
+                  >
+                    <Send size={16} />
+                  </button>
+                </div>
+                <p className="mt-2 text-center text-[10px] text-neutral-400">
+                  Catbot là AI và có thể sai. Tình huống khẩn cấp cần liên hệ bác sĩ thú y.
+                </p>
               </div>
             </>
           )}
@@ -332,7 +355,7 @@ export default function ChatWidget() {
       <div className="flex items-center gap-3">
         {isOpen && !isClosing && (
           <>
-            <a href="mailto:qcontact.12@gmail.com" aria-label="Email"
+            <a href="mailto:help@thepawsome.store" aria-label="Email"
               className="contact-btn contact-btn-3 w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white shadow-md transition-transform duration-200 ease-out hover:scale-125 active:scale-95"
               style={{ background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)" }}>
               <Mail size={18} />
@@ -355,8 +378,8 @@ export default function ChatWidget() {
           onClick={togglePanel}
           className="w-14 h-14 md:w-16 md:h-16 rounded-[20px] md:rounded-3xl text-white border-none cursor-pointer flex items-center justify-center transition-all duration-200 ease-out hover:scale-105 active:scale-95"
           style={{
-            background: isOpen ? "var(--neutral-900)" : "linear-gradient(135deg, var(--teal-500) 0%, var(--teal-600) 100%)",
-            boxShadow: "0 12px 24px rgba(13, 148, 136, 0.3)",
+            background: isOpen ? "var(--neutral-900)" : "linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%)",
+            boxShadow: isOpen ? "0 12px 24px rgba(0, 0, 0, 0.15)" : "0 12px 24px rgba(193, 79, 39, 0.3)",
             transform: isOpen ? "rotate(90deg)" : undefined,
           }}
           onMouseEnter={(e) => { if (!isOpen) (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-4px)"; }}

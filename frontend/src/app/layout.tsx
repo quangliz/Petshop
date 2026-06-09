@@ -3,6 +3,8 @@ import { Be_Vietnam_Pro, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/providers/query-provider";
 import { Toaster } from '@/components/ui/sonner';
+import ConsentCenter from "@/components/consent/ConsentCenter";
+import WebVitalsReporter from "@/components/analytics/WebVitalsReporter";
 
 const beVietnamPro = Be_Vietnam_Pro({ 
   subsets: ["latin", "vietnamese"],
@@ -29,7 +31,11 @@ export default function RootLayout({
   return (
     <html lang="vi" className={`${beVietnamPro.variable} ${jetbrainsMono.variable}`}>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <WebVitalsReporter />
+          {children}
+          <ConsentCenter />
+        </Providers>
         <Toaster richColors position="bottom-right" toastOptions={{ style: { borderRadius: '12px', fontWeight: 600, fontSize: '13px' } }} />
       </body>
     </html>

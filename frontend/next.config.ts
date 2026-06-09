@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import path from 'path'
 
 const nextConfig: NextConfig = {
   output: 'standalone',
@@ -21,6 +22,9 @@ const nextConfig: NextConfig = {
         hostname: 'bizweb.dktcdn.net',
       },
     ],
+  },
+  turbopack: {
+    root: path.resolve(__dirname),
   },
 }
 

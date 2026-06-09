@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import urllib.parse
 import datetime
+from zoneinfo import ZoneInfo
 
 from app.core.config import settings
 
@@ -12,19 +13,29 @@ class VNPay:
         self.vnp_url = settings.VNPAY_URL
         self.return_url = settings.VNPAY_RETURN_URL
 
-    def get_payment_url(self, order_code: str, amount: int, ip_addr: str, order_info: str) -> str:
+    def get_payment_url(
+        self,
+        merchant_ref: str,
+        amount: int,
+        ip_addr: str,
+        order_info: str,
+        expires_at: datetime.datetime,
+    ) -> str:
         inputData = {}
         inputData['vnp_Version'] = '2.1.0'
         inputData['vnp_Command'] = 'pay'
         inputData['vnp_TmnCode'] = self.tmn_code
         inputData['vnp_Amount'] = str(int(amount * 100)) # Số tiền nhân 100
         inputData['vnp_CurrCode'] = 'VND'
-        inputData['vnp_TxnRef'] = order_code
+        inputData['vnp_TxnRef'] = merchant_ref
         inputData['vnp_OrderInfo'] = order_info
         inputData['vnp_OrderType'] = 'billpayment'
         inputData['vnp_Locale'] = 'vn'
-        now = datetime.datetime.now()
+        timezone = ZoneInfo("Asia/Ho_Chi_Minh")
+        now = datetime.datetime.now(timezone)
+        local_expiry = expires_at.astimezone(timezone)
         inputData['vnp_CreateDate'] = now.strftime('%Y%m%d%H%M%S')
+        inputData['vnp_ExpireDate'] = local_expiry.strftime('%Y%m%d%H%M%S')
         inputData['vnp_IpAddr'] = ip_addr
         inputData['vnp_ReturnUrl'] = self.return_url
         

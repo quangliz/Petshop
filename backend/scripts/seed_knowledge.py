@@ -5,14 +5,41 @@ before inserting.
 
 Run: uv run python scripts/seed_knowledge.py
 """
-import sys
+import asyncio
 import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.database import engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select
+
+from app.database import AsyncSessionLocal, engine
 from app.models.knowledge import KnowledgeDoc, DocCategoryEnum
+
+
+SOURCE_URLS_BY_CATEGORY = {
+    DocCategoryEnum.nutrition: (
+        "https://www.merckvetmanual.com/management-and-nutrition/"
+        "nutrition-small-animals/feeding-practices-in-small-animals"
+    ),
+    DocCategoryEnum.health: (
+        "https://www.merckvetmanual.com/management-and-nutrition/"
+        "preventative-health-care-and-husbandry-in-small-animals/"
+        "preventative-health-care-for-small-animals"
+    ),
+    DocCategoryEnum.training: (
+        "https://www.merckvetmanual.com/dog-owners/behavior-of-dogs/"
+        "behavior-modification-in-dogs"
+    ),
+    DocCategoryEnum.grooming: (
+        "https://www.merckvetmanual.com/dog-owners/routine-care-and-breeding-of-dogs/"
+        "hygiene-and-routine-care-for-dogs"
+    ),
+    DocCategoryEnum.breed: (
+        "https://www.merckvetmanual.com/multimedia/table/"
+        "congenital-and-inherited-disorders-of-the-digestive-system-in-dogs"
+    ),
+}
 
 
 ARTICLES = [
@@ -319,27 +346,30 @@ ARTICLES = [
 ]
 
 
-def main():
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal()
-    try:
+async def main():
+    async with AsyncSessionLocal() as db:
+        titles = [article["title"] for article in ARTICLES]
+        result = await db.execute(
+            select(KnowledgeDoc).where(KnowledgeDoc.title.in_(titles))
+        )
+        existing_by_title = {doc.title: doc for doc in result.scalars().all()}
         for art in ARTICLES:
-            existing = db.query(KnowledgeDoc).filter(KnowledgeDoc.title == art["title"]).first()
+            existing = existing_by_title.get(art["title"])
             if existing:
-                db.delete(existing)
-                db.commit()
-            doc = KnowledgeDoc(
-                title=art["title"],
-                category=art["category"],
-                content=art["content"],
-                source_url=None,
-            )
-            db.add(doc)
-        db.commit()
+                existing.category = art["category"]
+                existing.content = art["content"]
+                existing.source_url = SOURCE_URLS_BY_CATEGORY[art["category"]]
+            else:
+                db.add(KnowledgeDoc(
+                    title=art["title"],
+                    category=art["category"],
+                    content=art["content"],
+                    source_url=SOURCE_URLS_BY_CATEGORY[art["category"]],
+                ))
+        await db.commit()
         print(f"Seeded {len(ARTICLES)} knowledge articles.")
-    finally:
-        db.close()
+    await engine.dispose()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

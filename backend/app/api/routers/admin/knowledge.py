@@ -6,8 +6,9 @@ from pydantic import BaseModel
 from sqlalchemy import func, desc, select
 import uuid
 
-from app.api.deps import SessionDep, AdminUser
+from app.api.deps import SessionDep, ContentManager as AdminUser
 from app.models.knowledge import KnowledgeDoc, DocCategoryEnum
+from app.services.audit import log_audit
 
 router = APIRouter()
 
@@ -64,8 +65,8 @@ async def admin_list_knowledge(
 
 
 @router.get("/knowledge/{doc_id}")
-async def admin_get_knowledge(doc_id: str, db: SessionDep, _admin: AdminUser) -> Any:
-    result = await db.execute(select(KnowledgeDoc).where(KnowledgeDoc.id == uuid.UUID(doc_id)))
+async def admin_get_knowledge(doc_id: uuid.UUID, db: SessionDep, _admin: AdminUser) -> Any:
+    result = await db.execute(select(KnowledgeDoc).where(KnowledgeDoc.id == doc_id))
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu")
@@ -74,32 +75,81 @@ async def admin_get_knowledge(doc_id: str, db: SessionDep, _admin: AdminUser) ->
 
 @router.post("/knowledge")
 async def admin_create_knowledge(payload: KnowledgeCreate, db: SessionDep, _admin: AdminUser) -> Any:
-    doc = KnowledgeDoc(**payload.model_dump())
+    doc = KnowledgeDoc(**payload.model_dump(), owner_id=getattr(_admin, "id", None))
     db.add(doc)
+    await db.flush()
+    await log_audit(
+        db=db,
+        user_id=getattr(_admin, "id", None),
+        action="knowledge.create",
+        resource_type="KnowledgeDoc",
+        resource_id=str(doc.id),
+        new_values={
+            "title": doc.title,
+            "category": doc.category.value,
+            "review_status": doc.review_status,
+            "version": doc.version,
+        },
+    )
     await db.commit()
     await db.refresh(doc)
     return _knowledge_dict(doc, include_content=True)
 
 
 @router.put("/knowledge/{doc_id}")
-async def admin_update_knowledge(doc_id: str, payload: KnowledgeUpdate, db: SessionDep, _admin: AdminUser) -> Any:
-    result = await db.execute(select(KnowledgeDoc).where(KnowledgeDoc.id == uuid.UUID(doc_id)))
+async def admin_update_knowledge(doc_id: uuid.UUID, payload: KnowledgeUpdate, db: SessionDep, _admin: AdminUser) -> Any:
+    result = await db.execute(select(KnowledgeDoc).where(KnowledgeDoc.id == doc_id))
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    old_values = {
+        "title": doc.title,
+        "category": doc.category.value if doc.category else None,
+        "source_url": doc.source_url,
+        "version": doc.version,
+    }
+    for field, value in update_data.items():
         setattr(doc, field, value)
+    if update_data:
+        doc.version += 1
+        doc.review_status = "pending"
+        await log_audit(
+            db=db,
+            user_id=getattr(_admin, "id", None),
+            action="knowledge.update",
+            resource_type="KnowledgeDoc",
+            resource_id=str(doc.id),
+            old_values=old_values,
+            new_values={
+                "changed_fields": sorted(update_data.keys()),
+                "version": doc.version,
+                "review_status": doc.review_status,
+            },
+        )
     await db.commit()
     await db.refresh(doc)
     return _knowledge_dict(doc, include_content=True)
 
 
 @router.delete("/knowledge/{doc_id}")
-async def admin_delete_knowledge(doc_id: str, db: SessionDep, _admin: AdminUser) -> Any:
-    result = await db.execute(select(KnowledgeDoc).where(KnowledgeDoc.id == uuid.UUID(doc_id)))
+async def admin_delete_knowledge(doc_id: uuid.UUID, db: SessionDep, _admin: AdminUser) -> Any:
+    result = await db.execute(select(KnowledgeDoc).where(KnowledgeDoc.id == doc_id))
     doc = result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu")
+    await log_audit(
+        db=db,
+        user_id=getattr(_admin, "id", None),
+        action="knowledge.delete",
+        resource_type="KnowledgeDoc",
+        resource_id=str(doc.id),
+        old_values={
+            "title": doc.title,
+            "category": doc.category.value if doc.category else None,
+            "version": doc.version,
+        },
+    )
     await db.delete(doc)
     await db.commit()
     return {"message": "Đã xóa"}

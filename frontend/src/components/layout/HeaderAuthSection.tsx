@@ -6,6 +6,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { User } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const ADMIN_ROLES = ["admin", "catalog_manager", "order_operator", "support", "content_manager"];
+
 export default function HeaderAuthSection() {
   const { user, isLoading, logout } = useAuthStore();
 
@@ -25,9 +27,10 @@ export default function HeaderAuthSection() {
           style={{ boxShadow: "var(--shadow-md)" }}
         >
           <DropdownMenuItem className="font-bold text-[14px] px-3 py-2.5">{user.full_name}</DropdownMenuItem>
-          {user.role === 'admin' && (
+          {ADMIN_ROLES.includes(user.role) && (
             <DropdownMenuItem render={<Link href="/admin" className="text-[oklch(0.61_0.19_46)] font-semibold" />}>Bảng cấu hình Admin</DropdownMenuItem>
           )}
+          <DropdownMenuItem render={<Link href="/forum" />}>Forum</DropdownMenuItem>
           <DropdownMenuItem render={<Link href="/profile" />}>Hồ sơ cá nhân</DropdownMenuItem>
           <DropdownMenuItem render={<Link href="/orders" />}>Đơn hàng của tôi</DropdownMenuItem>
           <DropdownMenuItem onClick={logout} className="cursor-pointer" style={{ color: "var(--danger)" }}>Đăng xuất</DropdownMenuItem>

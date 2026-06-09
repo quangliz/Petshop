@@ -1,5 +1,5 @@
 """Tests for Cart API — including product_image field (gap #3)."""
-import pytest
+from tests.helpers import get_purchasable_line
 
 
 class TestCartGet:
@@ -20,16 +20,8 @@ class TestCartGet:
 class TestCartAddItem:
     def test_add_item_to_cart(self, client, auth_headers):
         """Add a product to cart; skip if no products exist."""
-        products = client.get("/api/v1/products?size=20").json()
-        items = [p for p in products.get("items", []) if p.get("stock_qty", 0) > 0]
-        if not items:
-            pytest.skip("No products to add")
-        
-        product_id = items[0]["id"]
-        res = client.post("/api/v1/cart/items", headers=auth_headers, json={
-            "product_id": product_id,
-            "quantity": 1
-        })
+        line = get_purchasable_line(client)
+        res = client.post("/api/v1/cart/items", headers=auth_headers, json=line)
         assert res.status_code == 200
         data = res.json()
         assert "items" in data
@@ -49,16 +41,8 @@ class TestCartItemFields:
     def test_cart_items_have_product_image_field(self, client, auth_headers):
         """The frontend expects `product_image`, not `image_url`."""
         # Ensure at least one item in cart
-        products = client.get("/api/v1/products?size=20").json()
-        items = [p for p in products.get("items", []) if p.get("stock_qty", 0) > 0]
-        if not items:
-            pytest.skip("No products available")
-
-        product_id = items[0]["id"]
-        client.post("/api/v1/cart/items", headers=auth_headers, json={
-            "product_id": product_id,
-            "quantity": 1
-        })
+        line = get_purchasable_line(client)
+        client.post("/api/v1/cart/items", headers=auth_headers, json=line)
 
         res = client.get("/api/v1/cart", headers=auth_headers)
         assert res.status_code == 200
@@ -80,17 +64,9 @@ class TestCartItemFields:
 class TestCartUpdateDelete:
     def test_update_and_delete_item(self, client, auth_headers):
         """Add, update, then delete a cart item."""
-        products = client.get("/api/v1/products?size=20").json()
-        items = [p for p in products.get("items", []) if p.get("stock_qty", 0) > 0]
-        if not items:
-            pytest.skip("No products available")
-
-        product_id = items[0]["id"]
-        
+        line = get_purchasable_line(client)
         # Add
-        add_res = client.post("/api/v1/cart/items", headers=auth_headers, json={
-            "product_id": product_id, "quantity": 1
-        })
+        add_res = client.post("/api/v1/cart/items", headers=auth_headers, json=line)
         assert add_res.status_code == 200
         cart_items = add_res.json()["items"]
         item_id = cart_items[-1]["id"]

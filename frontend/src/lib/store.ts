@@ -6,6 +6,7 @@ interface User {
   email: string;
   full_name: string;
   role: string;
+  is_expert_verified?: boolean;
   phone?: string;
   address?: string;
 }

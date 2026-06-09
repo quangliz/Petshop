@@ -1,7 +1,7 @@
 from typing import Optional
 import re
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field
 import uuid
 import json
 from sqlalchemy import select
@@ -14,6 +14,10 @@ from app.models.user import Pet
 from app.models.catalog import Product
 from app.services.chat_agent import build_agent, build_system_prompt
 from app.services.pets_service import get_pet_profile_cached
+from app.services.ai_safety import has_cart_confirmation, preflight_safety_response
+from app.services.retrieval import search_products
+from app.core.limiter import limiter
+from app.core.config import settings
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
@@ -76,9 +80,9 @@ async def get_session_messages(session_id: str, db: SessionDep, current_user: Cu
 
 
 class ChatRequest(BaseModel):
-    message: str
-    session_id: Optional[str] = None
-    pet_id: Optional[str] = None
+    message: str = Field(min_length=1, max_length=4000)
+    session_id: Optional[uuid.UUID] = None
+    pet_id: Optional[uuid.UUID] = None
     product_slug: Optional[str] = None
 
 
@@ -108,11 +112,14 @@ async def _extract_products(db, content: str) -> list[dict]:
 
 
 @router.post("/stream")
-async def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUser):
+@limiter.limit("20/minute")
+async def chat_stream(
+    req: ChatRequest, request: Request, db: SessionDep, current_user: CurrentUser
+):
     if req.session_id:
         result = await db.execute(
             select(ChatSession).where(
-                ChatSession.id == uuid.UUID(req.session_id),
+                ChatSession.id == req.session_id,
                 ChatSession.user_id == current_user.id,
             )
         )
@@ -121,7 +128,7 @@ async def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUse
             raise HTTPException(status_code=404, detail="Không tìm thấy phiên chat")
         pet_id = session.pet_id
     else:
-        pet_id = uuid.UUID(req.pet_id) if req.pet_id else None
+        pet_id = req.pet_id
         session = ChatSession(
             user_id=current_user.id,
             pet_id=pet_id,
@@ -179,9 +186,18 @@ async def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUse
         elif msg.role == ChatRoleEnum.assistant:
             history.append(AIMessage(content=msg.content))
 
-    agent = build_agent(db, current_user.id)
+    safety_response = preflight_safety_response(req.message)
+    agent = None
+    if safety_response is None:
+        agent = build_agent(
+            db,
+            current_user.id,
+            allow_cart_mutation=has_cart_confirmation(req.message),
+        )
 
     async def event_generator():
+        import time
+        from app.models.ai_observability import AICallLog
         state = {"messages": history}
         full_content = ""
         total_tokens = 0
@@ -195,24 +211,57 @@ async def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUse
                 "pet_id": str(pet_id) if pet_id else None,
             },
         }
+        start_times = {}
         try:
-            async for event in agent.astream_events(state, version="v2", config=run_config):
-                kind = event["event"]
-                if kind == "on_chat_model_stream":
-                    chunk = event["data"]["chunk"]
-                    content = chunk.content if isinstance(chunk.content, str) else ""
-                    if content:
-                        full_content += content
-                        yield {
-                            "event": "message",
-                            "data": json.dumps({"content": content}),
-                        }
-                elif kind == "on_chat_model_end":
-                    output = event["data"].get("output")
-                    if output and hasattr(output, "usage_metadata") and output.usage_metadata:
-                        total_tokens += output.usage_metadata.get("total_tokens", 0)
-                elif kind == "on_tool_end" and event.get("name") == "add_to_cart_tool":
-                    cart_was_updated = True
+            if safety_response is not None:
+                full_content = safety_response
+                yield {
+                    "event": "message",
+                    "data": json.dumps({"content": safety_response}),
+                }
+            else:
+                assert agent is not None
+                async for event in agent.astream_events(state, version="v2", config=run_config):
+                    kind = event["event"]
+                    if kind == "on_chat_model_start":
+                        start_times[event["run_id"]] = time.perf_counter()
+                    elif kind == "on_chat_model_stream":
+                        chunk = event["data"]["chunk"]
+                        content = chunk.content if isinstance(chunk.content, str) else ""
+                        if content:
+                            full_content += content
+                            yield {
+                                "event": "message",
+                                "data": json.dumps({"content": content}),
+                            }
+                    elif kind == "on_chat_model_end":
+                        output = event["data"].get("output")
+                        if output and hasattr(output, "usage_metadata") and output.usage_metadata:
+                            input_toks = output.usage_metadata.get("input_tokens", 0)
+                            output_toks = output.usage_metadata.get("output_tokens", 0)
+                            total_tokens += input_toks + output_toks
+
+                            latency_ms = int((time.perf_counter() - start_times.pop(event["run_id"], time.perf_counter())) * 1000)
+                            model_name = getattr(output, "response_metadata", {}).get("model_name", settings.CHAT_MODEL)
+                            if "gpt-4o-mini" in model_name.lower():
+                                cost = (input_toks * 0.15 + output_toks * 0.60) / 1_000_000.0
+                            elif "gpt-4o" in model_name.lower():
+                                cost = (input_toks * 5.00 + output_toks * 15.00) / 1_000_000.0
+                            else:
+                                cost = (input_toks * 0.15 + output_toks * 0.60) / 1_000_000.0
+
+                            call_log = AICallLog(
+                                user_id=current_user.id,
+                                session_id=session.id,
+                                model_name=model_name,
+                                prompt_tokens=input_toks,
+                                completion_tokens=output_toks,
+                                cost_usd=cost,
+                                latency_ms=latency_ms
+                            )
+                            db.add(call_log)
+                    elif kind == "on_tool_end" and event.get("name") == "add_to_cart_tool":
+                        cart_was_updated = True
 
             am = ChatMessage(
                 session_id=session.id,
@@ -240,10 +289,38 @@ async def chat_stream(req: ChatRequest, db: SessionDep, current_user: CurrentUse
                 "event": "done",
                 "data": json.dumps({"session_id": str(session.id)}),
             }
-        except Exception as e:
+        except Exception:
+            fallback = (
+                "Dịch vụ AI đang tạm thời gián đoạn. Tôi chưa thể đưa ra tư vấn y tế "
+                "đáng tin cậy; nếu thú cưng có dấu hiệu nghiêm trọng, hãy liên hệ bác sĩ "
+                "thú y ngay."
+            )
+            try:
+                products = await search_products(db, query=req.message, limit=3)
+                if products:
+                    tags = " ".join(
+                        f"<product>{product['slug']}</product>"
+                        for product in products
+                    )
+                    fallback += f" Bạn có thể tham khảo các sản phẩm tìm theo từ khóa: {tags}"
+            except Exception:
+                pass
+            # Save fallback as assistant message so session always has >=2 messages
+            fallback_content = full_content if full_content else fallback
+            am = ChatMessage(
+                session_id=session.id,
+                role=ChatRoleEnum.assistant,
+                content=fallback_content,
+            )
+            db.add(am)
+            await db.commit()
             yield {
-                "event": "error",
-                "data": json.dumps({"error": str(e)}),
+                "event": "message",
+                "data": json.dumps({"content": fallback}),
+            }
+            yield {
+                "event": "done",
+                "data": json.dumps({"session_id": str(session.id), "fallback": True}),
             }
 
     return EventSourceResponse(event_generator())

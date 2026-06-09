@@ -16,7 +16,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.services.indexing import reindex_one_product
 
-from app.api.deps import SessionDep, AdminUser
+from app.api.deps import SessionDep, CatalogManager as AdminUser
 from app.core.config import settings
 from app.models.catalog import Product, ProductVariant, ProductImage
 from app.models.commerce import CartItem, OrderItem
