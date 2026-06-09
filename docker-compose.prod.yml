@@ -12,6 +12,8 @@ services:
     image: ${DOCKER_HUB_USERNAME}/petshop-backend:${IMAGE_TAG:-latest}
     container_name: petshop_backend
     env_file: .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       - redis
     restart: unless-stopped
@@ -22,6 +24,8 @@ services:
     image: ${DOCKER_HUB_USERNAME}/petshop-backend:${IMAGE_TAG:-latest}
     container_name: petshop_reservation_worker
     env_file: .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
     entrypoint: ["python", "-m", "app.workers.reservation_expiry"]
     depends_on:
       - backend
