@@ -7,6 +7,12 @@ const REDIRECT_URI =
     ? `${window.location.origin}/auth/google/callback`
     : "http://localhost:3000/auth/google/callback";
 
+type GoogleAuthButtonProps = {
+  label?: string;
+  canProceed?: boolean;
+  onBlocked?: () => void;
+};
+
 function buildGoogleUrl(): string {
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
@@ -19,10 +25,18 @@ function buildGoogleUrl(): string {
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 }
 
-export default function GoogleAuthButton({ label = "Tiếp tục với Google" }: { label?: string }) {
+export default function GoogleAuthButton({
+  label = "Tiếp tục với Google",
+  canProceed = true,
+  onBlocked,
+}: GoogleAuthButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleClick = () => {
+    if (!canProceed) {
+      onBlocked?.();
+      return;
+    }
     if (!GOOGLE_CLIENT_ID) {
       alert("Google OAuth chưa được cấu hình.");
       return;
@@ -36,7 +50,10 @@ export default function GoogleAuthButton({ label = "Tiếp tục với Google" }
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className={`w-full h-[52px] rounded-[14px] text-[15px] font-semibold flex items-center justify-center gap-[10px] bg-white border-[1.5px] border-neutral-200 text-neutral-800 transition-shadow duration-150 hover:shadow-sm hover:border-neutral-300 ${loading ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+      aria-disabled={loading || !canProceed}
+      className={`w-full h-[52px] rounded-[14px] text-[15px] font-semibold flex items-center justify-center gap-[10px] bg-white border-[1.5px] border-neutral-200 text-neutral-800 transition-shadow duration-150 hover:shadow-sm hover:border-neutral-300 ${
+        loading || !canProceed ? "cursor-not-allowed opacity-70" : "cursor-pointer"
+      }`}
     >
       {/* Google "G" logo */}
       <svg width="20" height="20" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">

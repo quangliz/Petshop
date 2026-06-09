@@ -14,12 +14,14 @@ if "SECRET_KEY" not in os.environ:
     os.environ["SECRET_KEY"] = "dummy_secret_key_for_testing_purposes_only_1234567890"
 
 import pytest  # noqa: E402
+from redis.exceptions import RedisError  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 from sqlalchemy.orm import sessionmaker as sessionmaker_cls  # noqa: E402
 
 from app.main import app  # noqa: E402
+from app.core.limiter import limiter  # noqa: E402
 from app.database import Base  # noqa: E402
 from app.models.user import User, RoleEnum  # noqa: E402
 
@@ -47,6 +49,21 @@ def _ensure_test_schema() -> sessionmaker_cls:
         Base.metadata.create_all(bind=_sync_engine)
     assert _SyncSession is not None
     return _SyncSession
+
+
+def _reset_rate_limits() -> None:
+    try:
+        limiter.reset()
+    except RedisError:
+        # Some local test runs intentionally skip Redis-backed coverage.
+        pass
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limits_between_tests():
+    _reset_rate_limits()
+    yield
+    _reset_rate_limits()
 
 
 # ── Shared client ─────────────────────────────────────────────────────────────

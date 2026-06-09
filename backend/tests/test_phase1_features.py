@@ -3,7 +3,12 @@ import datetime
 from fastapi.testclient import TestClient
 import pytest
 from app.models.user import User, RoleEnum
-from app.models.commerce import Order, OrderStatusEnum
+from app.models.commerce import (
+    Order,
+    OrderStatusEnum,
+    PaymentMethodEnum,
+    PaymentStatusEnum,
+)
 from app.core.config import settings
 from jose import jwt
 from tests.conftest import _ensure_test_schema
@@ -244,13 +249,52 @@ def test_order_return_workflow(client: TestClient, auth_headers, admin_headers, 
 
 # 4. Test Audit Log Persistence on mutation
 def test_audit_log_persistence(client: TestClient, admin_headers):
-    # Query admin audit logs
-    res = client.get("/api/v1/audit-logs", headers=admin_headers)
+    # Create a minimal order locally so the audit assertion does not depend on
+    # other tests or seeded catalog data.
+    order_id = uuid.uuid4()
+    order_code = f"AUDIT-{uuid.uuid4().hex[:10].upper()}"
+    db = _ensure_test_schema()()
+    try:
+        db.add(
+            Order(
+                id=order_id,
+                order_code=order_code,
+                status=OrderStatusEnum.pending,
+                subtotal=100000.0,
+                shipping_fee=0.0,
+                total=100000.0,
+                ship_name="Audit Test",
+                ship_phone="0909090909",
+                ship_address="Audit test address",
+                payment_method=PaymentMethodEnum.cod,
+                payment_status=PaymentStatusEnum.unpaid,
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    update_res = client.put(
+        f"/api/v1/admin/orders/{order_id}/status",
+        headers=admin_headers,
+        json={"status": "confirmed"},
+    )
+    assert update_res.status_code == 200, update_res.text
+
+    res = client.get(
+        "/api/v1/audit-logs",
+        headers=admin_headers,
+        params={
+            "action": "order.status_update",
+            "resource_type": "Order",
+            "resource_id": str(order_id),
+        },
+    )
     assert res.status_code == 200
     logs_data = res.json()
     assert "items" in logs_data
     items = logs_data["items"]
-    # Verify that at least one action is recorded from our operations
-    actions = [item["action"] for item in items]
-    assert any(a in actions for a in ["promotion.create", "return.approve", "return.complete"])
-    assert "order.status_update" in actions
+    assert logs_data["total"] >= 1
+    assert items[0]["action"] == "order.status_update"
+    assert items[0]["old_values"] == {"status": "pending"}
+    assert items[0]["new_values"] == {"status": "confirmed"}
