@@ -24,6 +24,9 @@ coverage.xml
 dist/
 build/
 scripts/
+!backend/scripts/
+backend/scripts/*
+!backend/scripts/test_db.py
 
 # ── Node / Next.js ─────────────────────────────
 node_modules/
@@ -71,3 +74,4 @@ CLAUDE/
 *.pub
 
 side_imgs/
+thepawsome*

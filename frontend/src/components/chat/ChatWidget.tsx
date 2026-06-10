@@ -12,6 +12,7 @@ import Image from 'next/image';
 type ChatProduct = { slug: string; name: string; brand?: string | null; price: number; sale_price?: number | null; thumbnail_url?: string | null };
 type ChatMsg = { role: string; content: string; products?: ChatProduct[] };
 type ChatSessionMeta = { id: string; title: string; created_at: string | null };
+type OpenCatbotChatDetail = { message?: string };
 
 const PRODUCT_TAG_RE = /<product>\s*([^<>\s]+)\s*<\/product>/gi;
 
@@ -94,6 +95,7 @@ export default function ChatWidget() {
   const viewingProduct = useViewingProductStore((s) => s.viewingProduct);
   const widgetRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const isTypingRef = useRef(false);
 
   const { data: sessions, refetch: refetchSessions } = useQuery<ChatSessionMeta[]>({
     queryKey: ["chat-sessions"],
@@ -101,11 +103,97 @@ export default function ChatWidget() {
     enabled: !!user && isOpen,
   });
 
+  const startNewChat = useCallback(() => { setMessages([]); setSessionId(null); setSessionTitle(""); setView("chat"); }, []);
+
+  const loadSession = async (sid: string) => {
+    try {
+      const { data } = await api.get(`/chat/sessions/${sid}/messages`);
+      setSessionId(sid);
+      setSessionTitle(data.session.title);
+      setMessages((data.messages as { role: string; content: string; products?: ChatProduct[] }[]).map((m) => ({ role: m.role, content: m.content, ...(m.products ? { products: m.products } : {}) })));
+      setView("chat");
+    } catch (e) { console.error("Failed to load session", e); }
+  };
+
+  const sendMessage = useCallback(async (messageOverride?: string) => {
+    const userMsg = (messageOverride ?? input).trim();
+    if (!userMsg || isTypingRef.current) return;
+    setInput("");
+    setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
+    isTypingRef.current = true;
+    setIsTyping(true);
+    const activeSessionId = sessionId;
+    const backendUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1'}/chat/stream`;
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch(backendUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: userMsg, session_id: activeSessionId, product_slug: viewingProduct?.slug || null }),
+      });
+      if (!response.ok) { const errText = await response.text().catch(() => ""); throw new Error(`HTTP ${response.status}: ${errText || "Lấy phản hồi thất bại"}`); }
+      if (!response.body) return;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let aiContent = "";
+      setMessages((prev) => [...prev, { role: "assistant", content: aiContent }]);
+      let buffer = "";
+      const processEvent = (raw: string) => {
+        let eventType = "message";
+        const dataLines: string[] = [];
+        for (const rawLine of raw.split(/\r?\n/)) {
+          const line = rawLine.replace(/\r$/, "");
+          if (!line) continue;
+          if (line.startsWith("event:")) eventType = line.slice(6).trim();
+          else if (line.startsWith("data:")) dataLines.push(line.slice(5).replace(/^ /, ""));
+        }
+        if (dataLines.length === 0) return;
+        let data: { content?: string; items?: ChatProduct[]; session_id?: string };
+        try { data = JSON.parse(dataLines.join("\n")); } catch { return; }
+        if (eventType === "message" && data.content) {
+          aiContent += data.content;
+          setMessages((prev) => { const clone = [...prev]; clone[clone.length - 1].content = aiContent; return clone; });
+        } else if (eventType === "products" && Array.isArray(data.items)) {
+          setMessages((prev) => { const clone = [...prev]; clone[clone.length - 1].products = data.items; return clone; });
+        } else if (eventType === "done" && data.session_id) {
+          if (!activeSessionId) setSessionId(data.session_id);
+          refetchSessions();
+        }
+      };
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) { if (buffer.trim()) processEvent(buffer); break; }
+        buffer += decoder.decode(value, { stream: true });
+        let sepIdx: number;
+        while ((sepIdx = buffer.search(/\r?\n\r?\n/)) !== -1) {
+          const raw = buffer.slice(0, sepIdx);
+          buffer = buffer.slice(sepIdx).replace(/^(\r?\n){2}/, "");
+          processEvent(raw);
+        }
+      }
+    } catch (e) {
+      console.error("Chat Error:", e);
+      setMessages((prev) => [...prev, { role: "assistant", content: `⚠️ Lỗi: ${e instanceof Error ? e.message : "Không thể kết nối tới máy chủ."}` }]);
+    } finally {
+      isTypingRef.current = false;
+      setIsTyping(false);
+    }
+  }, [input, refetchSessions, sessionId, viewingProduct?.slug]);
+
   useEffect(() => {
-    const handleOpen = () => setIsOpen(true);
+    const handleOpen = (event: Event) => {
+      const detail = event instanceof CustomEvent ? event.detail as OpenCatbotChatDetail | undefined : undefined;
+      setIsOpen(true);
+      setIsClosing(false);
+      setView("chat");
+      const message = detail?.message?.trim();
+      if (message) {
+        window.setTimeout(() => { void sendMessage(message); }, 0);
+      }
+    };
     window.addEventListener("open-catbot-chat", handleOpen);
     return () => window.removeEventListener("open-catbot-chat", handleOpen);
-  }, []);
+  }, [sendMessage]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -136,78 +224,6 @@ export default function ChatWidget() {
   }, [messages, isTyping, isOpen]);
 
   if (!user) return null;
-
-  const startNewChat = () => { setMessages([]); setSessionId(null); setSessionTitle(""); setView("chat"); };
-
-  const loadSession = async (sid: string) => {
-    try {
-      const { data } = await api.get(`/chat/sessions/${sid}/messages`);
-      setSessionId(sid);
-      setSessionTitle(data.session.title);
-      setMessages((data.messages as { role: string; content: string; products?: ChatProduct[] }[]).map((m) => ({ role: m.role, content: m.content, ...(m.products ? { products: m.products } : {}) })));
-      setView("chat");
-    } catch (e) { console.error("Failed to load session", e); }
-  };
-
-  const sendMessage = async () => {
-    if (!input.trim() || isTyping) return;
-    const userMsg = input.trim();
-    setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
-    setIsTyping(true);
-    const backendUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1'}/chat/stream`;
-    const token = localStorage.getItem("token");
-    try {
-      const response = await fetch(backendUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message: userMsg, session_id: sessionId, product_slug: viewingProduct?.slug || null }),
-      });
-      if (!response.ok) { const errText = await response.text().catch(() => ""); throw new Error(`HTTP ${response.status}: ${errText || "Lấy phản hồi thất bại"}`); }
-      if (!response.body) return;
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let aiContent = "";
-      setMessages((prev) => [...prev, { role: "assistant", content: aiContent }]);
-      let buffer = "";
-      const processEvent = (raw: string) => {
-        let eventType = "message";
-        const dataLines: string[] = [];
-        for (const rawLine of raw.split(/\r?\n/)) {
-          const line = rawLine.replace(/\r$/, "");
-          if (!line) continue;
-          if (line.startsWith("event:")) eventType = line.slice(6).trim();
-          else if (line.startsWith("data:")) dataLines.push(line.slice(5).replace(/^ /, ""));
-        }
-        if (dataLines.length === 0) return;
-        let data: { content?: string; items?: ChatProduct[]; session_id?: string };
-        try { data = JSON.parse(dataLines.join("\n")); } catch { return; }
-        if (eventType === "message" && data.content) {
-          aiContent += data.content;
-          setMessages((prev) => { const clone = [...prev]; clone[clone.length - 1].content = aiContent; return clone; });
-        } else if (eventType === "products" && Array.isArray(data.items)) {
-          setMessages((prev) => { const clone = [...prev]; clone[clone.length - 1].products = data.items; return clone; });
-        } else if (eventType === "done" && data.session_id) {
-          if (!sessionId) setSessionId(data.session_id);
-          refetchSessions();
-        }
-      };
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) { if (buffer.trim()) processEvent(buffer); break; }
-        buffer += decoder.decode(value, { stream: true });
-        let sepIdx: number;
-        while ((sepIdx = buffer.search(/\r?\n\r?\n/)) !== -1) {
-          const raw = buffer.slice(0, sepIdx);
-          buffer = buffer.slice(sepIdx).replace(/^(\r?\n){2}/, "");
-          processEvent(raw);
-        }
-      }
-    } catch (e) {
-      console.error("Chat Error:", e);
-      setMessages((prev) => [...prev, { role: "assistant", content: `⚠️ Lỗi: ${e instanceof Error ? e.message : "Không thể kết nối tới máy chủ."}` }]);
-    } finally { setIsTyping(false); }
-  };
 
   return (
     <div ref={widgetRef} className={`fixed ${hasBottomTab ? "bottom-[72px]" : "bottom-4"} right-4 md:bottom-8 md:right-8 z-[1000] flex flex-col items-end gap-4`}>
@@ -329,12 +345,12 @@ export default function ChatWidget() {
                     placeholder="Nhập câu hỏi cho Catbot..."
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                    onKeyDown={(e) => { if (e.key === "Enter") void sendMessage(); }}
                     disabled={isTyping}
                     className="flex-1 border-none bg-neutral-50 px-3.5 py-2.5 rounded-[10px] text-[13px] outline-none disabled:opacity-60"
                   />
                   <button
-                    onClick={sendMessage}
+                    onClick={() => { void sendMessage(); }}
                     disabled={!input.trim() || isTyping}
                     className="w-10 h-10 rounded-[10px] text-white border-none cursor-pointer flex items-center justify-center shrink-0 disabled:opacity-50 transition-opacity"
                     style={{ background: "var(--primary-600)" }}

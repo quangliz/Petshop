@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
@@ -13,6 +13,8 @@ import Image from 'next/image';
 import { Product, Variant, AttrImage } from '@/lib/types';
 import { ProductDetailSkeleton } from "@/components/skeletons/ProductDetailSkeleton";
 import { toast } from 'sonner';
+
+type GalleryImage = { url: string; variantId?: string; attributes?: Record<string, string> };
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -74,6 +76,8 @@ export default function ProductDetailPage() {
     : (product?.sale_price ?? product?.price ?? 0);
   const originalPrice = selectedVariant ? selectedVariant.price : product?.price ?? 0;
   const effectiveStock = selectedVariant ? selectedVariant.stock_qty : (product?.stock_qty ?? 0);
+  const totalPrice = effectivePrice * quantity;
+  const totalOriginalPrice = originalPrice * quantity;
 
   const mainImage = useMemo(() => {
     const variantImage = selectedVariant?.images?.find((i) => i.is_main)?.url ?? selectedVariant?.images?.[0]?.url;
@@ -89,7 +93,7 @@ export default function ProductDetailPage() {
 
   // List of all images for the product including variant images and attr images
   const allImages = useMemo(() => {
-    const list: { url: string; variantId?: string; attributes?: Record<string, string> }[] = [];
+    const list: GalleryImage[] = [];
     
     // 1. Product main image
     const pMain = product?.images?.main || product?.thumbnail_url;
@@ -127,8 +131,45 @@ export default function ProductDetailPage() {
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const [currentImgIndex, setCurrentImgIndex] = useState(0);
   const isScrollingRef = useRef(false);
+  const scrollUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevSelectedVariantId = useRef<string | undefined>(undefined);
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+  const syncSelectedAttrsFromImage = useCallback((image?: GalleryImage) => {
+    if (!image?.attributes) return;
+    if (image.variantId) {
+      prevSelectedVariantId.current = image.variantId;
+    }
+    setSelectedAttrs(image.attributes);
+  }, []);
+
+  const releaseProgrammaticScrollLock = useCallback(() => {
+    if (scrollUnlockTimerRef.current) {
+      clearTimeout(scrollUnlockTimerRef.current);
+    }
+    scrollUnlockTimerRef.current = setTimeout(() => {
+      isScrollingRef.current = false;
+      scrollUnlockTimerRef.current = null;
+    }, 700);
+  }, []);
+
+  const scrollToImage = useCallback((index: number, shouldSyncVariant = true) => {
+    const el = imageContainerRef.current;
+    if (!el || index < 0 || index >= allImages.length) return;
+
+    const width = el.clientWidth;
+    if (width === 0) return;
+
+    isScrollingRef.current = true;
+    el.scrollTo({ left: index * width, behavior: 'smooth' });
+    setCurrentImgIndex(index);
+    if (shouldSyncVariant) {
+      syncSelectedAttrsFromImage(allImages[index]);
+    }
+    releaseProgrammaticScrollLock();
+  }, [allImages, releaseProgrammaticScrollLock, syncSelectedAttrsFromImage]);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     if (isScrollingRef.current) return;
     const el = e.currentTarget;
     const scrollLeft = el.scrollLeft;
@@ -137,31 +178,38 @@ export default function ProductDetailPage() {
     const index = Math.round(scrollLeft / width);
     if (index !== currentImgIndex && index >= 0 && index < allImages.length) {
       setCurrentImgIndex(index);
-      const activeImage = allImages[index];
-      if (activeImage.attributes) {
-        setSelectedAttrs(activeImage.attributes);
+      if (scrollSyncTimerRef.current) {
+        clearTimeout(scrollSyncTimerRef.current);
       }
+      scrollSyncTimerRef.current = setTimeout(() => {
+        syncSelectedAttrsFromImage(allImages[index]);
+        scrollSyncTimerRef.current = null;
+      }, 120);
     }
-  };
+  }, [allImages, currentImgIndex, syncSelectedAttrsFromImage]);
 
-  const prevSelectedVariantId = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!selectedVariant) return;
     if (selectedVariant.id === prevSelectedVariantId.current) return;
     prevSelectedVariantId.current = selectedVariant.id;
 
     const idx = allImages.findIndex((img) => img.variantId === selectedVariant.id);
-    if (idx !== -1 && imageContainerRef.current) {
-      const el = imageContainerRef.current;
-      const width = el.clientWidth;
-      isScrollingRef.current = true;
-      el.scrollTo({ left: idx * width, behavior: 'smooth' });
-      setCurrentImgIndex(idx);
-      setTimeout(() => {
-        isScrollingRef.current = false;
-      }, 400);
+    if (idx !== -1) {
+      const frame = window.requestAnimationFrame(() => scrollToImage(idx, false));
+      return () => window.cancelAnimationFrame(frame);
     }
-  }, [selectedVariant, allImages]);
+  }, [selectedVariant, allImages, scrollToImage]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollUnlockTimerRef.current) {
+        clearTimeout(scrollUnlockTimerRef.current);
+      }
+      if (scrollSyncTimerRef.current) {
+        clearTimeout(scrollSyncTimerRef.current);
+      }
+    };
+  }, []);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [drawerAction, setDrawerAction] = useState<'add' | 'buy'>('add');
@@ -284,6 +332,25 @@ export default function ProductDetailPage() {
     ? product.description.replace(/^```(?:markdown)?\s*/i, "").replace(/```\s*$/, "")
     : "";
 
+  const handleProductAdviceChat = () => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để Catbot AI tư vấn sản phẩm");
+      return;
+    }
+    if (typeof window === 'undefined') return;
+
+    const variantLabel = selectedVariant
+      ? Object.entries(selectedVariant.attributes).map(([key, value]) => `${key}: ${value}`).join(", ")
+      : "";
+    const message = [
+      `Mình đang xem sản phẩm "${product.name}".`,
+      variantLabel ? `Phân loại đang chọn: ${variantLabel}.` : "",
+      "Hãy tư vấn giúp sản phẩm này phù hợp với thú cưng nào, điểm nổi bật, lưu ý khi dùng và có nên mua không.",
+    ].filter(Boolean).join(" ");
+
+    window.dispatchEvent(new CustomEvent('open-catbot-chat', { detail: { message } }));
+  };
+
   return (
     <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-6 md:py-8 pb-28 md:pb-8">
       {/* Breadcrumb */}
@@ -330,12 +397,7 @@ export default function ProductDetailPage() {
                   type="button"
                   onClick={() => {
                     const idx = (currentImgIndex - 1 + allImages.length) % allImages.length;
-                    if (imageContainerRef.current) {
-                      const el = imageContainerRef.current;
-                      const width = el.clientWidth;
-                      el.scrollTo({ left: idx * width, behavior: 'smooth' });
-                      setCurrentImgIndex(idx);
-                    }
+                    scrollToImage(idx);
                   }}
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white text-neutral-800 flex items-center justify-center border border-neutral-200 cursor-pointer shadow-sm md:opacity-0 md:group-hover/gallery:opacity-100 transition-opacity duration-200 z-10"
                 >
@@ -345,12 +407,7 @@ export default function ProductDetailPage() {
                   type="button"
                   onClick={() => {
                     const idx = (currentImgIndex + 1) % allImages.length;
-                    if (imageContainerRef.current) {
-                      const el = imageContainerRef.current;
-                      const width = el.clientWidth;
-                      el.scrollTo({ left: idx * width, behavior: 'smooth' });
-                      setCurrentImgIndex(idx);
-                    }
+                    scrollToImage(idx);
                   }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 hover:bg-white text-neutral-800 flex items-center justify-center border border-neutral-200 cursor-pointer shadow-sm md:opacity-0 md:group-hover/gallery:opacity-100 transition-opacity duration-200 z-10"
                 >
@@ -367,14 +424,7 @@ export default function ProductDetailPage() {
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => {
-                    if (imageContainerRef.current) {
-                      const el = imageContainerRef.current;
-                      const width = el.clientWidth;
-                      el.scrollTo({ left: idx * width, behavior: 'smooth' });
-                      setCurrentImgIndex(idx);
-                    }
-                  }}
+                  onClick={() => scrollToImage(idx)}
                   className={`relative w-14 h-14 rounded-[8px] overflow-hidden border-2 shrink-0 transition-all ${
                     idx === currentImgIndex ? 'border-[var(--primary-500)] shadow-sm scale-95' : 'border-neutral-100 hover:border-neutral-300'
                   }`}
@@ -466,15 +516,7 @@ export default function ProductDetailPage() {
                 {/* 1. Mobile Chat Button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!user) {
-                      toast.error("Vui lòng đăng nhập để chat với tư vấn viên");
-                      return;
-                    }
-                    if (typeof window !== 'undefined') {
-                      window.dispatchEvent(new CustomEvent('open-catbot-chat'));
-                    }
-                  }}
+                  onClick={handleProductAdviceChat}
                   className="flex md:hidden flex-col items-center justify-center w-[64px] h-full text-neutral-500 hover:text-neutral-900 border-none bg-white cursor-pointer active:bg-neutral-50 border-r border-neutral-100 shrink-0"
                 >
                   <MessageSquare size={18} />
@@ -548,8 +590,18 @@ export default function ProductDetailPage() {
                   </div>
                   <div className="flex-1 min-w-0 pr-8">
                     <h3 className="text-[15px] font-bold text-neutral-900 leading-snug line-clamp-2">{product.name}</h3>
-                    <div className="text-[18px] font-extrabold text-[var(--danger)] mt-1">
-                      {effectivePrice.toLocaleString()}đ
+                    <div className="flex flex-wrap items-baseline gap-1.5 mt-1">
+                      {totalPrice < totalOriginalPrice && (
+                        <span className="text-[12px] text-neutral-400 line-through font-semibold">
+                          {totalOriginalPrice.toLocaleString()}đ
+                        </span>
+                      )}
+                      <span className="text-[18px] font-extrabold text-[var(--danger)]">
+                        {totalPrice.toLocaleString()}đ
+                      </span>
+                    </div>
+                    <div className="text-[12px] text-neutral-500 mt-0.5">
+                      Đơn giá: <span className="font-semibold text-neutral-800">{effectivePrice.toLocaleString()}đ</span> × {quantity}
                     </div>
                     <div className="text-[12px] text-neutral-500 mt-0.5">
                       Kho: <span className="font-semibold text-neutral-800">{effectiveStock}</span>
@@ -643,11 +695,11 @@ export default function ProductDetailPage() {
                     {drawerAction === 'add' ? (
                       <>
                         <ShoppingCart size={18} />
-                        <span>{addToCartMutation.isPending ? "Đang thêm..." : "Thêm vào giỏ hàng"}</span>
+                        <span className="truncate">{addToCartMutation.isPending ? "Đang thêm..." : `Thêm vào giỏ • ${totalPrice.toLocaleString()}đ`}</span>
                       </>
                     ) : (
                       <>
-                        <span>{buyNowLoading ? "Đang xử lý..." : "Mua ngay"}</span>
+                        <span className="truncate">{buyNowLoading ? "Đang xử lý..." : `Mua ngay • ${totalPrice.toLocaleString()}đ`}</span>
                       </>
                     )}
                   </button>
