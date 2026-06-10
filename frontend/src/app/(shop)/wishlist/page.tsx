@@ -4,14 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+
 import { ChevronRight, ShoppingCart, Heart, HeartOff } from 'lucide-react';
 import Image from 'next/image';
 import { Product } from '@/lib/types';
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
-import { addToGuestCart } from '@/lib/guestCart';
+
 import ProductVariantDrawer from '@/components/ProductVariantDrawer';
 
 const ProductCard = ({ 
@@ -107,7 +107,6 @@ const ProductCard = ({
 
 export default function WishlistPage() {
   const { user, isLoading: authLoading } = useAuthStore();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [productForDrawer, setProductForDrawer] = useState<Product | null>(null);
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
@@ -141,7 +140,7 @@ export default function WishlistPage() {
     try {
       const res = await api.get(`/products/${product.slug}`);
       setProductForDrawer(res.data);
-    } catch (err) {
+    } catch {
       toast.error("Không thể tải thông tin sản phẩm");
     } finally {
       setLoadingProductId(null);

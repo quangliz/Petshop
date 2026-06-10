@@ -442,6 +442,7 @@ async def search_products(
     brands: Optional[List[str]] = None,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
+    keyword_only: bool = False,
 ) -> List[dict]:
     """Hybrid product search using semantic vector rank and keyword rank.
 
@@ -451,18 +452,31 @@ async def search_products(
     with weighted Reciprocal Rank Fusion.
     """
     fetch_k = min(max(limit * 6, 30), MAX_WORD_CANDIDATES)
-    semantic_slugs_task = _semantic_ranked_slugs(query, fetch_k)
-    word_products_task = _word_ranked_products(
-        db,
-        query,
-        fetch_k=fetch_k,
-        species=species,
-        category_slugs=category_slugs,
-        brands=brands,
-        min_price=min_price,
-        max_price=max_price,
-    )
-    semantic_slugs, word_products = await asyncio.gather(semantic_slugs_task, word_products_task)
+    if keyword_only:
+        semantic_slugs = []
+        word_products = await _word_ranked_products(
+            db,
+            query,
+            fetch_k=fetch_k,
+            species=species,
+            category_slugs=category_slugs,
+            brands=brands,
+            min_price=min_price,
+            max_price=max_price,
+        )
+    else:
+        semantic_slugs_task = _semantic_ranked_slugs(query, fetch_k)
+        word_products_task = _word_ranked_products(
+            db,
+            query,
+            fetch_k=fetch_k,
+            species=species,
+            category_slugs=category_slugs,
+            brands=brands,
+            min_price=min_price,
+            max_price=max_price,
+        )
+        semantic_slugs, word_products = await asyncio.gather(semantic_slugs_task, word_products_task)
 
     if not semantic_slugs and not word_products:
         return []

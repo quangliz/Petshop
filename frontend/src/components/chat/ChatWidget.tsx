@@ -1,13 +1,16 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { X, Send, User, Plus, History, ArrowLeft, Phone, Mail } from "lucide-react";
+import { X, Send, User, Plus, History, ArrowLeft, Phone, Mail, ShoppingCart } from "lucide-react";
 import { useAuthStore, useViewingProductStore } from "@/lib/store";
 import CatbotLogo from "./CatbotLogo";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import ReactMarkdown from "react-markdown";
 import Image from 'next/image';
+import { toast } from 'sonner';
+import ProductVariantDrawer from "@/components/ProductVariantDrawer";
+import { Product } from "@/lib/types";
 
 type ChatProduct = { slug: string; name: string; brand?: string | null; price: number; sale_price?: number | null; thumbnail_url?: string | null };
 type ChatMsg = { role: string; content: string; products?: ChatProduct[] };
@@ -16,58 +19,227 @@ type OpenCatbotChatDetail = { message?: string };
 
 const PRODUCT_TAG_RE = /<product>\s*([^<>\s]+)\s*<\/product>/gi;
 
-function ProductCard({ pr }: { pr: ChatProduct }) {
+function ProductCard({ pr, onAddToCart }: { pr: ChatProduct; onAddToCart?: (e: React.MouseEvent) => void }) {
   const effectivePrice = pr.sale_price ?? pr.price;
   return (
     <a
       href={`/products/${pr.slug}`}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex gap-2 items-center p-2 rounded-[10px] bg-neutral-50 border border-neutral-100 no-underline text-inherit align-top"
-      style={{ width: "calc(50% - 4px)" }}
+      className="inline-flex gap-3 items-center p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 no-underline text-inherit align-top w-full"
     >
       {pr.thumbnail_url ? (
-        <div className="relative w-10 h-10 shrink-0">
-          <Image src={pr.thumbnail_url} alt={pr.name} fill sizes="40px" className="rounded-lg object-cover" />
+        <div className="relative w-12 h-12 shrink-0">
+          <Image src={pr.thumbnail_url} alt={pr.name} fill sizes="48px" className="rounded-lg object-cover" />
         </div>
       ) : (
-        <div className="w-10 h-10 rounded-lg bg-neutral-100 shrink-0" />
+        <div className="w-12 h-12 rounded-lg bg-neutral-100 shrink-0" />
       )}
-      <div className="min-w-0 flex-1">
-        <div className="text-[11px] font-bold text-neutral-800 overflow-hidden text-ellipsis whitespace-nowrap">{pr.name}</div>
-        <div className="text-[11px] font-bold" style={{ color: "var(--teal-700)" }}>{effectivePrice.toLocaleString("vi-VN")}đ</div>
+      <div className="min-w-0 flex-1 flex flex-col justify-between h-full min-h-[44px]">
+        <div className="text-[12px] font-bold text-neutral-800 line-clamp-2 leading-tight">{pr.name}</div>
+        <div className="flex items-center justify-between mt-1.5">
+          <div className="text-[12px] font-bold" style={{ color: "var(--teal-700)" }}>{effectivePrice.toLocaleString("vi-VN")}đ</div>
+          {onAddToCart && (
+            <button
+              onClick={onAddToCart}
+              className="w-7 h-7 rounded-full flex items-center justify-center border-none cursor-pointer transition-colors hover:scale-105 active:scale-95 shrink-0"
+              style={{ color: "var(--primary-600)", background: "var(--primary-50)" }}
+              title="Thêm vào giỏ hàng"
+            >
+              <ShoppingCart size={13} />
+            </button>
+          )}
+        </div>
       </div>
     </a>
   );
 }
 
-function renderInlineContent(content: string, products: ChatProduct[] | undefined) {
+function isIncompleteProductTag(str: string): boolean {
+  const s = str.toLowerCase();
+  
+  // State 1: Prefix of <product>
+  const fullOpenTag = "<product>";
+  if (fullOpenTag.startsWith(s)) {
+    return true;
+  }
+  
+  // State 2: <product> followed by slug (no < or > inside slug)
+  if (s.startsWith("<product>")) {
+    const rest = s.slice("<product>".length);
+    if (!rest.includes("<") && !rest.includes(">")) {
+      return true;
+    }
+    
+    // State 3: <product>slug< followed by prefix of /product>
+    const lastLess = s.lastIndexOf("<");
+    if (lastLess > 0) {
+      const slug = s.slice("<product>".length, lastLess);
+      if (!slug.includes("<") && !slug.includes(">")) {
+        const afterLess = s.slice(lastLess);
+        const fullCloseTag = "</product>";
+        if (fullCloseTag.startsWith(afterLess)) {
+          return true;
+        }
+      }
+    }
+  }
+  
+  return false;
+}
+
+function preprocessContent(content: string): { cleanContent: string; incompleteTag: string | null } {
+  const re = new RegExp(PRODUCT_TAG_RE.source, "gi");
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(content)) !== null) {
+    lastIndex = match.index + match[0].length;
+  }
+  
+  const tail = content.slice(lastIndex);
+  const lastLess = tail.lastIndexOf("<");
+  if (lastLess !== -1) {
+    const possibleTag = tail.slice(lastLess);
+    if (isIncompleteProductTag(possibleTag)) {
+      return {
+        cleanContent: content.slice(0, lastIndex + lastLess),
+        incompleteTag: possibleTag,
+      };
+    }
+  }
+  
+  return {
+    cleanContent: content,
+    incompleteTag: null,
+  };
+}
+
+function ProductCardWrapper({
+  slug,
+  initialProduct,
+  onOpenDrawer,
+}: {
+  slug: string;
+  initialProduct?: ChatProduct;
+  onOpenDrawer: (product: Product) => void;
+}) {
+  const [fetchedProduct, setFetchedProduct] = useState<ChatProduct | null>(null);
+  const [loading, setLoading] = useState(!initialProduct);
+  const [fullProduct, setFullProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    if (initialProduct) {
+      return;
+    }
+
+    let isMounted = true;
+    const fetchProduct = async () => {
+      setLoading(true);
+      try {
+        const { data } = await api.get(`/products/${slug}`);
+        if (isMounted) {
+          setFetchedProduct({
+            slug: data.slug,
+            name: data.name,
+            brand: data.brand,
+            price: data.price,
+            sale_price: data.sale_price,
+            thumbnail_url: data.images?.main || null,
+          });
+          setFullProduct(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch product for stream card:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    void fetchProduct();
+    return () => {
+      isMounted = false;
+    };
+  }, [slug, initialProduct]);
+
+  const handleAddToCartClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (fullProduct) {
+      onOpenDrawer(fullProduct);
+      return;
+    }
+
+    const toastId = toast.loading("Đang tải thông tin sản phẩm...");
+    try {
+      const { data } = await api.get(`/products/${slug}`);
+      setFullProduct(data);
+      onOpenDrawer(data);
+      toast.dismiss(toastId);
+    } catch (err) {
+      console.error("Failed to fetch full product for drawer:", err);
+      toast.error("Không thể lấy thông tin sản phẩm. Vui lòng thử lại.", { id: toastId });
+    }
+  };
+
+  const displayProduct = initialProduct || fetchedProduct;
+  const isDisplayLoading = !initialProduct && loading;
+
+  if (isDisplayLoading) {
+    return (
+      <div
+        className="inline-flex gap-3 items-center p-2.5 rounded-xl bg-neutral-50 border border-neutral-100 align-top animate-pulse w-full"
+        style={{ height: "66px" }}
+      >
+        <div className="w-12 h-12 rounded-lg bg-neutral-200 shrink-0" />
+        <div className="min-w-0 flex-1 flex flex-col gap-1.5 justify-center">
+          <div className="h-3 bg-neutral-200 rounded w-3/4" />
+          <div className="h-3 bg-neutral-200 rounded w-1/2" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!displayProduct) return null;
+
+  return <ProductCard pr={displayProduct} onAddToCart={handleAddToCartClick} />;
+}
+
+function renderInlineContent(
+  content: string,
+  products: ChatProduct[] | undefined,
+  onOpenDrawer: (product: Product) => void
+) {
   const mdComponents = {
     p: ({ children }: { children?: React.ReactNode }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p>,
     ul: ({ children }: { children?: React.ReactNode }) => <ul style={{ margin: "6px 0", paddingLeft: "18px" }}>{children}</ul>,
     li: ({ children }: { children?: React.ReactNode }) => <li style={{ marginBottom: "3px" }}>{children}</li>,
   };
-  if (!products || products.length === 0) {
-    return <ReactMarkdown components={mdComponents}>{content}</ReactMarkdown>;
-  }
-  const bySlug = Object.fromEntries(products.map((p) => [p.slug, p]));
+
+  const { cleanContent } = preprocessContent(content);
+  const bySlug = Object.fromEntries((products || []).map((p) => [p.slug, p]));
   const parts: React.ReactNode[] = [];
   let last = 0;
   let match: RegExpExecArray | null;
   const re = new RegExp(PRODUCT_TAG_RE.source, "gi");
   let idx = 0;
-  while ((match = re.exec(content)) !== null) {
-    const textBefore = content.slice(last, match.index);
+  while ((match = re.exec(cleanContent)) !== null) {
+    const textBefore = cleanContent.slice(last, match.index);
     if (textBefore) parts.push(<ReactMarkdown key={`t${idx}`} components={mdComponents}>{textBefore}</ReactMarkdown>);
-    const pr = bySlug[match[1]];
-    if (pr) parts.push(<div key={`p${idx}`} style={{ display: "flex", gap: 8, margin: "6px 0" }}><ProductCard pr={pr} /></div>);
+    const slug = match[1];
+    const pr = bySlug[slug];
+    parts.push(
+      <div key={`p${idx}`} style={{ display: "flex", gap: 8, margin: "6px 0" }}>
+        <ProductCardWrapper slug={slug} initialProduct={pr} onOpenDrawer={onOpenDrawer} />
+      </div>
+    );
     last = match.index + match[0].length;
     idx++;
   }
-  const remaining = content.slice(last);
+  const remaining = cleanContent.slice(last);
   if (remaining) parts.push(<ReactMarkdown key={`t${idx}`} components={mdComponents}>{remaining}</ReactMarkdown>);
   return <>{parts}</>;
 }
+
 
 const iconBtnCls = "border-none bg-white/10 text-white w-[30px] h-[30px] rounded-[8px] cursor-pointer flex items-center justify-center shrink-0 hover:bg-white/20 transition-colors";
 
@@ -76,6 +248,8 @@ export default function ChatWidget() {
   const hasBottomTab = pathname.startsWith("/products/");
   const { user } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
+  const [drawerProduct, setDrawerProduct] = useState<Product | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [view, setView] = useState<"chat" | "history">("chat");
   const closePanel = useCallback(() => {
@@ -316,7 +490,10 @@ export default function ChatWidget() {
                       }}
                     >
                       {m.role === "assistant"
-                        ? renderInlineContent(m.content, m.products)
+                        ? renderInlineContent(m.content, m.products, (prod) => {
+                            setDrawerProduct(prod);
+                            setIsDrawerOpen(true);
+                          })
                         : <ReactMarkdown components={{ p: ({ children }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p> }}>{m.content}</ReactMarkdown>
                       }
                     </div>
@@ -404,6 +581,15 @@ export default function ChatWidget() {
           {isOpen ? <X size={28} /> : <CatbotLogo size={34} />}
         </button>
       </div>
+
+      {drawerProduct && (
+        <ProductVariantDrawer
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          product={drawerProduct}
+          defaultAction="add"
+        />
+      )}
     </div>
   );
 }

@@ -32,6 +32,12 @@ class TestProductList:
         data = res.json()
         assert "items" in data
 
+    def test_search_keyword_only(self, client):
+        res = client.get("/api/v1/products?q=cho&keyword_only=true")
+        assert res.status_code == 200
+        data = res.json()
+        assert "items" in data
+
     def test_sort_price_asc(self, client):
         res = client.get("/api/v1/products?sort=price_asc&size=50")
         assert res.status_code == 200

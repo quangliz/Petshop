@@ -9,7 +9,7 @@ import { ShoppingCart, ChevronLeft, ChevronRight, ShieldCheck, Truck, MessageSqu
 import ReviewSection from '@/components/reviews/ReviewSection';
 import StarRating from '@/components/reviews/StarRating';
 import Image from 'next/image';
-import { Product, Variant, AttrImage } from '@/lib/types';
+import { Product, Variant } from '@/lib/types';
 import { ProductDetailSkeleton } from "@/components/skeletons/ProductDetailSkeleton";
 import { toast } from 'sonner';
 import ProductVariantDrawer from '@/components/ProductVariantDrawer';

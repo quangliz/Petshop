@@ -16,7 +16,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.2fr_2.4fr_1.3fr] gap-8 lg:gap-12 max-w-[1200px] mx-auto">
         {/* Brand */}
         <div>
-          <div style={{ filter: 'invert(1) hue-rotate(180deg)' }}><Logo /></div>
+          <div style={{ color: 'var(--primary-500)' }}><Logo /></div>
           <p className="text-[13px] leading-[1.6] max-w-[300px] -mt-1.5">
             Shop thú cưng thông minh.
           </p>

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 from typing import List, Any
 from pydantic import BaseModel
 import uuid
@@ -21,7 +21,7 @@ async def get_wishlist(db: SessionDep, current_user: CurrentUser) -> List[Any]:
     stmt = (
         select(Product)
         .join(WishlistItem, WishlistItem.product_id == Product.id)
-        .where(WishlistItem.user_id == current_user.id, Product.is_active == True)
+        .where(WishlistItem.user_id == current_user.id, Product.is_active)
         .options(
             selectinload(Product.category),
             selectinload(Product.variants),
@@ -34,7 +34,7 @@ async def get_wishlist(db: SessionDep, current_user: CurrentUser) -> List[Any]:
 @router.post("/")
 async def add_to_wishlist(db: SessionDep, current_user: CurrentUser, body: WishlistItemCreate) -> dict:
     # Check if product exists
-    product_stmt = select(Product).where(Product.id == body.product_id, Product.is_active == True)
+    product_stmt = select(Product).where(Product.id == body.product_id, Product.is_active)
     product_res = await db.execute(product_stmt)
     product = product_res.scalar_one_or_none()
     if not product:

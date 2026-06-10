@@ -5,19 +5,19 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import api from "@/lib/api";
 import type { Banner } from "@/lib/types";
+import { useQuery } from "@tanstack/react-query";
 
 export default function BannerCarousel() {
-  const [banners, setBanners] = useState<Banner[]>([]);
   const [current, setCurrent] = useState(0);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    api
-      .get("/banners")
-      .then((res) => setBanners(res.data?.items ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: banners = [], isLoading } = useQuery<Banner[]>({
+    queryKey: ["banners"],
+    queryFn: async () => {
+      const res = await api.get("/banners");
+      return res.data?.items ?? [];
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
 
   const prev = useCallback(() => {
     setCurrent((c) => (c === 0 ? banners.length - 1 : c - 1));
@@ -33,7 +33,13 @@ export default function BannerCarousel() {
     return () => clearInterval(timer);
   }, [banners.length, next]);
 
-  if (loading || banners.length === 0) return null;
+  if (isLoading || banners.length === 0) {
+    return (
+      <section className="mx-4 md:mx-8 mt-6 relative overflow-hidden rounded-[28px] bg-neutral-200/50 animate-pulse">
+        <div className="relative w-full aspect-[4/3] md:aspect-[19/5]" />
+      </section>
+    );
+  }
 
   const slide = banners[current];
   const desktopImage = slide.desktop_image_url || slide.image_url || slide.mobile_image_url;

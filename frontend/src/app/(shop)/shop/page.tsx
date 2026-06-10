@@ -1,12 +1,10 @@
 "use client";
 import React, { useState, Suspense } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import api from '@/lib/api';
-import { addToGuestCart } from '@/lib/guestCart';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuthStore } from '@/lib/store';
+import { useSearchParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Star, ShoppingCart, Filter as FilterIcon, Check, SearchX } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import Image from 'next/image';
@@ -301,17 +299,45 @@ function ShopListing() {
   }
 
   const size = 12;
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const { user } = useAuthStore();
 
   const { data: facets } = useQuery({
     queryKey: ['product-facets'],
     queryFn: async () => (await api.get('/products/facets?categories_limit=100&brands_limit=100')).data as { categories: CategoryFacet[]; brands: BrandFacet[] }
   });
 
-  const { data, isLoading, error, isFetching } = useQuery({
-    queryKey: ['products', page, size, sort, search, categoryFilter, brandFilter, priceRangeFilter],
+  const hasSearch = !!search;
+
+  // 1. Keyword-only query (fast)
+  const { 
+    data: keywordData, 
+    isLoading: isKeywordLoading, 
+    error: keywordError, 
+    isPlaceholderData: isKeywordPlaceholder 
+  } = useQuery({
+    queryKey: ['products', 'keyword', page, size, sort, search, categoryFilter, brandFilter, priceRangeFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams({ page: String(page), size: String(size), sort, keyword_only: 'true' });
+      if (search) params.set('q', search);
+      categoryFilter.forEach(s => params.append('category_slug', s));
+      brandFilter.forEach(b => params.append('brand', b));
+      if (priceRangeFilter[0] !== '') params.set('min_price', String(priceRangeFilter[0]));
+      if (priceRangeFilter[1] !== '') params.set('max_price', String(priceRangeFilter[1]));
+      const res = await api.get(`/products/?${params.toString()}`);
+      return res.data;
+    },
+    enabled: hasSearch,
+    placeholderData: keepPreviousData,
+  });
+
+  // 2. Hybrid query (semantic + keyword)
+  const { 
+    data: hybridData, 
+    isLoading: isHybridLoading, 
+    error: hybridError, 
+    isFetching: isHybridFetching, 
+    isPlaceholderData: isHybridPlaceholder 
+  } = useQuery({
+    queryKey: ['products', 'hybrid', page, size, sort, search, categoryFilter, brandFilter, priceRangeFilter],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), size: String(size), sort });
       if (search) params.set('q', search);
@@ -325,6 +351,22 @@ function ShopListing() {
     placeholderData: keepPreviousData,
   });
 
+  const showKeyword = hasSearch && !!keywordData && !isKeywordPlaceholder && (!hybridData || isHybridPlaceholder);
+
+  const data = showKeyword ? keywordData : hybridData;
+
+  const isLoading = hasSearch
+    ? (!data && (isKeywordLoading || isHybridLoading))
+    : isHybridLoading;
+
+  const error = hasSearch
+    ? (hybridError && keywordError)
+    : hybridError;
+
+  const isFetching = hasSearch
+    ? (showKeyword ? false : isHybridPlaceholder)
+    : isHybridFetching;
+
   const [productForDrawer, setProductForDrawer] = useState<Product | null>(null);
   const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
 
@@ -335,7 +377,7 @@ function ShopListing() {
     try {
       const res = await api.get(`/products/${product.slug}`);
       setProductForDrawer(res.data);
-    } catch (err) {
+    } catch {
       toast.error("Không thể tải thông tin sản phẩm");
     } finally {
       setLoadingProductId(null);
@@ -365,6 +407,12 @@ function ShopListing() {
           <p className="text-[14px] text-neutral-500 mt-1 flex items-center gap-2">
             Hiển thị {data.items.length} trong số {data.total} sản phẩm
             {isFetching && <Spinner size={14} className="text-neutral-400" />}
+            {showKeyword && (
+              <span className="text-[12px] font-semibold flex items-center gap-1.5 animate-pulse ml-2" style={{ color: '#be185d' }}>
+                <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ background: '#be185d' }}></span>
+                Đang tinh chỉnh kết quả bằng AI...
+              </span>
+            )}
           </p>
         </div>
         <div className="flex gap-3 items-center justify-end">
