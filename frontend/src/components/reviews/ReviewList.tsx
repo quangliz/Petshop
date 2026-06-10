@@ -67,7 +67,7 @@ export default function ReviewList({ productId }: { productId: string }) {
             </div>
           </div>
           {r.comment && (
-            <p className="m-0 text-[14px] text-neutral-700 leading-[1.6]">{r.comment}</p>
+            <p className="m-0 text-[14px] text-neutral-900 font-medium leading-[1.6]">{r.comment}</p>
           )}
         </div>
       ))}

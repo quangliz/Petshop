@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { getCategoryFilterTitle } from '@/lib/shopFilters';
+import ProductVariantDrawer from '@/components/ProductVariantDrawer';
 
 type CategoryFacet = Category & { parent_id?: number | null; product_count: number };
 type BrandFacet = { name: string; product_count: number };
@@ -211,7 +212,7 @@ const Rating = ({ value, size = 12, count }: { value: number, size?: number, cou
   </div>
 );
 
-const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, onAddToCart: (e: React.MouseEvent, id: string, slug: string, hasVariants: boolean) => void, isPending: boolean }) => {
+const ProductCard = ({ product, onAddToCart, isLoading }: { product: Product, onAddToCart: (e: React.MouseEvent, product: Product) => void, isLoading: boolean }) => {
   const isOutOfStock = product.stock_qty !== undefined && product.stock_qty !== null && product.stock_qty <= 0;
   return (
     <Link href={`/products/${product.slug}`} className="no-underline text-inherit">
@@ -250,27 +251,24 @@ const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, on
           <div className="text-[11px] text-neutral-500 font-semibold uppercase tracking-[0.04em]">{product.brand || "LOCAL BRAND"}</div>
           <div className="text-[14px] font-semibold text-neutral-800 leading-[1.35] line-clamp-2 min-h-[38px]">{product.name}</div>
           <Rating value={product.avg_rating || 0} count={product.review_count || 0} size={11} />
-          <div className="flex items-baseline gap-2 mt-auto pt-1.5">
-            <span className="text-[17px] font-bold" style={{ color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
-            {product.sale_price && <span className="text-[12px] text-neutral-400 line-through">{product.price.toLocaleString()}đ</span>}
+          <div className="flex items-center justify-between mt-auto pt-1.5">
+            <div className="flex flex-wrap items-baseline gap-1.5">
+              <span className="text-[17px] font-bold" style={{ color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
+              {product.sale_price && <span className="text-[12px] text-neutral-400 line-through">{product.price.toLocaleString()}đ</span>}
+            </div>
+            <button
+              onClick={(e) => onAddToCart(e, product)}
+              disabled={isLoading || isOutOfStock}
+              className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${
+                isOutOfStock
+                  ? 'bg-neutral-100 border-transparent text-neutral-400 cursor-not-allowed'
+                  : 'border-neutral-200 bg-white hover:bg-neutral-50 hover:border-neutral-300 text-neutral-700 hover:text-neutral-900 active:scale-95 shadow-xs'
+              }`}
+              title={product.has_variants ? "Chọn phân loại" : "Thêm vào giỏ"}
+            >
+              {isLoading ? <Spinner size={12} /> : <ShoppingCart size={14} />}
+            </button>
           </div>
-          <button
-            onClick={(e) => onAddToCart(e, product.id, product.slug, !!product.has_variants)}
-            disabled={isPending || isOutOfStock}
-            className={`w-full mt-3 h-9 rounded-[10px] text-[13px] font-semibold border-[1.5px] flex items-center justify-center gap-1.5 transition-colors ${
-              isOutOfStock
-                ? 'bg-neutral-100 text-neutral-400 border-transparent cursor-not-allowed'
-                : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 disabled:opacity-50'
-            }`}
-          >
-            {isOutOfStock ? (
-              "Hết hàng"
-            ) : (
-              <>
-                {isPending ? <Spinner size={14} /> : <ShoppingCart size={14} />} {isPending ? "Đang thêm..." : product.has_variants ? "Chọn phân loại" : "Thêm giỏ"}
-              </>
-            )}
-          </button>
         </div>
       </div>
     </Link>
@@ -327,23 +325,21 @@ function ShopListing() {
     placeholderData: keepPreviousData,
   });
 
-  const [pendingProductId, setPendingProductId] = useState<string | null>(null);
+  const [productForDrawer, setProductForDrawer] = useState<Product | null>(null);
+  const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
 
-  const addToCartMutation = useMutation({
-    mutationFn: async (product_id: string) => { await api.post('/cart/items', { product_id, quantity: 1 }); },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['cart'] }); toast.success("Đã thêm vào giỏ hàng!"); setPendingProductId(null); },
-    onError: (err: { response?: { data?: { detail?: string } } }) => { toast.error(err.response?.data?.detail || "Lỗi khi thêm giỏ hàng"); setPendingProductId(null); }
-  });
-
-  const handleAddToCart = (e: React.MouseEvent, productId: string, slug: string, hasVariants: boolean) => {
+  const handleAddToCart = async (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
-    if (hasVariants) {
-      router.push(`/products/${slug}`);
-      return;
+    if (loadingProductId) return;
+    setLoadingProductId(product.id);
+    try {
+      const res = await api.get(`/products/${product.slug}`);
+      setProductForDrawer(res.data);
+    } catch (err) {
+      toast.error("Không thể tải thông tin sản phẩm");
+    } finally {
+      setLoadingProductId(null);
     }
-    if (!user) { addToGuestCart(productId, slug); toast.success("Đã thêm vào giỏ hàng!"); return; }
-    setPendingProductId(productId);
-    addToCartMutation.mutate(productId);
   };
 
   if (isLoading) return <ShopPageSkeleton />;
@@ -421,7 +417,7 @@ function ShopListing() {
                 key={prod.id}
                 product={prod}
                 onAddToCart={handleAddToCart}
-                isPending={pendingProductId === prod.id && addToCartMutation.isPending}
+                isLoading={loadingProductId === prod.id}
               />
             ))}
             {data.items.length === 0 && (
@@ -481,6 +477,13 @@ function ShopListing() {
           )}
         </div>
       </div>
+      {productForDrawer && (
+        <ProductVariantDrawer
+          isOpen={!!productForDrawer}
+          onClose={() => setProductForDrawer(null)}
+          product={productForDrawer}
+        />
+      )}
     </div>
   );
 }

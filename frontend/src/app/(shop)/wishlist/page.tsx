@@ -12,17 +12,18 @@ import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { addToGuestCart } from '@/lib/guestCart';
+import ProductVariantDrawer from '@/components/ProductVariantDrawer';
 
 const ProductCard = ({ 
   product, 
   onAddToCart, 
-  isPending, 
-  onRemoveFavorite 
+  onRemoveFavorite,
+  isLoading
 }: { 
   product: Product, 
-  onAddToCart: (e: React.MouseEvent, id: string, slug: string, hasVariants: boolean) => void, 
-  isPending: boolean,
-  onRemoveFavorite: (e: React.MouseEvent, id: string) => void
+  onAddToCart: (e: React.MouseEvent, product: Product) => void, 
+  onRemoveFavorite: (e: React.MouseEvent, id: string) => void,
+  isLoading: boolean
 }) => {
   const isOutOfStock = product.stock_qty !== undefined && product.stock_qty !== null && product.stock_qty <= 0;
   return (
@@ -80,27 +81,24 @@ const ProductCard = ({
             </div>
           )}
 
-          <div className="flex items-baseline gap-2 mt-auto pt-1.5">
-            <span className="text-[17px] font-bold" style={{ color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
-            {product.sale_price && <span className="text-[12px] text-neutral-400 line-through">{product.price.toLocaleString()}đ</span>}
+          <div className="flex items-center justify-between mt-auto pt-1.5">
+            <div className="flex flex-wrap items-baseline gap-1.5">
+              <span className="text-[17px] font-bold" style={{ color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
+              {product.sale_price && <span className="text-[12px] text-neutral-400 line-through">{product.price.toLocaleString()}đ</span>}
+            </div>
+            <button
+              onClick={(e) => onAddToCart(e, product)}
+              disabled={isLoading || isOutOfStock}
+              className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all ${
+                isOutOfStock
+                  ? 'bg-neutral-100 border-transparent text-neutral-400 cursor-not-allowed'
+                  : 'border-neutral-200 bg-white hover:bg-neutral-50 hover:border-neutral-300 text-neutral-700 hover:text-neutral-900 active:scale-95 shadow-xs'
+              }`}
+              title={product.has_variants ? "Chọn phân loại" : "Thêm vào giỏ"}
+            >
+              {isLoading ? <Spinner size={12} /> : <ShoppingCart size={14} />}
+            </button>
           </div>
-          <button
-            onClick={(e) => onAddToCart(e, product.id, product.slug, !!product.has_variants)}
-            disabled={isPending || isOutOfStock}
-            className={`w-full mt-3 h-9 rounded-[10px] text-[13px] font-semibold border-[1.5px] flex items-center justify-center gap-1.5 transition-colors ${
-              isOutOfStock
-                ? 'bg-neutral-100 text-neutral-400 border-transparent cursor-not-allowed'
-                : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 disabled:opacity-50'
-            }`}
-          >
-            {isOutOfStock ? (
-              "Hết hàng"
-            ) : (
-              <>
-                {isPending ? <Spinner size={14} /> : <ShoppingCart size={14} />} {isPending ? "Đang thêm..." : product.has_variants ? "Chọn phân loại" : "Thêm giỏ"}
-              </>
-            )}
-          </button>
         </div>
       </div>
     </Link>
@@ -111,31 +109,8 @@ export default function WishlistPage() {
   const { user, isLoading: authLoading } = useAuthStore();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [pendingProductId, setPendingProductId] = useState<string | null>(null);
-
-  const { data: wishlist, isLoading, error } = useQuery<Product[]>({
-    queryKey: ['wishlist'],
-    queryFn: async () => {
-      const res = await api.get('/wishlist/');
-      return res.data;
-    },
-    enabled: !!user,
-  });
-
-  const addToCartMutation = useMutation({
-    mutationFn: async (product_id: string) => {
-      await api.post('/cart/items', { product_id, quantity: 1 });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cart'] });
-      toast.success("Đã thêm vào giỏ hàng!");
-      setPendingProductId(null);
-    },
-    onError: (err: { response?: { data?: { detail?: string } } }) => {
-      toast.error(err.response?.data?.detail || "Lỗi khi thêm giỏ hàng");
-      setPendingProductId(null);
-    }
-  });
+  const [productForDrawer, setProductForDrawer] = useState<Product | null>(null);
+  const [loadingProductId, setLoadingProductId] = useState<string | null>(null);
 
   const removeFavoriteMutation = useMutation({
     mutationFn: async (product_id: string) => {
@@ -150,19 +125,27 @@ export default function WishlistPage() {
     }
   });
 
-  const handleAddToCart = (e: React.MouseEvent, productId: string, slug: string, hasVariants: boolean) => {
+  const { data: wishlist, isLoading, error } = useQuery<Product[]>({
+    queryKey: ['wishlist'],
+    queryFn: async () => {
+      const res = await api.get('/wishlist/');
+      return res.data;
+    },
+    enabled: !!user,
+  });
+
+  const handleAddToCart = async (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
-    if (hasVariants) {
-      router.push(`/products/${slug}`);
-      return;
+    if (loadingProductId) return;
+    setLoadingProductId(product.id);
+    try {
+      const res = await api.get(`/products/${product.slug}`);
+      setProductForDrawer(res.data);
+    } catch (err) {
+      toast.error("Không thể tải thông tin sản phẩm");
+    } finally {
+      setLoadingProductId(null);
     }
-    if (!user) {
-      addToGuestCart(productId, slug);
-      toast.success("Đã thêm vào giỏ hàng!");
-      return;
-    }
-    setPendingProductId(productId);
-    addToCartMutation.mutate(productId);
   };
 
   const handleRemoveFavorite = (e: React.MouseEvent, productId: string) => {
@@ -236,11 +219,18 @@ export default function WishlistPage() {
               key={prod.id}
               product={prod}
               onAddToCart={handleAddToCart}
-              isPending={pendingProductId === prod.id && addToCartMutation.isPending}
               onRemoveFavorite={handleRemoveFavorite}
+              isLoading={loadingProductId === prod.id}
             />
           ))}
         </div>
+      )}
+      {productForDrawer && (
+        <ProductVariantDrawer
+          isOpen={!!productForDrawer}
+          onClose={() => setProductForDrawer(null)}
+          product={productForDrawer}
+        />
       )}
     </div>
   );
