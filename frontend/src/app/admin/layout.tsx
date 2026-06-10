@@ -3,13 +3,14 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { LayoutDashboard, Package, ShoppingCart, Users, Image, ArrowLeft, Menu, BookOpen, Database, ShieldAlert, Loader2, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, Image, ArrowLeft, Menu, BookOpen, Database, ShieldAlert, Loader2, MessageSquare, Ticket } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const menuItems = [
   { href: "/admin", label: "Tổng quan", icon: LayoutDashboard, roles: ["admin"] },
   { href: "/admin/products", label: "Sản phẩm", icon: Package, roles: ["admin", "catalog_manager", "support"] },
   { href: "/admin/orders", label: "Đơn hàng", icon: ShoppingCart, roles: ["admin", "order_operator", "support"] },
+  { href: "/admin/promotions", label: "Khuyến mãi", icon: Ticket, roles: ["admin", "catalog_manager"] },
   { href: "/admin/users", label: "Người dùng", icon: Users, roles: ["admin"] },
   { href: "/admin/banners", label: "Banner", icon: Image, roles: ["admin"] },
   { href: "/admin/knowledge", label: "Tri thức", icon: BookOpen, roles: ["admin", "content_manager"] },

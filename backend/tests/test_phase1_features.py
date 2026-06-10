@@ -298,3 +298,53 @@ def test_audit_log_persistence(client: TestClient, admin_headers):
     assert items[0]["action"] == "order.status_update"
     assert items[0]["old_values"] == {"status": "pending"}
     assert items[0]["new_values"] == {"status": "confirmed"}
+
+
+def test_promotions_active_and_update(client: TestClient, catalog_manager_headers):
+    # 1. Create a promotion code
+    promo_code = f"TEST{uuid.uuid4().hex[:6].upper()}"
+    res = client.post("/api/v1/promotions", headers=catalog_manager_headers, json={
+        "code": promo_code,
+        "description": "Test active and update",
+        "promo_type": "product",
+        "discount_type": "fixed",
+        "discount_value": 20000.0,
+        "min_subtotal": 50000.0,
+        "starts_at": (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1)).isoformat(),
+        "expires_at": (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=2)).isoformat(),
+        "usage_limit": 5,
+        "is_active": True
+    })
+    assert res.status_code == 201
+    promo_id = res.json()["id"]
+
+    # 2. Test public active list
+    res_active = client.get("/api/v1/promotions/active")
+    assert res_active.status_code == 200
+    active_promos = res_active.json()
+    codes = [p["code"] for p in active_promos]
+    assert promo_code in codes
+
+    # 3. Test update promotion (PUT /promotions/{id})
+    res_update = client.put(
+        f"/api/v1/promotions/{promo_id}",
+        headers=catalog_manager_headers,
+        json={
+            "description": "Updated description",
+            "discount_value": 25000.0,
+            "is_active": False
+        }
+    )
+    assert res_update.status_code == 200
+    updated_data = res_update.json()
+    assert updated_data["description"] == "Updated description"
+    assert updated_data["discount_value"] == 25000.0
+    assert updated_data["is_active"] is False
+
+    # 4. It should not be in the active list anymore (since is_active=False)
+    res_active_2 = client.get("/api/v1/promotions/active")
+    assert res_active_2.status_code == 200
+    active_promos_2 = res_active_2.json()
+    codes_2 = [p["code"] for p in active_promos_2]
+    assert promo_code not in codes_2
+

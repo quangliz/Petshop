@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { getGuestCart, clearGuestCart, getGuestCartItemKey, GuestCartItem } from '@/lib/guestCart';
-import { ChevronRight, CreditCard, Truck, ShieldCheck, Phone, User as UserIcon, MessageSquare, X } from 'lucide-react';
+import { ChevronRight, CreditCard, Truck, ShieldCheck, Phone, User as UserIcon, MessageSquare, X, Ticket, Check, AlertCircle, Calendar, Percent } from 'lucide-react';
 import Link from 'next/link';
 import { VietnamAddressPicker } from '@/components/VietnamAddressPicker';
 import { useForm, Controller } from 'react-hook-form';
@@ -13,6 +13,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
+import type { Promotion } from '@/lib/types';
+
 
 interface DisplayItem {
   id: string;
@@ -45,6 +47,62 @@ const inputWithIconCls = "w-full py-[14px] pl-10 pr-4 rounded-[12px] border-[1.5
 const labelCls = "block text-[13px] font-bold mb-2";
 const errorCls = "text-[12px] font-semibold mt-1.5";
 
+function findBestCouponCombo(
+  promotions: Promotion[],
+  subtotal: number,
+  shippingFee: number = 30000
+): string[] {
+  const eligible = promotions.filter(p => subtotal >= Number(p.min_subtotal));
+  
+  const productPromos = eligible.filter(p => p.promo_type === 'product');
+  const shippingPromos = eligible.filter(p => p.promo_type === 'shipping');
+  
+  let bestProductCode: string | null = null;
+  let maxProductDiscount = 0;
+  
+  for (const p of productPromos) {
+    let disc = 0;
+    if (p.discount_type === 'percentage') {
+      disc = subtotal * (Number(p.discount_value) / 100);
+      if (p.max_discount) {
+        disc = Math.min(disc, Number(p.max_discount));
+      }
+    } else {
+      disc = Number(p.discount_value);
+    }
+    disc = Math.min(disc, subtotal);
+    if (disc > maxProductDiscount) {
+      maxProductDiscount = disc;
+      bestProductCode = p.code;
+    }
+  }
+  
+  let bestShippingCode: string | null = null;
+  let maxShippingDiscount = 0;
+  
+  for (const p of shippingPromos) {
+    let disc = 0;
+    if (p.discount_type === 'percentage') {
+      disc = shippingFee * (Number(p.discount_value) / 100);
+      if (p.max_discount) {
+        disc = Math.min(disc, Number(p.max_discount));
+      }
+    } else {
+      disc = Number(p.discount_value);
+    }
+    disc = Math.min(disc, shippingFee);
+    if (disc > maxShippingDiscount) {
+      maxShippingDiscount = disc;
+      bestShippingCode = p.code;
+    }
+  }
+  
+  const bestCodes: string[] = [];
+  if (bestProductCode) bestCodes.push(bestProductCode);
+  if (bestShippingCode) bestCodes.push(bestShippingCode);
+  return bestCodes;
+}
+
 function CheckoutPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -74,6 +132,8 @@ function CheckoutPage() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [shippingDiscountAmount, setShippingDiscountAmount] = useState(0);
   const [couponDetails, setCouponDetails] = useState<CouponDetail[]>([]);
+  const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
+  const [isManuallyModified, setIsManuallyModified] = useState(false);
 
   const hasTrackedCheckoutStart = useRef(false);
 
@@ -108,6 +168,14 @@ function CheckoutPage() {
     queryKey: ['cart'],
     queryFn: async () => { const res = await api.get('/cart/'); return res.data; },
     enabled: !isGuest,
+  });
+
+  const { data: activePromotions } = useQuery<Promotion[]>({
+    queryKey: ['active-promotions'],
+    queryFn: async () => {
+      const res = await api.get('/promotions/active');
+      return res.data;
+    },
   });
 
   const displayItems: DisplayItem[] = useMemo(() => {
@@ -160,6 +228,58 @@ function CheckoutPage() {
     }
   }, [subtotal, appliedCodes]);
 
+  // Auto-apply best coupon combo by default
+  useEffect(() => {
+    if (activePromotions && activePromotions.length > 0 && subtotal > 0 && !isManuallyModified) {
+      const bestCombo = findBestCouponCombo(activePromotions, subtotal, 30000);
+      const currentSorted = [...appliedCodes].sort();
+      const bestSorted = [...bestCombo].sort();
+      if (JSON.stringify(currentSorted) !== JSON.stringify(bestSorted)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setAppliedCodes(bestCombo);
+      }
+    }
+  }, [activePromotions, subtotal, isManuallyModified, appliedCodes]);
+
+  const handleSelectVoucher = async (voucher: Promotion) => {
+    setIsManuallyModified(true);
+    
+    // Check if code is already applied
+    if (appliedCodes.includes(voucher.code)) {
+      handleRemoveCoupon(voucher.code);
+      return;
+    }
+    
+    // Find codes of other promo types (if any)
+    const otherTypeCodes = activePromotions
+      ? activePromotions
+          .filter(p => p.promo_type !== voucher.promo_type && appliedCodes.includes(p.code))
+          .map(p => p.code)
+      : [];
+      
+    const newCodes = [...otherTypeCodes, voucher.code];
+    if (newCodes.length > 2) {
+      toast.error('Chỉ được áp dụng tối đa 2 mã giảm giá.');
+      return;
+    }
+    
+    try {
+      const res = await api.post('/promotions/validate', {
+        coupon_codes: newCodes,
+        subtotal: subtotal,
+        shipping_fee: 30000.0,
+      });
+      setAppliedCodes(res.data.applied_codes);
+      setDiscountAmount(res.data.discount_amount);
+      setShippingDiscountAmount(res.data.shipping_discount_amount);
+      setCouponDetails(res.data.details);
+      toast.success(`Đã áp dụng mã ${voucher.code}`);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || `Không thể áp dụng mã ${voucher.code}`;
+      toast.error(msg);
+    }
+  };
+
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) return;
     const newCode = couponInput.trim().toUpperCase();
@@ -183,6 +303,7 @@ function CheckoutPage() {
       setShippingDiscountAmount(res.data.shipping_discount_amount);
       setCouponDetails(res.data.details);
       setCouponInput('');
+      setIsManuallyModified(true);
       toast.success('Áp dụng mã giảm giá thành công!');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Mã giảm giá không hợp lệ.';
@@ -192,6 +313,7 @@ function CheckoutPage() {
 
   const handleRemoveCoupon = async (codeToRemove: string) => {
     const newCodes = appliedCodes.filter(c => c !== codeToRemove);
+    setIsManuallyModified(true);
     try {
       if (newCodes.length === 0) {
         setAppliedCodes([]);
@@ -459,6 +581,16 @@ function CheckoutPage() {
                   Áp dụng
                 </button>
               </div>
+              {activePromotions && activePromotions.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIsVoucherModalOpen(true)}
+                  className="text-[12px] font-semibold text-orange-600 hover:text-orange-700 hover:underline flex items-center gap-1.5 mt-2.5 transition-all"
+                >
+                  <Ticket size={14} className="shrink-0" />
+                  Chọn voucher từ danh sách
+                </button>
+              )}
               {appliedCodes.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2 animate-in fade-in duration-200">
                   {appliedCodes.map((code) => {
@@ -530,6 +662,124 @@ function CheckoutPage() {
           </div>
         </div>
       </form>
+
+      {isVoucherModalOpen && activePromotions && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl border border-neutral-100 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-5 border-b border-neutral-100 shrink-0">
+              <div>
+                <h3 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
+                  <Ticket size={20} className="text-orange-500" />
+                  Chọn Mã Giảm Giá
+                </h3>
+                <p className="text-xs text-neutral-400 mt-0.5">Áp dụng tối đa 1 sản phẩm + 1 vận chuyển</p>
+              </div>
+              <button
+                type="button"
+                className="h-8 w-8 rounded-full hover:bg-neutral-100 flex items-center justify-center text-neutral-400 hover:text-neutral-600 transition-colors"
+                onClick={() => setIsVoucherModalOpen(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {activePromotions.length === 0 ? (
+                <div className="text-center py-10 text-neutral-400">
+                  <Ticket className="w-12 h-12 mx-auto text-neutral-200 mb-2" />
+                  <p className="text-sm">Hiện chưa có mã giảm giá nào hoạt động.</p>
+                </div>
+              ) : (
+                activePromotions.map((p) => {
+                  const isEligible = subtotal >= Number(p.min_subtotal);
+                  const isApplied = appliedCodes.includes(p.code);
+                  const typeText = p.promo_type === 'shipping' ? 'Vận chuyển' : 'Sản phẩm';
+                  const isPercentage = p.discount_type === 'percentage';
+                  
+                  return (
+                    <div
+                      key={p.id}
+                      className={`relative border rounded-xl p-4 flex gap-4 transition-all ${
+                        isApplied 
+                          ? 'border-orange-500 bg-orange-50/20' 
+                          : isEligible 
+                            ? 'border-neutral-200 hover:border-neutral-300 bg-white' 
+                            : 'border-neutral-100 bg-neutral-50/65 opacity-60'
+                      }`}
+                    >
+                      <div className={`w-12 h-12 rounded-xl shrink-0 flex flex-col items-center justify-center text-white ${
+                        p.promo_type === 'product' ? 'bg-orange-500' : 'bg-teal-500'
+                      }`}>
+                        {isPercentage ? <Percent size={18} /> : <span className="text-xs font-bold">đ</span>}
+                        <span className="text-[9px] uppercase font-bold tracking-wider mt-0.5">{typeText}</span>
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-neutral-900 uppercase text-[14px]">{p.code}</span>
+                          {isApplied && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">
+                              <Check size={10} /> Đã áp dụng
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-neutral-600 mt-1 font-medium">
+                          {p.description || `Giảm ${isPercentage ? `${p.discount_value}%` : `${p.discount_value.toLocaleString()}đ`} cho đơn hàng từ ${Number(p.min_subtotal).toLocaleString()}đ`}
+                        </p>
+                        <p className="text-[10px] text-neutral-400 mt-1.5 flex items-center gap-1">
+                          <Calendar size={10} />
+                          Hạn dùng: {new Date(p.expires_at).toLocaleDateString('vi-VN')}
+                        </p>
+                        
+                        {!isEligible && (
+                          <div className="mt-2 text-[11px] font-semibold text-orange-600 flex items-center gap-1 bg-orange-50 p-1.5 rounded-lg border border-orange-100">
+                            <AlertCircle size={12} className="shrink-0" />
+                            <span>Mua thêm {((Number(p.min_subtotal) - subtotal)).toLocaleString()}đ để dùng</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="shrink-0 flex items-center justify-center pl-2 border-l border-neutral-100">
+                        {isEligible ? (
+                          <button
+                            type="button"
+                            onClick={() => handleSelectVoucher(p)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                              isApplied
+                                ? 'bg-neutral-100 hover:bg-red-50 hover:text-red-600 text-neutral-600'
+                                : 'bg-orange-600 hover:bg-orange-500 text-white shadow-sm'
+                            }`}
+                          >
+                            {isApplied ? 'Hủy' : 'Áp dụng'}
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            type="button"
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-neutral-100 text-neutral-400 cursor-not-allowed"
+                          >
+                            Khóa
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-neutral-100 shrink-0 bg-neutral-50 rounded-b-2xl flex justify-end">
+              <button
+                type="button"
+                className="px-5 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition-colors"
+                onClick={() => setIsVoucherModalOpen(false)}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -138,6 +138,18 @@ export default function AdminProductsPage() {
       return res.data;
     },
   });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCurrentPage(1);
+  }, [search]);
+
+  const products = data?.items ?? [];
+  const totalPages = Math.ceil(products.length / itemsPerPage);
+  const paginatedProducts = products.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -357,8 +369,9 @@ export default function AdminProductsPage() {
         </Button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
-        <table className="w-full text-sm" style={{ minWidth: 700 }}>
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden flex flex-col">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" style={{ minWidth: 700 }}>
           <thead className="bg-gray-50 border-b text-gray-500 uppercase text-xs">
             <tr>
               <th className="text-left px-4 py-3">Ảnh</th>
@@ -372,7 +385,7 @@ export default function AdminProductsPage() {
           </thead>
           <tbody className="divide-y">
             {isLoading && <AdminTableRowsSkeleton columns={7} rows={6} imageColumn />}
-            {data?.items?.map((p: AdminProduct) => (
+            {paginatedProducts.map((p: AdminProduct) => (
               <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3">
                   <div className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden">
@@ -416,8 +429,63 @@ export default function AdminProductsPage() {
             ))}
           </tbody>
         </table>
-        {data && <div className="px-4 py-3 text-xs text-gray-400 border-t">Tổng: {data.total} sản phẩm</div>}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-6 py-4 border-t border-neutral-100 bg-neutral-50/50 rounded-b-xl shrink-0">
+          <div className="text-xs text-neutral-500 font-medium">
+            Hiển thị {(currentPage - 1) * itemsPerPage + 1} - {Math.min(currentPage * itemsPerPage, products.length)} trong tổng số {products.length} sản phẩm
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => {
+                setCurrentPage(prev => Math.max(1, prev - 1));
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="h-8 px-2.5 text-xs rounded-lg border-neutral-200 bg-white"
+            >
+              Trước
+            </Button>
+            {Array.from({ length: totalPages }).map((_, idx) => {
+              const pageNum = idx + 1;
+              return (
+                <Button
+                  key={pageNum}
+                  variant={currentPage === pageNum ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setCurrentPage(pageNum);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className={`h-8 w-8 p-0 text-xs rounded-lg ${
+                    currentPage === pageNum 
+                      ? "bg-orange-600 hover:bg-orange-500 text-white" 
+                      : "border-neutral-200 hover:bg-neutral-100 bg-white"
+                  }`}
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === totalPages}
+              onClick={() => {
+                setCurrentPage(prev => Math.min(totalPages, prev + 1));
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="h-8 px-2.5 text-xs rounded-lg border-neutral-200 bg-white"
+            >
+              Sau
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
 
       {modal.open && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

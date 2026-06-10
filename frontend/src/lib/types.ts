@@ -155,3 +155,21 @@ export interface ForumReply {
   created_at: string | null;
   updated_at: string | null;
 }
+
+export interface Promotion {
+  id: string;
+  code: string;
+  description: string | null;
+  promo_type: 'product' | 'shipping';
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  min_subtotal: number;
+  max_discount: number | null;
+  starts_at: string;
+  expires_at: string;
+  usage_limit: number | null;
+  usage_count: number;
+  is_active: boolean;
+  created_at: string;
+}
+

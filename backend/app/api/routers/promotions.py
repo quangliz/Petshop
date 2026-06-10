@@ -183,7 +183,35 @@ async def validate_coupons(req: CouponValidateRequest, db: SessionDep) -> Any:
     )
 
 
+@router.get("/active", response_model=List[PromotionResponse])
+async def list_active_promotions(db: SessionDep) -> Any:
+    """List all active and currently valid promotions for customers."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    result = await db.execute(
+        select(Promotion).where(
+            Promotion.is_active.is_(True),
+            Promotion.starts_at <= now,
+            Promotion.expires_at >= now,
+            (Promotion.usage_limit.is_(None)) | (Promotion.usage_count < Promotion.usage_limit)
+        ).order_by(Promotion.created_at.desc())
+    )
+    return result.scalars().all()
+
+
 # --- Admin / Catalog Manager API ---
+
+class PromotionUpdate(BaseModel):
+    description: str | None = Field(default=None, max_length=500)
+    promo_type: PromotionTypeEnum | None = None
+    discount_type: DiscountTypeEnum | None = None
+    discount_value: float | None = Field(default=None, gt=0)
+    min_subtotal: float | None = Field(default=None, ge=0)
+    max_discount: float | None = Field(default=None, gt=0)
+    starts_at: datetime.datetime | None = None
+    expires_at: datetime.datetime | None = None
+    usage_limit: int | None = Field(default=None, ge=1)
+    is_active: bool | None = None
+
 
 @router.post("/", response_model=PromotionResponse, status_code=status.HTTP_201_CREATED)
 async def create_promotion(
@@ -288,3 +316,62 @@ async def delete_promotion(
     await db.delete(promo)
     await db.commit()
     return {"message": "Xóa mã giảm giá thành công"}
+
+
+@router.put("/{promo_id}", response_model=PromotionResponse)
+async def update_promotion(
+    promo_id: uuid.UUID,
+    body: PromotionUpdate,
+    db: SessionDep,
+    _auth: Any = Depends(require_roles(RoleEnum.catalog_manager))
+) -> Any:
+    """Update a promotion code (Catalog Manager / Admin)."""
+    result = await db.execute(select(Promotion).where(Promotion.id == promo_id))
+    promo = result.scalar_one_or_none()
+    if not promo:
+        raise HTTPException(status_code=404, detail="Không tìm thấy mã giảm giá")
+
+    old_values = {}
+    new_values = {}
+
+    update_data = body.model_dump(exclude_unset=True)
+
+    starts_at = update_data.get("starts_at", promo.starts_at)
+    expires_at = update_data.get("expires_at", promo.expires_at)
+    if starts_at >= expires_at:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Thời gian bắt đầu phải trước thời gian hết hạn"
+        )
+
+    # Helper to make values JSON serializable for audit log
+    def clean_val(v):
+        if v is None:
+            return None
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, (int, float)):
+            return float(v)
+        if type(v).__name__ == 'Decimal':
+            return float(v)
+        return v
+
+    for field, value in update_data.items():
+        old_val = getattr(promo, field)
+        setattr(promo, field, value)
+        old_values[field] = clean_val(old_val)
+        new_values[field] = clean_val(value)
+
+    await log_audit(
+        db=db,
+        user_id=getattr(_auth, "id", None),
+        action="promotion.update",
+        resource_type="Promotion",
+        resource_id=str(promo.id),
+        old_values=old_values,
+        new_values=new_values
+    )
+    await db.commit()
+    await db.refresh(promo)
+    return promo
+
