@@ -27,48 +27,58 @@ const Rating = ({ value, size = 12, count }: { value: number, size?: number, cou
   </div>
 );
 
-const ProductCardSmall = ({ product }: { product: Product }) => (
-  <Link
-    href={`/products/${product.slug}`}
-    className="w-[130px] md:w-[150px] shrink-0 no-underline text-inherit"
-    style={{ scrollSnapAlign: 'start' }}
-  >
-    <div
-      className="group cursor-pointer overflow-hidden flex flex-col h-full bg-white border border-neutral-100 rounded-[16px] shadow-xs transition-[transform,box-shadow] duration-160 ease-ease hover:-translate-y-0.5 hover:shadow-md"
+const ProductCardSmall = ({ product }: { product: Product }) => {
+  const isOutOfStock = product.stock_qty !== undefined && product.stock_qty !== null && product.stock_qty <= 0;
+  return (
+    <Link
+      href={`/products/${product.slug}`}
+      className="w-[130px] md:w-[150px] shrink-0 no-underline text-inherit"
+      style={{ scrollSnapAlign: 'start' }}
     >
-      <div className="relative aspect-square bg-neutral-50 overflow-hidden">
-        {product.images?.main ? (
-          <Image
-            src={product.images.main}
-            alt={product.name}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover transition-transform duration-300 ease-out group-hover:scale-105"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-neutral-400 text-[9px] font-mono"
-            style={{ background: 'repeating-linear-gradient(45deg, var(--neutral-100), var(--neutral-100) 8px, var(--neutral-50) 8px, var(--neutral-50) 16px)' }}>
-            NO IMAGE
+      <div
+        className="group cursor-pointer overflow-hidden flex flex-col h-full bg-white border border-neutral-100 rounded-[16px] shadow-xs transition-[transform,box-shadow] duration-160 ease-ease hover:-translate-y-0.5 hover:shadow-md"
+      >
+        <div className="relative aspect-square bg-neutral-50 overflow-hidden">
+          {product.images?.main ? (
+            <Image
+              src={product.images.main}
+              alt={product.name}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className={`object-cover transition-transform duration-300 ease-out group-hover:scale-105 ${isOutOfStock ? 'grayscale opacity-60' : ''}`}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-neutral-400 text-[9px] font-mono"
+              style={{ background: 'repeating-linear-gradient(45deg, var(--neutral-100), var(--neutral-100) 8px, var(--neutral-50) 8px, var(--neutral-50) 16px)' }}>
+              NO IMAGE
+            </div>
+          )}
+          {isOutOfStock && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+              <span className="bg-neutral-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-[4px] tracking-wide uppercase">
+                Hết hàng
+              </span>
+            </div>
+          )}
+          {product.sale_price && (
+            <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ background: 'var(--danger)' }}>
+              -{Math.round((1 - product.sale_price / product.price) * 100)}%
+            </span>
+          )}
+        </div>
+        <div className="p-[10px_12px_12px] flex flex-col gap-1 flex-1">
+          <div className="text-[10px] text-neutral-500 font-semibold uppercase tracking-[0.04em]">{product.brand || "LOCAL BRAND"}</div>
+          <div className="text-[12px] font-semibold text-neutral-800 leading-[1.35] line-clamp-2 min-h-[32px]">{product.name}</div>
+          <Rating value={product.avg_rating || 0} count={product.review_count || 0} size={10} />
+          <div className="flex items-baseline gap-1.5 mt-auto pt-1">
+            <span className="text-[14px] font-bold" style={{ color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
+            {product.sale_price && <span className="text-[11px] text-neutral-400 line-through">{product.price.toLocaleString()}đ</span>}
           </div>
-        )}
-        {product.sale_price && (
-          <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ background: 'var(--danger)' }}>
-            -{Math.round((1 - product.sale_price / product.price) * 100)}%
-          </span>
-        )}
-      </div>
-      <div className="p-[10px_12px_12px] flex flex-col gap-1 flex-1">
-        <div className="text-[10px] text-neutral-500 font-semibold uppercase tracking-[0.04em]">{product.brand || "LOCAL BRAND"}</div>
-        <div className="text-[12px] font-semibold text-neutral-800 leading-[1.35] line-clamp-2 min-h-[32px]">{product.name}</div>
-        <Rating value={product.avg_rating || 0} count={product.review_count || 0} size={10} />
-        <div className="flex items-baseline gap-1.5 mt-auto pt-1">
-          <span className="text-[14px] font-bold" style={{ color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
-          {product.sale_price && <span className="text-[11px] text-neutral-400 line-through">{product.price.toLocaleString()}đ</span>}
         </div>
       </div>
-    </div>
-  </Link>
-);
+    </Link>
+  );
+}
 
 const CarouselRow = ({ items }: { items: Product[] }) => {
   const ref = useRef<HTMLDivElement>(null);

@@ -31,6 +31,7 @@ export default function HeaderAuthSection() {
             <DropdownMenuItem render={<Link href="/admin" className="text-[oklch(0.61_0.19_46)] font-semibold" />}>Bảng cấu hình Admin</DropdownMenuItem>
           )}
           <DropdownMenuItem render={<Link href="/forum" />}>Forum</DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/wishlist" />}>Sản phẩm yêu thích</DropdownMenuItem>
           <DropdownMenuItem render={<Link href="/profile" />}>Hồ sơ cá nhân</DropdownMenuItem>
           <DropdownMenuItem render={<Link href="/orders" />}>Đơn hàng của tôi</DropdownMenuItem>
           <DropdownMenuItem onClick={logout} className="cursor-pointer" style={{ color: "var(--danger)" }}>Đăng xuất</DropdownMenuItem>

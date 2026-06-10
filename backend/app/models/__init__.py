@@ -8,6 +8,7 @@ from app.models.review import Review
 from app.models.forum import ForumThread, ForumReply, ForumThreadVote, ForumReplyVote
 from app.models.audit import AuditLog
 from app.models.ai_observability import AICallLog
+from app.models.wishlist import WishlistItem
 
 __all__ = [
     "Base",
@@ -21,4 +22,5 @@ __all__ = [
     "ForumThread", "ForumReply", "ForumThreadVote", "ForumReplyVote",
     "AuditLog",
     "AICallLog",
+    "WishlistItem",
 ]

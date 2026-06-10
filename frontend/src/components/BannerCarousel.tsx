@@ -49,14 +49,8 @@ export default function BannerCarousel() {
           const bannerMobileImage = banner.mobile_image_url || banner.desktop_image_url || banner.image_url;
           const active = i === current;
 
-          return (
-            <div
-              key={banner.id}
-              className={`absolute inset-0 transition-[opacity,transform] duration-700 ease-out ${
-                active ? "opacity-100 translate-x-0 z-10" : "opacity-0 translate-x-4 z-0"
-              }`}
-              aria-hidden={!active}
-            >
+          const content = (
+            <>
               <div
                 className="absolute inset-0 bg-cover bg-center md:hidden"
                 style={{ backgroundImage: `url(${bannerMobileImage})` }}
@@ -65,29 +59,28 @@ export default function BannerCarousel() {
                 className="absolute inset-0 hidden bg-cover bg-center md:block"
                 style={{ backgroundImage: `url(${bannerDesktopImage})` }}
               />
-              <div className="absolute inset-0 flex items-end p-8 md:p-14">
-                <div className="text-white max-w-xl">
-                  {banner.title && (
-                    <h2 className="text-2xl md:text-4xl font-extrabold leading-tight mb-2 drop-shadow-lg">
-                      {banner.title}
-                    </h2>
-                  )}
-                  {banner.subtitle && (
-                    <p className="text-sm md:text-base text-white/90 mb-4 drop-shadow">
-                      {banner.subtitle}
-                    </p>
-                  )}
-                  {banner.link_url && (
-                    <Link
-                      href={banner.link_url}
-                      className="inline-block bg-white text-neutral-900 font-semibold px-5 py-2.5 rounded-full text-sm hover:bg-white/90 transition"
-                      tabIndex={active ? 0 : -1}
-                    >
-                      Xem ngay
-                    </Link>
-                  )}
-                </div>
-              </div>
+            </>
+          );
+
+          return (
+            <div
+              key={banner.id}
+              className={`absolute inset-0 transition-[opacity,transform] duration-700 ease-out ${
+                active ? "opacity-100 translate-x-0 z-10" : "opacity-0 translate-x-4 z-0"
+              }`}
+              aria-hidden={!active}
+            >
+              {banner.link_url ? (
+                <Link
+                  href={banner.link_url}
+                  className="absolute inset-0 block cursor-pointer"
+                  tabIndex={active ? 0 : -1}
+                >
+                  {content}
+                </Link>
+              ) : (
+                content
+              )}
             </div>
           );
         })}

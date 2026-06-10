@@ -211,51 +211,71 @@ const Rating = ({ value, size = 12, count }: { value: number, size?: number, cou
   </div>
 );
 
-const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, onAddToCart: (e: React.MouseEvent, id: string, slug: string, hasVariants: boolean) => void, isPending: boolean }) => (
-  <Link href={`/products/${product.slug}`} className="no-underline text-inherit">
-    <div
-      className="group bg-white border border-neutral-100 rounded-[16px] shadow-xs cursor-pointer overflow-hidden flex flex-col h-full transition-[transform,box-shadow] duration-160 ease-ease hover:-translate-y-0.5 hover:shadow-md"
-    >
-      <div className="relative aspect-square bg-neutral-50 overflow-hidden">
-        {(product.thumbnail_url || product.images?.main) ? (
-          <Image
-            src={product.thumbnail_url || product.images?.main || ''}
-            alt={product.name}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover transition-transform duration-300 ease-out group-hover:scale-105"
-          />
-        ) : (
-          <div className="w-full h-full bg-neutral-100 flex items-center justify-center text-neutral-400 text-[10px]">NO IMAGE</div>
-        )}
-        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
-          {product.sale_price && (
-            <span className="px-1.5 py-0.5 rounded text-[11px] font-bold text-white" style={{ background: 'var(--danger)' }}>
-              -{Math.round((1 - product.sale_price / product.price) * 100)}%
-            </span>
+const ProductCard = ({ product, onAddToCart, isPending }: { product: Product, onAddToCart: (e: React.MouseEvent, id: string, slug: string, hasVariants: boolean) => void, isPending: boolean }) => {
+  const isOutOfStock = product.stock_qty !== undefined && product.stock_qty !== null && product.stock_qty <= 0;
+  return (
+    <Link href={`/products/${product.slug}`} className="no-underline text-inherit">
+      <div
+        className="group bg-white border border-neutral-100 rounded-[16px] shadow-xs cursor-pointer overflow-hidden flex flex-col h-full transition-[transform,box-shadow] duration-160 ease-ease hover:-translate-y-0.5 hover:shadow-md"
+      >
+        <div className="relative aspect-square bg-neutral-50 overflow-hidden">
+          {(product.thumbnail_url || product.images?.main) ? (
+            <Image
+              src={product.thumbnail_url || product.images?.main || ''}
+              alt={product.name}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className={`object-cover transition-transform duration-300 ease-out group-hover:scale-105 ${isOutOfStock ? 'grayscale opacity-60' : ''}`}
+            />
+          ) : (
+            <div className="w-full h-full bg-neutral-100 flex items-center justify-center text-neutral-400 text-[10px]">NO IMAGE</div>
           )}
-          {product.is_new && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold text-white" style={{ background: 'var(--teal-600)' }}>MỚI</span>}
+          {isOutOfStock && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+              <span className="bg-neutral-900/80 text-white text-[12px] font-bold px-3 py-1 rounded-[6px] tracking-wide uppercase">
+                Hết hàng
+              </span>
+            </div>
+          )}
+          <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
+            {product.sale_price && (
+              <span className="px-1.5 py-0.5 rounded text-[11px] font-bold text-white" style={{ background: 'var(--danger)' }}>
+                -{Math.round((1 - product.sale_price / product.price) * 100)}%
+              </span>
+            )}
+            {product.is_new && <span className="px-1.5 py-0.5 rounded text-[11px] font-bold text-white" style={{ background: 'var(--teal-600)' }}>MỚI</span>}
+          </div>
+        </div>
+        <div className="p-[14px_16px_16px] flex flex-col gap-1.5 flex-1">
+          <div className="text-[11px] text-neutral-500 font-semibold uppercase tracking-[0.04em]">{product.brand || "LOCAL BRAND"}</div>
+          <div className="text-[14px] font-semibold text-neutral-800 leading-[1.35] line-clamp-2 min-h-[38px]">{product.name}</div>
+          <Rating value={product.avg_rating || 0} count={product.review_count || 0} size={11} />
+          <div className="flex items-baseline gap-2 mt-auto pt-1.5">
+            <span className="text-[17px] font-bold" style={{ color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
+            {product.sale_price && <span className="text-[12px] text-neutral-400 line-through">{product.price.toLocaleString()}đ</span>}
+          </div>
+          <button
+            onClick={(e) => onAddToCart(e, product.id, product.slug, !!product.has_variants)}
+            disabled={isPending || isOutOfStock}
+            className={`w-full mt-3 h-9 rounded-[10px] text-[13px] font-semibold border-[1.5px] flex items-center justify-center gap-1.5 transition-colors ${
+              isOutOfStock
+                ? 'bg-neutral-100 text-neutral-400 border-transparent cursor-not-allowed'
+                : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 disabled:opacity-50'
+            }`}
+          >
+            {isOutOfStock ? (
+              "Hết hàng"
+            ) : (
+              <>
+                {isPending ? <Spinner size={14} /> : <ShoppingCart size={14} />} {isPending ? "Đang thêm..." : product.has_variants ? "Chọn phân loại" : "Thêm giỏ"}
+              </>
+            )}
+          </button>
         </div>
       </div>
-      <div className="p-[14px_16px_16px] flex flex-col gap-1.5 flex-1">
-        <div className="text-[11px] text-neutral-500 font-semibold uppercase tracking-[0.04em]">{product.brand || "LOCAL BRAND"}</div>
-        <div className="text-[14px] font-semibold text-neutral-800 leading-[1.35] line-clamp-2 min-h-[38px]">{product.name}</div>
-        <Rating value={product.avg_rating || 0} count={product.review_count || 0} size={11} />
-        <div className="flex items-baseline gap-2 mt-auto pt-1.5">
-          <span className="text-[17px] font-bold" style={{ color: 'var(--primary-600)' }}>{(product.sale_price || product.price).toLocaleString()}đ</span>
-          {product.sale_price && <span className="text-[12px] text-neutral-400 line-through">{product.price.toLocaleString()}đ</span>}
-        </div>
-        <button
-          onClick={(e) => onAddToCart(e, product.id, product.slug, !!product.has_variants)}
-          disabled={isPending}
-          className="w-full mt-3 h-9 rounded-[10px] text-[13px] font-semibold border-[1.5px] border-neutral-200 bg-white text-neutral-700 flex items-center justify-center gap-1.5 transition-colors hover:bg-neutral-50 disabled:opacity-50"
-        >
-          {isPending ? <Spinner size={14} /> : <ShoppingCart size={14} />} {isPending ? "Đang thêm..." : product.has_variants ? "Chọn phân loại" : "Thêm giỏ"}
-        </button>
-      </div>
-    </div>
-  </Link>
-);
+    </Link>
+  );
+}
 
 export default function ShopPage() {
   return (

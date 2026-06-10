@@ -89,6 +89,7 @@ export default function ProductDetailPage() {
         if (match) return match.url;
       }
     }
+    return product?.thumbnail_url || product?.images?.main;
   }, [selectedVariant, product]);
 
   // List of all images for the product including variant images and attr images
@@ -189,7 +190,15 @@ export default function ProductDetailPage() {
   }, [allImages, currentImgIndex, syncSelectedAttrsFromImage]);
 
   useEffect(() => {
+    prevSelectedVariantId.current = undefined;
+  }, [params.slug]);
+
+  useEffect(() => {
     if (!selectedVariant) return;
+    if (prevSelectedVariantId.current === undefined) {
+      prevSelectedVariantId.current = selectedVariant.id;
+      return;
+    }
     if (selectedVariant.id === prevSelectedVariantId.current) return;
     prevSelectedVariantId.current = selectedVariant.id;
 
@@ -322,6 +331,33 @@ export default function ProductDetailPage() {
   });
   const similarItems: Product[] = similarData?.items ?? [];
 
+  const { data: favoriteData, refetch: refetchFavorite } = useQuery({
+    queryKey: ['wishlist-check', product?.id],
+    queryFn: async () => {
+      const res = await api.get(`/wishlist/check/${product!.id}`);
+      return res.data as { is_favorite: boolean };
+    },
+    enabled: !!user && !!product?.id,
+  });
+  const isFavorite = favoriteData?.is_favorite ?? false;
+
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async () => {
+      if (isFavorite) {
+        await api.delete(`/wishlist/${product!.id}`);
+      } else {
+        await api.post('/wishlist/', { product_id: product!.id });
+      }
+    },
+    onSuccess: () => {
+      refetchFavorite();
+      toast.success(isFavorite ? "Đã xoá khỏi danh sách yêu thích!" : "Đã thêm vào danh sách yêu thích!");
+    },
+    onError: (err: { response?: { data?: { detail?: string } } }) => {
+      toast.error(err.response?.data?.detail || "Lỗi khi xử lý danh sách yêu thích");
+    }
+  });
+
   const carouselRef = useRef<HTMLDivElement>(null);
   const scrollCarousel = (dir: number) => carouselRef.current?.scrollBy({ left: dir * 400, behavior: 'smooth' });
 
@@ -452,13 +488,22 @@ export default function ProductDetailPage() {
             </div>
             
             <div className="flex flex-col items-end gap-1.5 shrink-0">
-              {/* Dummy Favorite Button */}
+              {/* Real Favorite Button */}
               <button 
                 type="button" 
-                onClick={() => toast.success("Đã thêm vào danh sách yêu thích")}
-                className="w-9 h-9 rounded-full border border-neutral-100 flex items-center justify-center text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer bg-white"
+                onClick={() => {
+                  if (!user) {
+                    toast.error("Vui lòng đăng nhập để lưu sản phẩm yêu thích");
+                    return;
+                  }
+                  toggleFavoriteMutation.mutate();
+                }}
+                disabled={toggleFavoriteMutation.isPending}
+                className={`w-9 h-9 rounded-full border border-neutral-100 flex items-center justify-center transition-colors cursor-pointer bg-white ${
+                  isFavorite ? 'text-red-500 border-red-100' : 'text-neutral-400 hover:text-red-500 hover:bg-red-50'
+                }`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill={isFavorite ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
               </button>
@@ -805,43 +850,59 @@ export default function ProductDetailPage() {
               className="flex gap-4 overflow-x-auto pb-2 pt-1 px-1"
               style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none' }}
             >
-              {similarItems.map((p: Product) => (
-                <Link
-                  key={p.id}
-                  href={`/products/${p.slug}`}
-                  className="w-[150px] md:w-[180px] shrink-0 no-underline text-inherit"
-                  style={{ scrollSnapAlign: 'start' }}
-                >
-                  <div className="group bg-white border border-neutral-100 rounded-[16px] shadow-xs cursor-pointer overflow-hidden flex flex-col h-full transition-[transform,box-shadow] duration-160 hover:-translate-y-0.5 hover:shadow-md">
-                    <div className="relative aspect-square bg-neutral-50">
-                      {p.thumbnail_url || p.images?.main ? (
-                        <Image src={p.thumbnail_url || p.images?.main || ''} alt={p.name} fill sizes="(max-width: 768px) 50vw, 33vw" className="object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-neutral-400 text-[10px]">NO IMAGE</div>
-                      )}
-                      {p.sale_price && (
-                        <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-bold text-white" style={{ background: 'var(--danger)' }}>
-                          -{Math.round((1 - p.sale_price / p.price) * 100)}%
-                        </span>
-                      )}
-                    </div>
-                    <div className="p-[10px_12px_12px] flex flex-col gap-1 flex-1">
-                      <div className="text-[10px] text-neutral-500 font-semibold uppercase tracking-[0.04em]">{p.brand || "LOCAL BRAND"}</div>
-                      <div className="text-[13px] font-semibold text-neutral-800 leading-[1.35] line-clamp-2 min-h-[35px]">{p.name}</div>
-                      {p.avg_rating != null && (p.review_count ?? 0) > 0 && (
-                        <div className="inline-flex items-center gap-1">
-                          <StarRating value={Math.round(p.avg_rating)} size={11} />
-                          <span className="text-[10px] text-neutral-500">({p.review_count})</span>
+              {similarItems.map((p: Product) => {
+                const isOutOfStock = p.stock_qty !== undefined && p.stock_qty !== null && p.stock_qty <= 0;
+                return (
+                  <Link
+                    key={p.id}
+                    href={`/products/${p.slug}`}
+                    className="w-[150px] md:w-[180px] shrink-0 no-underline text-inherit"
+                    style={{ scrollSnapAlign: 'start' }}
+                  >
+                    <div className="group bg-white border border-neutral-100 rounded-[16px] shadow-xs cursor-pointer overflow-hidden flex flex-col h-full transition-[transform,box-shadow] duration-160 hover:-translate-y-0.5 hover:shadow-md">
+                      <div className="relative aspect-square bg-neutral-50 overflow-hidden">
+                        {p.thumbnail_url || p.images?.main ? (
+                          <Image
+                            src={p.thumbnail_url || p.images?.main || ''}
+                            alt={p.name}
+                            fill
+                            sizes="(max-width: 768px) 50vw, 33vw"
+                            className={`object-cover ${isOutOfStock ? 'grayscale opacity-60' : ''}`}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-neutral-400 text-[10px]">NO IMAGE</div>
+                        )}
+                        {isOutOfStock && (
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+                            <span className="bg-neutral-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-[4px] tracking-wide uppercase">
+                              Hết hàng
+                            </span>
+                          </div>
+                        )}
+                        {p.sale_price && (
+                          <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-bold text-white" style={{ background: 'var(--danger)' }}>
+                            -{Math.round((1 - p.sale_price / p.price) * 100)}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-[10px_12px_12px] flex flex-col gap-1 flex-1">
+                        <div className="text-[10px] text-neutral-500 font-semibold uppercase tracking-[0.04em]">{p.brand || "LOCAL BRAND"}</div>
+                        <div className="text-[13px] font-semibold text-neutral-800 leading-[1.35] line-clamp-2 min-h-[35px]">{p.name}</div>
+                        {p.avg_rating != null && (p.review_count ?? 0) > 0 && (
+                          <div className="inline-flex items-center gap-1">
+                            <StarRating value={Math.round(p.avg_rating)} size={11} />
+                            <span className="text-[10px] text-neutral-500">({p.review_count})</span>
+                          </div>
+                        )}
+                        <div className="flex items-baseline gap-1.5 mt-auto pt-1">
+                          <span className="text-[15px] font-bold" style={{ color: 'var(--primary-600)' }}>{(p.sale_price || p.price).toLocaleString()}đ</span>
+                          {p.sale_price && <span className="text-[11px] text-neutral-400 line-through">{p.price.toLocaleString()}đ</span>}
                         </div>
-                      )}
-                      <div className="flex items-baseline gap-1.5 mt-auto pt-1">
-                        <span className="text-[15px] font-bold" style={{ color: 'var(--primary-600)' }}>{(p.sale_price || p.price).toLocaleString()}đ</span>
-                        {p.sale_price && <span className="text-[11px] text-neutral-400 line-through">{p.price.toLocaleString()}đ</span>}
                       </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
             <button
               onClick={() => scrollCarousel(1)}

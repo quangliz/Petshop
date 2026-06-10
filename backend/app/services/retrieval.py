@@ -416,10 +416,15 @@ async def _rank_similar_products_uncached(
         if slug not in products_by_slug
     })
 
+    def get_similar_sort_key(p: Product):
+        active_vars = [v for v in p.variants if v.is_active]
+        stock = sum(v.stock_qty for v in active_vars) if active_vars else p.stock_qty
+        is_out = 1 if stock <= 0 else 0
+        return (is_out, -fusion_scores[p.slug])
+
     ranked = sorted(
         [candidate for slug, candidate in products_by_slug.items() if slug in candidate_slugs],
-        key=lambda candidate: fusion_scores[candidate.slug],
-        reverse=True,
+        key=get_similar_sort_key,
     )
     max_score = max((fusion_scores[candidate.slug] for candidate in ranked), default=1.0)
     return [
@@ -497,7 +502,13 @@ async def search_products(
             max_price=max_price,
         )
     ]
-    ranked = sorted(filtered, key=lambda product: fusion_scores[product.slug], reverse=True)
+    def get_search_sort_key(p: Product):
+        active_vars = [v for v in p.variants if v.is_active]
+        stock = sum(v.stock_qty for v in active_vars) if active_vars else p.stock_qty
+        is_out = 1 if stock <= 0 else 0
+        return (is_out, -fusion_scores[p.slug])
+
+    ranked = sorted(filtered, key=get_search_sort_key)
     max_score = max((fusion_scores[p.slug] for p in ranked), default=1.0)
     return [
         _product_result(product, score=fusion_scores[product.slug] / max_score)

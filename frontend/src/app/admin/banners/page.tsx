@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
-import type { Banner } from "@/lib/types";
+import type { Banner, Product } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Edit, Trash2, X, ImageIcon } from "lucide-react";
+import { PlusCircle, Edit, Trash2, X, ImageIcon, Search } from "lucide-react";
 import Image from "next/image";
 import { AdminTableRowsSkeleton } from "@/components/skeletons/AdminSkeletons";
 
@@ -24,6 +24,11 @@ export default function AdminBannersPage() {
     is_active: true,
   });
 
+  const [productSearch, setProductSearch] = useState("");
+  const [productSearchResults, setProductSearchResults] = useState<Product[]>([]);
+  const [searchingProducts, setSearchingProducts] = useState(false);
+  const [linkType, setLinkType] = useState<"product" | "custom">("product");
+
   const { data, isLoading } = useQuery({
     queryKey: ["admin-banners"],
     queryFn: async () => {
@@ -32,23 +37,61 @@ export default function AdminBannersPage() {
     },
   });
 
+  const handleSearchProducts = async (q: string) => {
+    if (!q.trim()) {
+      setProductSearchResults([]);
+      return;
+    }
+    setSearchingProducts(true);
+    try {
+      const res = await api.get("/products/", { params: { q, size: 10 } });
+      setProductSearchResults(res.data?.items ?? []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSearchingProducts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (linkType !== "product" || !modal.open) return;
+    const delayDebounceFn = setTimeout(() => {
+      handleSearchProducts(productSearch);
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [productSearch, linkType, modal.open]);
+
+  const selectProduct = (slug: string) => {
+    setForm((prev) => ({ ...prev, link_url: `/products/${slug}` }));
+    setProductSearchResults([]);
+    setProductSearch("");
+  };
+
   const openCreate = () => {
     setForm({ title: "", subtitle: "", link_url: "", sort_order: 0, is_active: true });
     setDesktopImageFile(null);
     setMobileImageFile(null);
+    setLinkType("product");
+    setProductSearch("");
+    setProductSearchResults([]);
     setModal({ open: true });
   };
 
   const openEdit = (b: Banner) => {
+    const isProd = b.link_url?.startsWith("/products/") ?? false;
     setForm({
-      title: b.title ?? "",
-      subtitle: b.subtitle ?? "",
+      title: "",
+      subtitle: "",
       link_url: b.link_url ?? "",
       sort_order: b.sort_order ?? 0,
       is_active: b.is_active ?? true,
     });
     setDesktopImageFile(null);
     setMobileImageFile(null);
+    setLinkType(isProd ? "product" : "custom");
+    setProductSearch("");
+    setProductSearchResults([]);
     setModal({ open: true, banner: b });
   };
 
@@ -100,18 +143,17 @@ export default function AdminBannersPage() {
           <thead className="bg-gray-50 border-b text-gray-500 uppercase text-xs">
             <tr>
               <th className="text-left px-4 py-3">Ảnh</th>
-              <th className="text-left px-4 py-3">Tiêu đề</th>
-              <th className="text-left px-4 py-3">Link</th>
+              <th className="text-left px-4 py-3">Link liên kết</th>
               <th className="text-center px-4 py-3">Thứ tự</th>
               <th className="text-center px-4 py-3">Hiển thị</th>
               <th className="text-center px-4 py-3 w-24">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y">
-            {isLoading && <AdminTableRowsSkeleton columns={6} rows={4} imageColumn />}
+            {isLoading && <AdminTableRowsSkeleton columns={5} rows={4} imageColumn />}
             {!isLoading && banners.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-10 text-gray-400">
+                <td colSpan={5} className="text-center py-10 text-gray-400">
                   Chưa có banner nào
                 </td>
               </tr>
@@ -124,7 +166,7 @@ export default function AdminBannersPage() {
                       <div className="relative w-[96px] h-[25px] rounded overflow-hidden bg-gray-100">
                         <Image
                           src={b.desktop_image_url || b.mobile_image_url || b.image_url}
-                          alt={b.title ?? ""}
+                          alt="banner desktop"
                           fill
                           className="object-cover"
                         />
@@ -132,7 +174,7 @@ export default function AdminBannersPage() {
                       <div className="relative w-[44px] h-[33px] rounded overflow-hidden bg-gray-100">
                         <Image
                           src={b.mobile_image_url || b.desktop_image_url || b.image_url}
-                          alt={b.title ?? ""}
+                          alt="banner mobile"
                           fill
                           className="object-cover"
                         />
@@ -144,8 +186,7 @@ export default function AdminBannersPage() {
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-3 font-medium">{b.title || "—"}</td>
-                <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate">
+                <td className="px-4 py-3 text-gray-500 max-w-[250px] truncate">
                   {b.link_url || "—"}
                 </td>
                 <td className="px-4 py-3 text-center">{b.sort_order}</td>
@@ -233,29 +274,115 @@ export default function AdminBannersPage() {
                 )}
               </div>
               <div>
-                <Label>Tiêu đề</Label>
-                <Input
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="VD: Khuyến mãi mùa hè"
-                />
+                <Label>Loại liên kết</Label>
+                <div className="flex gap-4 mt-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="linkType"
+                      checked={linkType === "product"}
+                      onChange={() => {
+                        setLinkType("product");
+                        setForm(prev => ({ ...prev, link_url: "" }));
+                      }}
+                      className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                    />
+                    <span className="text-sm font-medium">Sản phẩm</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="linkType"
+                      checked={linkType === "custom"}
+                      onChange={() => {
+                        setLinkType("custom");
+                        setForm(prev => ({ ...prev, link_url: "" }));
+                      }}
+                      className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                    />
+                    <span className="text-sm font-medium">Tự chọn</span>
+                  </label>
+                </div>
               </div>
-              <div>
-                <Label>Phụ đề</Label>
-                <Input
-                  value={form.subtitle}
-                  onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
-                  placeholder="Mô tả ngắn cho banner"
-                />
-              </div>
-              <div>
-                <Label>Link (tuỳ chọn)</Label>
-                <Input
-                  value={form.link_url}
-                  onChange={(e) => setForm({ ...form, link_url: e.target.value })}
-                  placeholder="/products hoặc /profile"
-                />
-              </div>
+
+              {linkType === "product" ? (
+                <div className="space-y-2 relative">
+                  <Label>Tìm kiếm sản phẩm</Label>
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="Nhập tên sản phẩm để tìm..."
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      className="pr-10"
+                    />
+                    <div className="absolute right-3 top-2.5 text-gray-400">
+                      {searchingProducts ? (
+                        <span className="text-xs">Đang tìm...</span>
+                      ) : (
+                        <Search className="w-4 h-4" />
+                      )}
+                    </div>
+                  </div>
+
+                  {productSearchResults.length > 0 && (
+                    <div className="absolute z-20 left-0 right-0 mt-1 bg-white border rounded-xl shadow-lg max-h-60 overflow-y-auto divide-y">
+                      {productSearchResults.map((prod) => (
+                        <button
+                          key={prod.id}
+                          type="button"
+                          onClick={() => selectProduct(prod.slug)}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                        >
+                          {prod.thumbnail_url ? (
+                            <Image
+                              src={prod.thumbnail_url}
+                              alt={prod.name}
+                              width={40}
+                              height={40}
+                              className="object-cover rounded"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-gray-300">
+                              <ImageIcon className="w-4 h-4" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{prod.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {prod.price.toLocaleString("vi-VN")}đ
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {form.link_url && (
+                    <div className="p-3 bg-orange-50 text-orange-800 rounded-xl flex items-center justify-between border border-orange-100 mt-2">
+                      <div className="text-xs font-medium truncate pr-4">
+                        Đang liên kết: <code className="bg-white px-1.5 py-0.5 rounded border ml-1 font-mono text-orange-600">{form.link_url}</code>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setForm((prev) => ({ ...prev, link_url: "" }))}
+                        className="text-xs font-bold text-orange-600 hover:text-orange-800 underline shrink-0"
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <Label>Link tự chọn</Label>
+                  <Input
+                    value={form.link_url}
+                    onChange={(e) => setForm({ ...form, link_url: e.target.value })}
+                    placeholder="/products hoặc /profile"
+                  />
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Thứ tự</Label>

@@ -2,7 +2,7 @@ import uuid
 from typing import Any, List, Optional
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import desc, asc, func, String, or_, select
+from sqlalchemy import desc, asc, func, String, or_, select, case
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import SessionDep, OptionalUser
@@ -199,12 +199,23 @@ async def read_products(
     if max_price is not None:
         stmt = stmt.where(effective_price <= max_price)
 
+    active_variants_stock = (
+        select(func.sum(ProductVariant.stock_qty))
+        .where(ProductVariant.product_id == Product.id, ProductVariant.is_active == True)
+        .scalar_subquery()
+    )
+    total_stock = func.coalesce(active_variants_stock, Product.stock_qty)
+    is_out_of_stock = case(
+        (total_stock <= 0, 1),
+        else_=0
+    )
+
     if sort == "newest":
-        stmt = stmt.order_by(desc(Product.created_at))
+        stmt = stmt.order_by(is_out_of_stock.asc(), desc(Product.created_at))
     elif sort == "price_asc":
-        stmt = stmt.order_by(asc(effective_price))
+        stmt = stmt.order_by(is_out_of_stock.asc(), asc(effective_price))
     elif sort == "price_desc":
-        stmt = stmt.order_by(desc(effective_price))
+        stmt = stmt.order_by(is_out_of_stock.asc(), desc(effective_price))
 
     total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
     result = await db.execute(
@@ -343,10 +354,15 @@ async def read_recommendations(db: SessionDep, current_user: OptionalUser, limit
         )
         candidates = result.scalars().all()
 
+    def get_rec_sort_key(p: Product):
+        active_vars = [v for v in p.variants if v.is_active]
+        stock = sum(v.stock_qty for v in active_vars) if active_vars else p.stock_qty
+        is_out = 1 if stock <= 0 else 0
+        return (is_out, -_content_score(p, species_list, age_groups))
+
     scored = sorted(
         candidates,
-        key=lambda p: _content_score(p, species_list, age_groups),
-        reverse=True,
+        key=get_rec_sort_key,
     )
     top = scored[:limit]
     return {"items": [_product_dict_with_rating(p) for p in top]}

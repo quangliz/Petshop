@@ -4,7 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { ShoppingCart, Search, PackageSearch, X, ArrowLeft, Menu, User, ChevronRight, LogOut, Package, Store, ClipboardList, ShieldCheck, MessageSquare } from "lucide-react";
+import { ShoppingCart, Search, PackageSearch, X, ArrowLeft, Menu, User, ChevronRight, LogOut, Package, Store, ClipboardList, ShieldCheck, MessageSquare, Heart } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { getGuestCartCount } from "@/lib/guestCart";
@@ -324,6 +324,11 @@ export default function Header() {
               </Link>
               {user && (
                 <>
+                  <Link href="/wishlist" onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-4 px-5 py-4 no-underline text-surface-invert border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+                    <Heart size={20} strokeWidth={1.75} className="text-neutral-500 shrink-0" />
+                    <span className="text-[15px] font-semibold">Sản phẩm yêu thích</span>
+                  </Link>
                   <Link href="/orders" onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-4 px-5 py-4 no-underline text-surface-invert border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
                     <Package size={20} strokeWidth={1.75} className="text-neutral-500 shrink-0" />
