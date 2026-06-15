@@ -213,6 +213,25 @@ function renderInlineContent(
     p: ({ children }: { children?: React.ReactNode }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p>,
     ul: ({ children }: { children?: React.ReactNode }) => <ul style={{ margin: "6px 0", paddingLeft: "18px" }}>{children}</ul>,
     li: ({ children }: { children?: React.ReactNode }) => <li style={{ marginBottom: "3px" }}>{children}</li>,
+    a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
+      let cleanHref = href || "";
+      if (cleanHref.includes("://forum/")) {
+        cleanHref = cleanHref.substring(cleanHref.indexOf("://forum/") + 3);
+      }
+      if (cleanHref.startsWith("forum/")) {
+        cleanHref = "/" + cleanHref;
+      }
+      return (
+        <a
+          href={cleanHref}
+          className="text-orange-600 hover:text-orange-700 font-semibold underline"
+          target={cleanHref.startsWith("http") ? "_blank" : undefined}
+          rel={cleanHref.startsWith("http") ? "noopener noreferrer" : undefined}
+        >
+          {children}
+        </a>
+      );
+    },
   };
 
   const { cleanContent } = preprocessContent(content);

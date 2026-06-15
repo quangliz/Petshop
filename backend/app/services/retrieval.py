@@ -540,9 +540,18 @@ async def search_products(
     ]
 
 
-def search_knowledge(query: str, limit: int = 4) -> List[dict]:
+async def search_knowledge(query: str, limit: int = 4, embedding: list[float] | None = None) -> List[dict]:
     store = get_knowledge_store()
-    results = store.similarity_search_with_score(query, k=max(12, limit * 4))
+    if embedding is None:
+        from app.services.embeddings import embed_query_cached
+        embedding = await embed_query_cached(query)
+
+    results = await asyncio.to_thread(
+        store.similarity_search_with_score_by_vector,
+        embedding,
+        k=max(12, limit * 4)
+    )
+
     ranked = []
     for doc, distance in results:
         metadata = doc.metadata or {}
@@ -565,12 +574,16 @@ def search_knowledge(query: str, limit: int = 4) -> List[dict]:
     ]
 
 
-async def search_forum_discussions(db: AsyncSession, query: str, limit: int = 3) -> List[dict]:
+async def search_forum_discussions(db: AsyncSession, query: str, limit: int = 3, embedding: list[float] | None = None) -> List[dict]:
     try:
         store = get_knowledge_store()
+        if embedding is None:
+            from app.services.embeddings import embed_query_cached
+            embedding = await embed_query_cached(query)
+
         results = await asyncio.to_thread(
-            store.similarity_search_with_score,
-            query,
+            store.similarity_search_with_score_by_vector,
+            embedding,
             k=max(12, limit * 4),
         )
     except Exception:  # noqa: BLE001
@@ -626,12 +639,14 @@ async def search_forum_discussions(db: AsyncSession, query: str, limit: int = 3)
             reply for reply in thread.replies
             if reply.status == ForumStatusEnum.published and not reply.is_ai_blocked
         ]
-        if not replies:
-            continue
         has_expert_answer = any(is_verified_expert(reply.author) for reply in replies)
+        has_expert_author = is_verified_expert(thread.author)
+        if not replies and not has_expert_author:
+            continue
         if not (
             thread.accepted_reply_id
             or has_expert_answer
+            or has_expert_author
             or (thread.upvote_count or 0) >= 3
         ):
             continue
@@ -645,7 +660,7 @@ async def search_forum_discussions(db: AsyncSession, query: str, limit: int = 3)
             reply for reply in ranked_replies
             if _is_selectable_forum_answer(reply)
         ][:3]
-        if not selected:
+        if not selected and not has_expert_author:
             continue
         semantic_score = candidate_scores.get(thread_id, 0.0)
         quality_score = forum_thread_quality_score(thread, replies)

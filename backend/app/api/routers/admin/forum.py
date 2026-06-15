@@ -145,7 +145,10 @@ async def admin_patch_forum_reply(
     result = await db.execute(
         select(ForumReply)
         .where(ForumReply.id == reply_id)
-        .options(selectinload(ForumReply.author), selectinload(ForumReply.thread))
+        .options(
+            selectinload(ForumReply.author),
+            selectinload(ForumReply.thread).selectinload(ForumThread.author)
+        )
     )
     reply = result.scalar_one_or_none()
     if not reply:

@@ -180,6 +180,22 @@ async def reindex_one_forum_thread(thread: ForumThread) -> None:
 
 
 async def reindex_knowledge(db: AsyncSession) -> int:
+    from app.services.forum_knowledge import apply_forum_thread_knowledge_decision
+    from sqlalchemy.orm import selectinload
+    from app.models.forum import ForumReply
+
+    # Re-evaluate all threads to synchronize database knowledge_status and knowledge_score with new rules
+    all_threads_result = await db.execute(
+        select(ForumThread)
+        .options(
+            selectinload(ForumThread.author),
+            selectinload(ForumThread.replies).selectinload(ForumReply.author)
+        )
+    )
+    for thread in all_threads_result.scalars().all():
+        apply_forum_thread_knowledge_decision(thread, list(thread.replies))
+    await db.commit()
+
     result = await db.execute(select(KnowledgeDoc))
     docs_db = result.scalars().all()
     forum_result = await db.execute(

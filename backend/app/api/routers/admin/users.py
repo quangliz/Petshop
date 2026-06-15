@@ -148,7 +148,10 @@ async def _recompute_forum_author_quality(db: SessionDep, user: User) -> None:
     threads_result = await db.execute(
         select(ForumThread)
         .where(ForumThread.id.in_(affected_thread_ids))
-        .options(selectinload(ForumThread.replies).selectinload(ForumReply.author))
+        .options(
+            selectinload(ForumThread.author),
+            selectinload(ForumThread.replies).selectinload(ForumReply.author)
+        )
     )
     for thread in threads_result.scalars().all():
         decision = apply_forum_thread_knowledge_decision(thread, list(thread.replies))

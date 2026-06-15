@@ -61,6 +61,19 @@ def evaluate_forum_thread_knowledge(thread: ForumThread, replies: list[ForumRepl
         return ForumKnowledgeDecision(KnowledgeStatusEnum.blocked, score, "prompt_injection")
     if is_emergency_query(source):
         return ForumKnowledgeDecision(KnowledgeStatusEnum.not_eligible, score, "case_specific_emergency")
+
+    replies_list = replies if replies is not None else list(getattr(thread, "replies", []) or [])
+    has_expert_reply = any(
+        reply.is_expert_answer and reply.status == ForumStatusEnum.published 
+        for reply in replies_list
+    )
+    has_expert_author = False
+    if "author" in thread.__dict__ and thread.author:
+        has_expert_author = is_verified_expert(thread.author)
+
+    if not (thread.accepted_reply_id or has_expert_reply or has_expert_author):
+        return ForumKnowledgeDecision(KnowledgeStatusEnum.not_eligible, score, "no_accepted_reply_or_expert")
+
     return ForumKnowledgeDecision(KnowledgeStatusEnum.eligible, score, "thread_indexable")
 
 

@@ -178,6 +178,8 @@ async def _refresh_reply_knowledge(db: SessionDep, reply: ForumReply) -> None:
 
 
 async def _refresh_thread_ai_index(db: SessionDep, thread: ForumThread) -> None:
+    if "author" not in thread.__dict__:
+        await db.refresh(thread, attribute_names=["author"])
     result = await db.execute(
         select(ForumReply)
         .where(ForumReply.thread_id == thread.id)
@@ -291,6 +293,7 @@ async def list_threads(
 async def create_thread(payload: ForumThreadCreate, db: SessionDep, current_user: CurrentUser) -> Any:
     thread = ForumThread(
         author_id=current_user.id,
+        author=current_user,
         title=payload.title.strip(),
         slug=await _unique_slug(db, payload.title),
         category=payload.category,

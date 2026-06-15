@@ -1,6 +1,7 @@
 from typing import List, Optional, Annotated, TypedDict
 import operator
 import uuid
+import asyncio
 
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
@@ -31,8 +32,7 @@ SYSTEM_PROMPT_BASE = (
     "GỌI `get_pet_detail_tool` với tên hoặc id để lấy hồ sơ chi tiết (tuổi, cân nặng, dị ứng, sức khỏe) "
     "trước khi đưa lời khuyên cá nhân hoá. Nếu người dùng có nhiều thú cưng và chưa rõ đang nói về con nào, "
     "hãy hỏi lại để xác nhận.\n"
-    "- Khi trả lời dựa trên kết quả `search_knowledge`, hãy trích dẫn tên bài và link Nguồn nếu có. "
-    "Nếu nguồn là forum, hãy nói rõ đó là kinh nghiệm/thảo luận cộng đồng hoặc câu trả lời chuyên gia đã xác minh, không coi là chẩn đoán.\n"
+    "- Khi trả lời dựa trên kết quả `search_knowledge`, hãy trích dẫn bằng cách chèn link Nguồn dưới dạng markdown link nếu có. Các đường dẫn tương đối (bắt đầu bằng `/` như `/forum/slug`) PHẢI được giữ nguyên dạng tương đối, tuyệt đối KHÔNG tự ý thêm giao thức hoặc tên miền (ví dụ trích dẫn đúng: `[Forum: Xử lý mèo hay cắn](/forum/xu-ly-meo-hay-can)`, không viết là `[Forum: Xử lý mèo hay cắn](https://forum/xu-ly-meo-hay-can)`). Nếu nguồn là forum, hãy nói rõ đó là kinh nghiệm/thảo luận cộng đồng hoặc câu trả lời chuyên gia đã xác minh, không coi là chẩn đoán.\n"
     "- Có thể gọi cả hai tool nếu câu hỏi vừa cần kiến thức vừa cần gợi ý sản phẩm.\n"
     "- Sau khi có kết quả tool, trả lời ngắn gọn, có dẫn chứng. Khi muốn giới thiệu sản phẩm, "
     "viết kèm thẻ định dạng `<product>slug-cua-san-pham</product>` ngay trong câu trả lời "
@@ -48,9 +48,16 @@ class AgentState(TypedDict):
 
 async def build_knowledge_context(db: AsyncSession, query: str) -> str:
     """Return sanitized RAG context with a stable citation label."""
-    results = search_knowledge(query=query, limit=3)
-    forum_results = await search_forum_discussions(db, query=query, limit=2)
+    from app.services.embeddings import embed_query_cached
+    embedding = await embed_query_cached(query)
+
+    # Run searches concurrently in parallel
+    results_task = search_knowledge(query=query, limit=3, embedding=embedding)
+    forum_results_task = search_forum_discussions(db, query=query, limit=2, embedding=embedding)
+
+    results, forum_results = await asyncio.gather(results_task, forum_results_task)
     results.extend(forum_results)
+
     if not results:
         return "Không tìm thấy kiến thức liên quan."
     parts = []
@@ -58,9 +65,10 @@ async def build_knowledge_context(db: AsyncSession, query: str) -> str:
         safe_content = sanitize_retrieved_content(result["content"])
         title = result.get("title") or "Tài liệu nội bộ ThePawsome"
         source_label = "Nguồn forum" if result.get("source_type") == "forum_thread" else "Nguồn"
-        source = f"{source_label}: [{title}]"
         if result.get("source_url"):
-            source += f" {result['source_url']}"
+            source = f"{source_label}: [{title}]({result['source_url']})"
+        else:
+            source = f"{source_label}: {title}"
         parts.append(
             f"<retrieved_document title={title!r} "
             f"category={result.get('category')!r}>\n"
