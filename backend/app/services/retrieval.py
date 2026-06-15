@@ -275,7 +275,16 @@ def _rrf_score(rank: int, weight: float) -> float:
     return weight / (RRF_K + rank)
 
 
-def _product_result(product: Product, score: float | None = None) -> dict:
+def _product_result(product: Product, score: float | None = None, short: bool = False) -> dict:
+    if short:
+        return {
+            "id": str(product.id),
+            "slug": product.slug,
+            "name": product.name,
+            "price": float(product.price),
+            "sale_price": float(product.sale_price) if product.sale_price else None,
+            "thumbnail_url": product.images.get("main") if product.images else None,
+        }
     active_variants = [v for v in product.variants if v.is_active]
     return {
         "id": str(product.id),
@@ -443,6 +452,7 @@ async def search_products(
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     keyword_only: bool = False,
+    short: bool = False,
 ) -> List[dict]:
     """Hybrid product search using semantic vector rank and keyword rank.
 
@@ -525,7 +535,7 @@ async def search_products(
     ranked = sorted(filtered, key=get_search_sort_key)
     max_score = max((fusion_scores[p.slug] for p in ranked), default=1.0)
     return [
-        _product_result(product, score=fusion_scores[product.slug] / max_score)
+        _product_result(product, score=fusion_scores[product.slug] / max_score, short=short)
         for product in ranked[:limit]
     ]
 

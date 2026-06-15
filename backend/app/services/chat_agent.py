@@ -9,13 +9,10 @@ from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import ToolNode, tools_condition
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.services.retrieval import search_forum_discussions, search_products, search_knowledge
 from app.services.pets_service import get_pet_profile_cached
-from app.models.commerce import Cart, CartItem
-from app.models.catalog import Product
 from app.models.user import Pet
 from app.services.ai_safety import DOMAIN_POLICY, sanitize_retrieved_content
 
@@ -28,9 +25,7 @@ SYSTEM_PROMPT_BASE = (
     "GỌI tool `search_products` để tìm sản phẩm trong cửa hàng.\n"
     "- Khi người dùng hỏi về dinh dưỡng, sức khỏe, huấn luyện, grooming, đặc điểm giống loài: "
     "GỌI tool `search_knowledge` để tra cứu kho kiến thức trước khi trả lời.\n"
-    "- Chỉ khi tool `add_to_cart_tool` được cung cấp (nghĩa là tin nhắn hiện tại đã xác nhận rõ), "
-    "mới được thêm sản phẩm vào giỏ với slug từ kết quả tìm kiếm. Nếu tool không có, hãy hỏi lại để xác nhận.\n"
-    "- Khi người dùng hỏi về giỏ hàng của họ: GỌI tool `view_cart_tool`.\n"
+    "- Bạn chỉ tư vấn sản phẩm và giải đáp thắc mắc, KHÔNG có khả năng xem giỏ hàng hoặc thực hiện hành động thêm sản phẩm vào giỏ hàng/thanh toán. Nếu người dùng muốn mua hoặc thêm vào giỏ hàng, hãy hướng dẫn họ tự bấm nút 'Thêm vào giỏ hàng' trên thẻ sản phẩm được hiển thị hoặc truy cập vào trang giỏ hàng.\n"
     "- Khi người dùng nhắc đến thú cưng của họ (ví dụ: 'bé Mochi', 'con mèo của tôi', 'chó nhà tôi') "
     "mà bạn chưa biết hồ sơ: GỌI tool `list_pets_tool` để xem danh sách thú cưng, sau đó "
     "GỌI `get_pet_detail_tool` với tên hoặc id để lấy hồ sơ chi tiết (tuổi, cân nặng, dị ứng, sức khỏe) "
@@ -110,98 +105,6 @@ def _build_tools(
         """
         return await build_knowledge_context(db, query)
 
-    @tool
-    async def add_to_cart_tool(slug: str, quantity: int = 1) -> str:
-        """Thêm sản phẩm vào giỏ hàng của người dùng.
-
-        Args:
-            slug: Slug của sản phẩm (lấy từ kết quả search_products).
-            quantity: Số lượng cần thêm (mặc định 1).
-
-        Returns: Thông báo xác nhận hoặc lỗi bằng tiếng Việt.
-        """
-        # Resolve slug → Product
-        result = await db.execute(
-            select(Product)
-            .where(Product.slug == slug, Product.is_active)
-            .options(selectinload(Product.variants))
-        )
-        product = result.scalar_one_or_none()
-        if not product:
-            return f"Không tìm thấy sản phẩm '{slug}' hoặc sản phẩm không còn bán."
-        active_variants = [v for v in product.variants if v.is_active]
-        if active_variants:
-            options = []
-            for variant in active_variants[:8]:
-                label = " / ".join(f"{k}: {v}" for k, v in (variant.attributes or {}).items())
-                price = float(variant.sale_price if variant.sale_price else variant.price)
-                options.append(f"- {label or variant.sku or variant.id}: {price:,.0f}đ, còn {variant.stock_qty}")
-            return (
-                f"Sản phẩm **{product.name}** có nhiều phân loại. "
-                "Hãy hỏi người dùng chọn một phân loại trước khi thêm vào giỏ:\n"
-                + "\n".join(options)
-            )
-
-        # Get or create Cart for this user
-        result = await db.execute(select(Cart).where(Cart.user_id == user_id))
-        cart = result.scalar_one_or_none()
-        if not cart:
-            cart = Cart(user_id=user_id)
-            db.add(cart)
-            await db.flush()
-
-        # Get existing CartItem
-        result = await db.execute(
-            select(CartItem).where(
-                CartItem.cart_id == cart.id,
-                CartItem.product_id == product.id,
-            )
-        )
-        existing = result.scalar_one_or_none()
-
-        total_qty = (existing.quantity if existing else 0) + quantity
-        if total_qty > product.stock_qty:
-            return f"Không đủ hàng trong kho. Hiện chỉ còn {product.stock_qty} sản phẩm."
-
-        if existing:
-            existing.quantity += quantity
-        else:
-            db.add(CartItem(cart_id=cart.id, product_id=product.id, quantity=quantity))
-
-        await db.commit()
-        price = float(product.sale_price if product.sale_price else product.price)
-        return (
-            f"✓ Đã thêm {quantity}x **{product.name}** vào giỏ hàng. "
-            f"Giá: {price:,.0f}đ/sản phẩm."
-        )
-
-    @tool
-    async def view_cart_tool() -> str:
-        """Xem danh sách sản phẩm trong giỏ hàng hiện tại.
-
-        Returns: Danh sách sản phẩm trong giỏ hàng dạng văn bản tiếng Việt.
-        """
-        result = await db.execute(
-            select(Cart)
-            .where(Cart.user_id == user_id)
-            .options(selectinload(Cart.cart_items).selectinload(CartItem.product))
-        )
-        cart = result.scalar_one_or_none()
-        if not cart or not cart.cart_items:
-            return "Giỏ hàng của bạn đang trống."
-
-        lines = []
-        total = 0.0
-        for item in cart.cart_items:
-            prod = item.product
-            price = float(prod.sale_price if prod.sale_price else prod.price)
-            subtotal = price * item.quantity
-            total += subtotal
-            lines.append(
-                f"- {prod.name} × {item.quantity} = {subtotal:,.0f}đ"
-            )
-        lines.append(f"\nTổng cộng: {total:,.0f}đ")
-        return "Giỏ hàng của bạn:\n" + "\n".join(lines)
 
     @tool
     async def list_pets_tool() -> str:
@@ -269,12 +172,9 @@ def _build_tools(
     tools = [
         search_products_tool,
         search_knowledge_tool,
-        view_cart_tool,
         list_pets_tool,
         get_pet_detail_tool,
     ]
-    if allow_cart_mutation:
-        tools.append(add_to_cart_tool)
     return tools
 
 

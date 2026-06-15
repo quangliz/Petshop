@@ -150,7 +150,8 @@ async def read_products(
     species: Optional[str] = Query(None, description="Filter by target species"),
     page: int = Query(1, ge=1),
     size: int = Query(12, ge=1, le=100),
-    keyword_only: bool = Query(False, description="Skip semantic search and only search with keyword"),
+    keyword_only: bool = Query(True, description="Skip semantic search and only search with keyword"),
+    short: bool = Query(False, description="Return only light fields for search suggestions"),
 ) -> Any:
     expanded_category_slugs = await _expand_category_slugs(db, category_slug)
 
@@ -166,6 +167,7 @@ async def read_products(
             min_price=min_price,
             max_price=max_price,
             keyword_only=keyword_only,
+            short=short,
         )
         return {
             "items": search_items,

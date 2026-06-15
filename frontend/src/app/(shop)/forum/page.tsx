@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import VerifiedPawBadge from "@/components/forum/VerifiedPawBadge";
+import MentionTextarea from "@/components/forum/MentionTextarea";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 import { ForumThread } from "@/lib/types";
@@ -26,6 +27,7 @@ const SORTS = [
 ] as const;
 
 function ThreadRow({ thread }: { thread: ForumThread }) {
+  const cleanPreview = thread.body_preview ? thread.body_preview.replace(/<product>\s*([^<>\s]+)\s*<\/product>/gi, "") : "";
   return (
     <Link href={`/forum/${thread.slug}`} className="block no-underline text-inherit">
       <article className="bg-white border border-neutral-100 rounded-[16px] p-4 md:p-5 shadow-xs hover:shadow-md transition-shadow">
@@ -45,7 +47,7 @@ function ThreadRow({ thread }: { thread: ForumThread }) {
               {thread.title}
             </h2>
             <p className="mt-2 mb-0 text-[13px] leading-relaxed text-neutral-500 line-clamp-2">
-              {thread.body_preview}
+              {cleanPreview}
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 text-[12px] text-neutral-500">
@@ -150,7 +152,7 @@ function ForumContent() {
               </select>
               <Input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="tag, cách nhau bằng dấu phẩy" className="h-10" />
             </div>
-            <textarea value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} rows={6} placeholder="Mô tả chi tiết vấn đề hoặc kinh nghiệm của bạn" className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-100" />
+            <MentionTextarea value={form.body} onChange={(body) => setForm({ ...form, body })} rows={6} placeholder="Mô tả chi tiết vấn đề hoặc kinh nghiệm của bạn... Gõ @ để nhúng sản phẩm" className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-100" disabled={createMutation.isPending} />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowCreate(false)}>Huỷ</Button>
               <Button disabled={createMutation.isPending || form.title.length < 5 || form.body.length < 20} onClick={() => createMutation.mutate()}>

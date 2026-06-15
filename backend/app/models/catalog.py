@@ -71,6 +71,9 @@ class Product(Base):
         CheckConstraint("stock_qty >= 0", name="ck_products_stock_nonnegative"),
         Index("ix_products_category_id", "category_id"),
         Index("ix_products_is_active", "is_active"),
+        Index("idx_products_name_trgm", "name", postgresql_using="gin", postgresql_ops={"name": "gin_trgm_ops"}),
+        Index("idx_products_brand_trgm", "brand", postgresql_using="gin", postgresql_ops={"brand": "gin_trgm_ops"}),
+        Index("idx_products_slug_trgm", "slug", postgresql_using="gin", postgresql_ops={"slug": "gin_trgm_ops"}),
     )
 
 

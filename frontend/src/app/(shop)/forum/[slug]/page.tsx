@@ -4,15 +4,17 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import ReactMarkdown from "react-markdown";
 import { CheckCircle2, ChevronRight, Lock, MessageSquare, Reply, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import VerifiedPawBadge from "@/components/forum/VerifiedPawBadge";
+import MentionTextarea from "@/components/forum/MentionTextarea";
+import { ProductMarkdownRenderer } from "@/components/forum/ProductEmbedRenderer";
+import ProductVariantDrawer from "@/components/ProductVariantDrawer";
 import api from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
-import { ForumReply, ForumThread } from "@/lib/types";
+import { ForumReply, ForumThread, Product } from "@/lib/types";
 
 type ForumThreadDetail = ForumThread & { body: string; replies: ForumReply[] };
 type ReplyNode = ForumReply & { children: ReplyNode[] };
@@ -64,6 +66,7 @@ function ReplyCard({
   onVote,
   onAccept,
   onReply,
+  onOpenDrawer,
 }: {
   reply: ReplyNode;
   depth: number;
@@ -74,6 +77,7 @@ function ReplyCard({
   onVote: (replyId: string, value: number) => void;
   onAccept: (replyId: string) => void;
   onReply: (reply: ForumReply) => void;
+  onOpenDrawer: (product: Product) => void;
 }) {
   return (
     <div className={depth > 0 ? "ml-3 border-l border-neutral-100 pl-3 md:ml-6 md:pl-5" : ""}>
@@ -86,7 +90,7 @@ function ReplyCard({
           </div>
         </div>
         <div className="prose prose-sm max-w-none text-neutral-700">
-          <ReactMarkdown>{reply.body}</ReactMarkdown>
+          <ProductMarkdownRenderer content={reply.body} onOpenDrawer={onOpenDrawer} />
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -116,6 +120,7 @@ function ReplyCard({
               onVote={onVote}
               onAccept={onAccept}
               onReply={onReply}
+              onOpenDrawer={onOpenDrawer}
             />
           ))}
         </div>
@@ -131,6 +136,13 @@ export default function ForumThreadPage() {
   const { user } = useAuthStore();
   const [replyBody, setReplyBody] = useState("");
   const [replyTarget, setReplyTarget] = useState<ForumReply | null>(null);
+  const [drawerProduct, setDrawerProduct] = useState<Product | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const handleOpenDrawer = (prod: Product) => {
+    setDrawerProduct(prod);
+    setIsDrawerOpen(true);
+  };
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["forum-thread", params.slug],
@@ -201,7 +213,7 @@ export default function ForumThreadPage() {
         <h1 className="m-0 text-2xl md:text-[34px] font-extrabold leading-tight tracking-[-0.025em] text-neutral-900">{data.title}</h1>
         <div className="mt-3"><AuthorLine author={data.author} createdAt={data.created_at} /></div>
         <div className="prose prose-sm max-w-none mt-5 text-neutral-700">
-          <ReactMarkdown>{data.body}</ReactMarkdown>
+          <ProductMarkdownRenderer content={data.body} onOpenDrawer={handleOpenDrawer} />
         </div>
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-1.5">
@@ -228,6 +240,7 @@ export default function ForumThreadPage() {
               onVote={(replyId, value) => replyVote.mutate({ replyId, value })}
               onAccept={(replyId) => acceptReply.mutate(replyId)}
               onReply={startReplyTo}
+              onOpenDrawer={handleOpenDrawer}
             />
           ))}
         </div>
@@ -247,7 +260,7 @@ export default function ForumThreadPage() {
                 </button>
               </div>
             )}
-            <textarea value={replyBody} onChange={(e) => setReplyBody(e.target.value)} rows={7} placeholder={replyTarget ? "Viết phản hồi của bạn" : "Chia sẻ kinh nghiệm hoặc lời khuyên của bạn"} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-100" />
+            <MentionTextarea value={replyBody} onChange={setReplyBody} rows={7} placeholder={replyTarget ? "Viết phản hồi của bạn... Gõ @ để nhúng sản phẩm" : "Chia sẻ kinh nghiệm hoặc lời khuyên của bạn... Gõ @ để nhúng sản phẩm"} className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-100" disabled={createReply.isPending} />
             <div className="flex justify-end">
               <Button disabled={createReply.isPending || replyBody.length < 10} onClick={() => createReply.mutate()}>
                 {createReply.isPending ? "Đang gửi..." : replyTarget ? "Gửi phản hồi" : "Gửi trả lời"}
@@ -258,6 +271,15 @@ export default function ForumThreadPage() {
           <Button onClick={() => router.push("/login")}>Đăng nhập để trả lời</Button>
         )}
       </section>
+
+      {drawerProduct && (
+        <ProductVariantDrawer
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          product={drawerProduct}
+          defaultAction="add"
+        />
+      )}
     </div>
   );
 }

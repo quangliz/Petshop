@@ -91,11 +91,11 @@ export default function Header() {
   const { data: suggestions, isFetching: suggestLoading } = useQuery({
     queryKey: ['product-suggest', suggestQ],
     queryFn: async () => {
-      const res = await api.get(`/products/?q=${encodeURIComponent(suggestQ)}&size=5&page=1`);
+      const res = await api.get(`/products/?q=${encodeURIComponent(suggestQ)}&size=5&page=1&short=true`);
       return res.data;
     },
     enabled: !!suggestQ,
-    staleTime: 30_000,
+    staleTime: 60_000,
   });
 
   const submitSearch = (e: React.FormEvent) => {
@@ -411,7 +411,9 @@ export default function Header() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-[14px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis">{p.name}</div>
-                          <div className="text-[12px] text-neutral-500 mt-0.5">{p.brand || p.category_name}</div>
+                          {(p.brand || p.category_name) && (
+                            <div className="text-[12px] text-neutral-500 mt-0.5">{p.brand || p.category_name}</div>
+                          )}
                         </div>
                         <div className="text-[14px] font-bold text-primary-600">
                           {(p.sale_price || p.price).toLocaleString()}đ
