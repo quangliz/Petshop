@@ -289,6 +289,7 @@ export default function ChatWidget() {
   const widgetRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const isTypingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const { data: sessions, refetch: refetchSessions } = useQuery<ChatSessionMeta[]>({
     queryKey: ["chat-sessions"],
@@ -296,17 +297,32 @@ export default function ChatWidget() {
     enabled: !!user && isOpen,
   });
 
-  const startNewChat = useCallback(() => { setMessages([]); setSessionId(null); setSessionTitle(""); setView("chat"); }, []);
+  const startNewChat = useCallback(() => {
+    setMessages([]);
+    setSessionId(null);
+    setSessionTitle("");
+    setView("chat");
+    if (!user) {
+      localStorage.removeItem("thepawsome_guest_session_id");
+    }
+  }, [user]);
 
-  const loadSession = async (sid: string) => {
+  const loadSession = useCallback(async (sid: string) => {
     try {
       const { data } = await api.get(`/chat/sessions/${sid}/messages`);
       setSessionId(sid);
       setSessionTitle(data.session.title);
       setMessages((data.messages as { role: string; content: string; products?: ChatProduct[] }[]).map((m) => ({ role: m.role, content: m.content, ...(m.products ? { products: m.products } : {}) })));
       setView("chat");
-    } catch (e) { console.error("Failed to load session", e); }
-  };
+    } catch (e) {
+      console.error("Failed to load session", e);
+      if (!user) {
+        localStorage.removeItem("thepawsome_guest_session_id");
+        setSessionId(null);
+        setMessages([]);
+      }
+    }
+  }, [user]);
 
   const sendMessage = useCallback(async (messageOverride?: string) => {
     const userMsg = (messageOverride ?? input).trim();
@@ -318,10 +334,23 @@ export default function ChatWidget() {
     const activeSessionId = sessionId;
     const backendUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1'}/chat/stream`;
     const token = localStorage.getItem("token");
+
+    // Abort any in-flight request before starting a new one.
+    // This is the root-cause fix: aborting cleanly tells the server to stop
+    // immediately, avoiding orphaned tasks that cause CancelledError.
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
       const response = await fetch(backendUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers,
+        signal: controller.signal,
         body: JSON.stringify({ message: userMsg, session_id: activeSessionId, product_slug: viewingProduct?.slug || null }),
       });
       if (!response.ok) { const errText = await response.text().catch(() => ""); throw new Error(`HTTP ${response.status}: ${errText || "Lấy phản hồi thất bại"}`); }
@@ -331,6 +360,13 @@ export default function ChatWidget() {
       let aiContent = "";
       setMessages((prev) => [...prev, { role: "assistant", content: aiContent }]);
       let buffer = "";
+      const rememberSession = (sid?: string) => {
+        if (!sid || activeSessionId) return;
+        setSessionId(sid);
+        if (!user) {
+          localStorage.setItem("thepawsome_guest_session_id", sid);
+        }
+      };
       const processEvent = (raw: string) => {
         let eventType = "message";
         const dataLines: string[] = [];
@@ -348,9 +384,13 @@ export default function ChatWidget() {
           setMessages((prev) => { const clone = [...prev]; clone[clone.length - 1].content = aiContent; return clone; });
         } else if (eventType === "products" && Array.isArray(data.items)) {
           setMessages((prev) => { const clone = [...prev]; clone[clone.length - 1].products = data.items; return clone; });
+        } else if (eventType === "session") {
+          rememberSession(data.session_id);
         } else if (eventType === "done" && data.session_id) {
-          if (!activeSessionId) setSessionId(data.session_id);
-          refetchSessions();
+          rememberSession(data.session_id);
+          if (user) {
+            refetchSessions();
+          }
         }
       };
       while (true) {
@@ -365,13 +405,21 @@ export default function ChatWidget() {
         }
       }
     } catch (e) {
+      // AbortError is expected when we cancel a request intentionally
+      // (new message sent or component unmounted) — don't show error to user.
+      if (e instanceof Error && e.name === "AbortError") return;
       console.error("Chat Error:", e);
       setMessages((prev) => [...prev, { role: "assistant", content: `⚠️ Lỗi: ${e instanceof Error ? e.message : "Không thể kết nối tới máy chủ."}` }]);
     } finally {
       isTypingRef.current = false;
       setIsTyping(false);
     }
-  }, [input, refetchSessions, sessionId, viewingProduct?.slug]);
+  }, [input, refetchSessions, sessionId, viewingProduct?.slug, user]);
+
+  // Abort any in-flight SSE request when the component unmounts.
+  useEffect(() => {
+    return () => { abortControllerRef.current?.abort(); };
+  }, []);
 
   useEffect(() => {
     const handleOpen = (event: Event) => {
@@ -387,6 +435,33 @@ export default function ChatWidget() {
     window.addEventListener("open-catbot-chat", handleOpen);
     return () => window.removeEventListener("open-catbot-chat", handleOpen);
   }, [sendMessage]);
+
+  // Handle user authentication transitions and initial guest session load
+  const prevUserRef = useRef(user);
+  useEffect(() => {
+    if (prevUserRef.current !== user) {
+      prevUserRef.current = user;
+      setMessages([]);
+      setSessionId(null);
+      setSessionTitle("");
+      setView("chat");
+      if (!user) {
+        const savedGuestSessionId = localStorage.getItem("thepawsome_guest_session_id");
+        if (savedGuestSessionId) {
+          void loadSession(savedGuestSessionId);
+        }
+      }
+    }
+  }, [user, loadSession]);
+
+  useEffect(() => {
+    if (!user) {
+      const savedGuestSessionId = localStorage.getItem("thepawsome_guest_session_id");
+      if (savedGuestSessionId) {
+        void loadSession(savedGuestSessionId);
+      }
+    }
+  }, [user, loadSession]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -415,8 +490,6 @@ export default function ChatWidget() {
   useEffect(() => {
     if (isOpen) endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping, isOpen]);
-
-  if (!user) return null;
 
   return (
     <div ref={widgetRef} className={`fixed ${hasBottomTab ? "bottom-[72px]" : "bottom-4"} right-4 md:bottom-8 md:right-8 z-[1000] flex flex-col items-end gap-4`}>
@@ -449,7 +522,9 @@ export default function ChatWidget() {
             {view === "chat" && (
               <div className="flex gap-1.5">
                 <button onClick={startNewChat} title="Chat mới" className={iconBtnCls}><Plus size={16} /></button>
-                <button onClick={() => { setView("history"); refetchSessions(); }} title="Lịch sử" className={iconBtnCls}><History size={16} /></button>
+                {user && (
+                  <button onClick={() => { setView("history"); refetchSessions(); }} title="Lịch sử" className={iconBtnCls}><History size={16} /></button>
+                )}
               </div>
             )}
           </div>
@@ -481,7 +556,7 @@ export default function ChatWidget() {
               <div className="flex-1 p-5 overflow-y-auto flex flex-col gap-4 bg-neutral-25">
                 {messages.length === 0 && (
                   <div className="text-center py-10 px-5 text-neutral-500 text-[14px] leading-relaxed">
-                    Chào <strong>{user.full_name}</strong>! 🐱<br />
+                    Chào <strong>{user?.full_name || "bạn"}</strong>! 🐱<br />
                     Mình là <strong>Catbot</strong> — trợ lý AI của ThePawsome. Hỏi mình về sức khoẻ, dinh dưỡng hoặc sản phẩm cho pet nhé!
                     <span className="block mt-2 text-[12px]">
                       Nội dung chỉ mang tính tham khảo, không thay thế chẩn đoán hoặc điều trị của bác sĩ thú y.
@@ -489,35 +564,40 @@ export default function ChatWidget() {
                   </div>
                 )}
 
-                {messages.map((m, idx) => (
-                  <div key={idx} className={`flex gap-2.5 items-end ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
-                    <div
-                      className="w-[30px] h-[30px] rounded-[10px] shrink-0 flex items-center justify-center"
-                      style={{ background: "var(--primary-100)", color: "var(--primary-700)" }}
-                    >
-                      {m.role === "user" ? <User size={15} /> : <CatbotLogo size={18} />}
+                {messages.map((m, idx) => {
+                  if (m.role === "assistant" && !m.content && (!m.products || m.products.length === 0)) {
+                    return null;
+                  }
+                  return (
+                    <div key={idx} className={`flex gap-2.5 items-end ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                      <div
+                        className="w-[30px] h-[30px] rounded-[10px] shrink-0 flex items-center justify-center"
+                        style={{ background: "var(--primary-100)", color: "var(--primary-700)" }}
+                      >
+                        {m.role === "user" ? <User size={15} /> : <CatbotLogo size={18} />}
+                      </div>
+                      <div
+                        className="max-w-[85%] px-3.5 py-2.5 rounded-[14px] text-[13px] leading-[1.55]"
+                        style={{
+                          background: m.role === "user" ? "var(--primary-600)" : "white",
+                          color: m.role === "user" ? "white" : "var(--neutral-800)",
+                          boxShadow: m.role === "user" ? "none" : "var(--shadow-sm)",
+                          border: m.role === "user" ? "none" : "1px solid var(--neutral-100)",
+                          borderBottomRightRadius: m.role === "user" ? 4 : 14,
+                          borderBottomLeftRadius: m.role === "user" ? 14 : 4,
+                        }}
+                      >
+                        {m.role === "assistant"
+                          ? renderInlineContent(m.content, m.products, (prod) => {
+                              setDrawerProduct(prod);
+                              setIsDrawerOpen(true);
+                            })
+                          : <ReactMarkdown components={{ p: ({ children }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p> }}>{m.content}</ReactMarkdown>
+                        }
+                      </div>
                     </div>
-                    <div
-                      className="max-w-[85%] px-3.5 py-2.5 rounded-[14px] text-[13px] leading-[1.55]"
-                      style={{
-                        background: m.role === "user" ? "var(--primary-600)" : "white",
-                        color: m.role === "user" ? "white" : "var(--neutral-800)",
-                        boxShadow: m.role === "user" ? "none" : "var(--shadow-sm)",
-                        border: m.role === "user" ? "none" : "1px solid var(--neutral-100)",
-                        borderBottomRightRadius: m.role === "user" ? 4 : 14,
-                        borderBottomLeftRadius: m.role === "user" ? 14 : 4,
-                      }}
-                    >
-                      {m.role === "assistant"
-                        ? renderInlineContent(m.content, m.products, (prod) => {
-                            setDrawerProduct(prod);
-                            setIsDrawerOpen(true);
-                          })
-                        : <ReactMarkdown components={{ p: ({ children }) => <p style={{ margin: "0 0 6px 0" }}>{children}</p> }}>{m.content}</ReactMarkdown>
-                      }
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {isTyping && (messages.length === 0 || messages[messages.length - 1].role !== "assistant" || !messages[messages.length - 1].content) && (
                   <div className="flex gap-2.5">
@@ -555,7 +635,7 @@ export default function ChatWidget() {
                   </button>
                 </div>
                 <p className="mt-2 text-center text-[10px] text-neutral-400">
-                  Catbot là AI và có thể sai. Tình huống khẩn cấp cần liên hệ bác sĩ thú y.
+                  Catbot là AI và có thể sai.
                 </p>
               </div>
             </>

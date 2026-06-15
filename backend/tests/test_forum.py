@@ -390,7 +390,7 @@ def test_forum_discussion_search_uses_thread_vector_and_filters_answers(client: 
     ).json()
 
     store = MagicMock()
-    store.similarity_search_with_score.return_value = [
+    store.similarity_search_with_score_by_vector.return_value = [
         (
             Document(
                 page_content="thread vector",

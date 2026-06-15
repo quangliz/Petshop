@@ -46,6 +46,10 @@ def _ensure_test_schema() -> sessionmaker_cls:
     if _sync_engine is None:
         _sync_engine = create_engine(_SYNC_URL)
         _SyncSession = sessionmaker(bind=_sync_engine)
+        from sqlalchemy import text
+        with _sync_engine.begin() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         Base.metadata.create_all(bind=_sync_engine)
     assert _SyncSession is not None
     return _SyncSession

@@ -4,6 +4,8 @@ import json
 import logging
 import re
 import uuid
+import httpx
+from app.core.config import settings
 from typing import List, Optional
 
 from app.services.embeddings import embed_query_cached
@@ -382,8 +384,8 @@ async def _rank_similar_products_uncached(
 ) -> list[dict]:
     query_text = _similar_query_text(product)
     fetch_k = min(max((limit + 1) * 6, 30), MAX_WORD_CANDIDATES)
-    semantic_slugs_task = _semantic_ranked_slugs_for_product(db, product.id, fetch_k)
-    word_products_task = _word_ranked_products(
+    semantic_slugs = await _semantic_ranked_slugs_for_product(db, product.id, fetch_k)
+    word_products = await _word_ranked_products(
         db,
         query_text,
         fetch_k=fetch_k,
@@ -393,7 +395,6 @@ async def _rank_similar_products_uncached(
         min_price=None,
         max_price=None,
     )
-    semantic_slugs, word_products = await asyncio.gather(semantic_slugs_task, word_products_task)
 
     if not semantic_slugs and not word_products:
         return []
@@ -451,7 +452,7 @@ async def search_products(
     brands: Optional[List[str]] = None,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
-    keyword_only: bool = False,
+    keyword_only: bool = True,
     short: bool = False,
 ) -> List[dict]:
     """Hybrid product search using semantic vector rank and keyword rank.
@@ -475,8 +476,8 @@ async def search_products(
             max_price=max_price,
         )
     else:
-        semantic_slugs_task = _semantic_ranked_slugs(query, fetch_k)
-        word_products_task = _word_ranked_products(
+        semantic_slugs = await _semantic_ranked_slugs(query, fetch_k)
+        word_products = await _word_ranked_products(
             db,
             query,
             fetch_k=fetch_k,
@@ -486,7 +487,6 @@ async def search_products(
             min_price=min_price,
             max_price=max_price,
         )
-        semantic_slugs, word_products = await asyncio.gather(semantic_slugs_task, word_products_task)
 
     if not semantic_slugs and not word_products:
         return []
@@ -534,10 +534,13 @@ async def search_products(
 
     ranked = sorted(filtered, key=get_search_sort_key)
     max_score = max((fusion_scores[p.slug] for p in ranked), default=1.0)
-    return [
+    candidates = [
         _product_result(product, score=fusion_scores[product.slug] / max_score, short=short)
-        for product in ranked[:limit]
+        for product in ranked
     ]
+    if settings.COHERE_API_KEY and candidates:
+        return await rerank_products_cohere(query, candidates, top_n=limit)
+    return candidates[:limit]
 
 
 async def search_knowledge(query: str, limit: int = 4, embedding: list[float] | None = None) -> List[dict]:
@@ -560,7 +563,7 @@ async def search_knowledge(query: str, limit: int = 4, embedding: list[float] | 
         base_score = float(1 - distance)
         ranked.append((base_score, doc, metadata))
     ranked.sort(key=lambda item: item[0], reverse=True)
-    return [
+    candidates = [
         {
             "title": metadata.get("title"),
             "category": metadata.get("category"),
@@ -570,8 +573,11 @@ async def search_knowledge(query: str, limit: int = 4, embedding: list[float] | 
             "score": score,
             "raw_score": score,
         }
-        for score, doc, metadata in ranked[:limit]
+        for score, doc, metadata in ranked
     ]
+    if settings.COHERE_API_KEY and candidates:
+        return await rerank_knowledge_cohere(query, candidates, top_n=limit)
+    return candidates[:limit]
 
 
 async def search_forum_discussions(db: AsyncSession, query: str, limit: int = 3, embedding: list[float] | None = None) -> List[dict]:
@@ -736,3 +742,83 @@ async def similar_products(db: AsyncSession, product: Product, limit: int = 6) -
     results = await _rank_similar_products_uncached(db, product, limit)
     await _set_cached_similar_ids(product, limit, [item["id"] for item in results])
     return results
+
+
+async def rerank_products_cohere(query: str, products: list[dict], top_n: int = 5) -> list[dict]:
+    """Sử dụng Cohere Rerank API để sắp xếp lại các sản phẩm candidate theo mức độ liên quan."""
+    if not settings.COHERE_API_KEY or not products:
+        return products[:top_n]
+
+    # Prepare document text representation for each candidate
+    docs = []
+    for p in products:
+        desc = p.get("description") or ""
+        docs.append(f"Tên: {p.get('name')} | Thương hiệu: {p.get('brand') or 'Không rõ'} | Mô tả: {desc[:200]}")
+
+    url = "https://api.cohere.com/v2/rerank"
+    headers = {
+        "Authorization": f"Bearer {settings.COHERE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": settings.COHERE_RERANK_MODEL,
+        "query": query,
+        "documents": docs,
+        "top_n": top_n
+    }
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.post(url, json=payload, headers=headers)
+            if res.status_code == 200:
+                data = res.json()
+                results = data.get("results", [])
+                reranked = []
+                for r in results:
+                    idx = r["index"]
+                    p = products[idx].copy()
+                    p["score"] = r["relevance_score"]
+                    reranked.append(p)
+                return reranked
+            else:
+                logger.error(f"Cohere Rerank products failed with status {res.status_code}: {res.text}")
+    except Exception as e:
+        logger.exception(f"Exception during Cohere product reranking: {str(e)}")
+    return products[:top_n]
+
+
+async def rerank_knowledge_cohere(query: str, items: list[dict], top_n: int = 4) -> list[dict]:
+    """Sử dụng Cohere Rerank API để sắp xếp lại các tài liệu kiến thức theo mức độ liên quan."""
+    if not settings.COHERE_API_KEY or not items:
+        return items[:top_n]
+
+    docs = [item.get("content", "") for item in items]
+    url = "https://api.cohere.com/v2/rerank"
+    headers = {
+        "Authorization": f"Bearer {settings.COHERE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": settings.COHERE_RERANK_MODEL,
+        "query": query,
+        "documents": docs,
+        "top_n": top_n
+    }
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.post(url, json=payload, headers=headers)
+            if res.status_code == 200:
+                data = res.json()
+                results = data.get("results", [])
+                reranked = []
+                for r in results:
+                    idx = r["index"]
+                    item = items[idx].copy()
+                    item["score"] = r["relevance_score"]
+                    item["raw_score"] = r["relevance_score"]
+                    reranked.append(item)
+                return reranked
+            else:
+                logger.error(f"Cohere Rerank knowledge failed with status {res.status_code}: {res.text}")
+    except Exception as e:
+        logger.exception(f"Exception during Cohere knowledge reranking: {str(e)}")
+    return items[:top_n]

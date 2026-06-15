@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
 import TermsConsent from '@/components/auth/TermsConsent';
 import BrandLogo from '@/components/layout/BrandLogo';
@@ -19,7 +19,11 @@ const registerSchema = z.object({
   fullName: z.string().min(2, 'Họ tên tối thiểu 2 ký tự'),
   email: z.string().min(1, 'Vui lòng nhập email').email('Email không hợp lệ'),
   password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
+  confirmPassword: z.string().min(1, 'Vui lòng xác nhận mật khẩu'),
   acceptedTerms: z.boolean().refine((accepted) => accepted, { message: TERMS_ERROR }),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Mật khẩu xác nhận không trùng khớp",
+  path: ["confirmPassword"],
 });
 type RegisterForm = z.infer<typeof registerSchema>;
 
@@ -30,10 +34,13 @@ export default function RegisterPage() {
       fullName: '',
       email: '',
       password: '',
+      confirmPassword: '',
       acceptedTerms: false,
     },
   });
   const [serverError, setServerError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
   const acceptedTerms = useWatch({ control, name: 'acceptedTerms' });
 
@@ -117,12 +124,39 @@ export default function RegisterPage() {
               <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input
                 {...register('password')}
-                type="password"
-                className={`w-full h-[48px] py-3 pl-[42px] pr-4 rounded-[12px] border-[1.5px] bg-white text-[14px] outline-none transition-colors placeholder:text-neutral-400 focus:border-primary-600 focus:ring-4 focus:ring-primary-100 ${errors.password ? 'border-danger' : 'border-neutral-200'}`}
+                type={showPassword ? 'text' : 'password'}
+                className={`w-full h-[48px] py-3 pl-[42px] pr-10 rounded-[12px] border-[1.5px] bg-white text-[14px] outline-none transition-colors placeholder:text-neutral-400 focus:border-primary-600 focus:ring-4 focus:ring-primary-100 ${errors.password ? 'border-danger' : 'border-neutral-200'}`}
                 placeholder="••••••••"
               />
+              <button
+                type="button"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 focus:outline-none"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
             {errors.password && <p className="text-[12px] font-semibold mt-1.5" style={{ color: 'var(--danger)' }}>{errors.password.message}</p>}
+          </div>
+          <div>
+            <label className="block text-[13px] font-bold mb-2">Xác nhận mật khẩu</label>
+            <div className="relative">
+              <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                {...register('confirmPassword')}
+                type={showConfirmPassword ? 'text' : 'password'}
+                className={`w-full h-[48px] py-3 pl-[42px] pr-10 rounded-[12px] border-[1.5px] bg-white text-[14px] outline-none transition-colors placeholder:text-neutral-400 focus:border-primary-600 focus:ring-4 focus:ring-primary-100 ${errors.confirmPassword ? 'border-danger' : 'border-neutral-200'}`}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 focus:outline-none"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            {errors.confirmPassword && <p className="text-[12px] font-semibold mt-1.5" style={{ color: 'var(--danger)' }}>{errors.confirmPassword.message}</p>}
           </div>
           <TermsConsent
             id="register-terms"

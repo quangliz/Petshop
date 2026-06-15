@@ -187,7 +187,7 @@ export default function MentionTextarea({
             )}
             {!loading && suggestions.length === 0 && (
               <div className="p-4 text-xs text-neutral-400 text-center">
-                Không tìm thấy sản phẩm nào khớp với "@ {query}"
+                Không tìm thấy sản phẩm nào khớp với &quot;@ {query}&quot;
               </div>
             )}
             {suggestions.map((p, idx) => {

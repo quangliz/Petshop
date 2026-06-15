@@ -5,7 +5,7 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { getGuestCart, clearGuestCart } from '@/lib/guestCart';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import GoogleAuthButton from '@/components/auth/GoogleAuthButton';
 import TermsConsent from '@/components/auth/TermsConsent';
 import BrandLogo from '@/components/layout/BrandLogo';
@@ -34,6 +34,7 @@ export default function LoginPage() {
     },
   });
   const [serverError, setServerError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { setAuth } = useAuthStore();
   const router = useRouter();
   const acceptedTerms = useWatch({ control, name: 'acceptedTerms' });
@@ -118,10 +119,17 @@ export default function LoginPage() {
               <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input
                 {...register('password')}
-                type="password"
-                className={`w-full h-[48px] py-3 pl-[42px] pr-4 rounded-[12px] border-[1.5px] bg-white text-[14px] outline-none transition-colors placeholder:text-neutral-400 focus:border-primary-600 focus:ring-4 focus:ring-primary-100 ${errors.password ? 'border-danger' : 'border-neutral-200'}`}
+                type={showPassword ? 'text' : 'password'}
+                className={`w-full h-[48px] py-3 pl-[42px] pr-10 rounded-[12px] border-[1.5px] bg-white text-[14px] outline-none transition-colors placeholder:text-neutral-400 focus:border-primary-600 focus:ring-4 focus:ring-primary-100 ${errors.password ? 'border-danger' : 'border-neutral-200'}`}
                 placeholder="••••••••"
               />
+              <button
+                type="button"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 focus:outline-none"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
             {errors.password && <p className="text-[12px] font-semibold mt-1.5" style={{ color: 'var(--danger)' }}>{errors.password.message}</p>}
           </div>

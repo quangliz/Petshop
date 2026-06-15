@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     CHAT_MODEL: str = "gpt-4o-mini"
     AI_EVAL_JUDGE_MODEL: str = "gpt-4o"
-    AI_REQUEST_TIMEOUT_SECONDS: float = 30.0
+    AI_REQUEST_TIMEOUT_SECONDS: float = 60.0
     AI_MAX_RETRIES: int = 2
     AI_EVAL_TOKEN_BUDGET: int = 200000
     CLOUDINARY_CLOUD_NAME: str = ""
@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     LANGSMITH_API_KEY: str = ""
     LANGSMITH_PROJECT: str = "petshop-ai"
     LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
+
+    # Cohere Rerank config
+    COHERE_API_KEY: str = ""
+    COHERE_RERANK_MODEL: str = "rerank-multilingual-v3.0"
 
     # Commerce hardening
     VNPAY_PAYMENT_TTL_MINUTES: int = 15

@@ -5,9 +5,9 @@ import asyncio
 
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
-from langchain_core.messages import BaseMessage
+from langchain_core.messages import BaseMessage, ToolMessage
 from langgraph.graph import StateGraph, START
-from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.prebuilt import tools_condition
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.services.retrieval import search_forum_discussions, search_products, search_knowledge
 from app.services.pets_service import get_pet_profile_cached
 from app.models.user import Pet
+from app.models.chat import ChatSession, ChatRoutingStatusEnum
 from app.services.ai_safety import DOMAIN_POLICY, sanitize_retrieved_content
 
 
@@ -33,6 +34,8 @@ SYSTEM_PROMPT_BASE = (
     "trước khi đưa lời khuyên cá nhân hoá. Nếu người dùng có nhiều thú cưng và chưa rõ đang nói về con nào, "
     "hãy hỏi lại để xác nhận.\n"
     "- Khi trả lời dựa trên kết quả `search_knowledge`, hãy trích dẫn bằng cách chèn link Nguồn dưới dạng markdown link nếu có. Các đường dẫn tương đối (bắt đầu bằng `/` như `/forum/slug`) PHẢI được giữ nguyên dạng tương đối, tuyệt đối KHÔNG tự ý thêm giao thức hoặc tên miền (ví dụ trích dẫn đúng: `[Forum: Xử lý mèo hay cắn](/forum/xu-ly-meo-hay-can)`, không viết là `[Forum: Xử lý mèo hay cắn](https://forum/xu-ly-meo-hay-can)`). Nếu nguồn là forum, hãy nói rõ đó là kinh nghiệm/thảo luận cộng đồng hoặc câu trả lời chuyên gia đã xác minh, không coi là chẩn đoán.\n"
+    "- Nếu người dùng yêu cầu trò chuyện với người thật/nhân viên, tỏ ra giận dữ, hoặc khi câu hỏi vượt quá khả năng tư vấn của bạn (ví dụ: khiếu nại đổi trả gay gắt hoặc tình trạng y tế nguy kịch cần cấp cứu): "
+    "GỌI tool `request_human_support_tool` để chuyển giao cuộc trò chuyện sang nhân viên hỗ trợ.\n"
     "- Có thể gọi cả hai tool nếu câu hỏi vừa cần kiến thức vừa cần gợi ý sản phẩm.\n"
     "- Sau khi có kết quả tool, trả lời ngắn gọn, có dẫn chứng. Khi muốn giới thiệu sản phẩm, "
     "viết kèm thẻ định dạng `<product>slug-cua-san-pham</product>` ngay trong câu trả lời "
@@ -78,19 +81,19 @@ async def build_knowledge_context(db: AsyncSession, query: str) -> str:
 
 
 def _build_tools(
-    db: AsyncSession, user_id: uuid.UUID, *, allow_cart_mutation: bool = False
+    db: AsyncSession, user_id: Optional[uuid.UUID], session_id: uuid.UUID, *, allow_cart_mutation: bool = False
 ):
     @tool
     async def search_products_tool(query: str, species: Optional[List[str]] = None) -> str:
-        """Tìm sản phẩm trong cửa hàng ThePawsome bằng vector similarity.
+        """Tìm sản phẩm trong cửa hàng ThePawsome bằng từ khóa tìm kiếm.
 
         Args:
-            query: Mô tả sản phẩm cần tìm (ví dụ: 'hạt cho mèo lông dài 5kg').
+            query: Từ khóa hoặc mô tả sản phẩm cần tìm (ví dụ: 'hạt cho mèo lông dài 5kg').
             species: Lọc theo loài, ví dụ ['cat'] hoặc ['dog']. Bỏ qua nếu không chắc.
 
         Returns: Danh sách top-5 sản phẩm dạng văn bản, kèm slug để dùng trong thẻ <product>.
         """
-        results = await search_products(db, query=query, limit=5, species=species)
+        results = await search_products(db, query=query, limit=5, species=species, keyword_only=True)
         if not results:
             return "Không tìm thấy sản phẩm phù hợp."
         lines = []
@@ -123,6 +126,8 @@ def _build_tools(
 
         Returns: Danh sách thú cưng dạng văn bản tiếng Việt, kèm id để dùng với get_pet_detail_tool.
         """
+        if not user_id:
+            return "Bạn chưa đăng nhập, vì vậy không có thông tin thú cưng trong hệ thống."
         result = await db.execute(
             select(Pet).where(Pet.user_id == user_id).order_by(Pet.created_at.asc())
         )
@@ -148,6 +153,8 @@ def _build_tools(
 
         Returns: Hồ sơ chi tiết dạng văn bản tiếng Việt, hoặc thông báo nếu không tìm thấy.
         """
+        if not user_id:
+            return "Bạn chưa đăng nhập, vì vậy không có thông tin hồ sơ thú cưng."
         pet: Optional[Pet] = None
         try:
             pet_uuid = uuid.UUID(identifier)
@@ -177,18 +184,42 @@ def _build_tools(
 
         return await get_pet_profile_cached(pet)
 
+    @tool
+    async def request_human_support_tool(reason: str) -> str:
+        """Yêu cầu chuyển giao cuộc trò chuyện này cho nhân viên hỗ trợ (người thật).
+
+        Dùng khi người dùng thể hiện mong muốn gặp nhân viên/người thật, hoặc khi câu hỏi vượt quá
+        khả năng của bạn (như khiếu nại đổi trả gay gắt hoặc tình huống khẩn cấp cần bác sĩ thực tế).
+
+        Args:
+            reason: Lý do cần chuyển giao (ví dụ: 'Khách hàng yêu cầu gặp người thật').
+
+        Returns: Thông báo xác nhận đã chuyển tiếp thành công.
+        """
+        result = await db.execute(
+            select(ChatSession).where(ChatSession.id == session_id)
+        )
+        session = result.scalar_one_or_none()
+        if session:
+            session.routing_status = ChatRoutingStatusEnum.pending_human
+            await db.commit()
+            return f"Đã chuyển trạng thái phiên chat sang chờ nhân viên hỗ trợ. Lý do: {reason}."
+        return "Không tìm thấy phiên chat tương ứng để chuyển giao."
+
     tools = [
         search_products_tool,
         search_knowledge_tool,
         list_pets_tool,
         get_pet_detail_tool,
+        request_human_support_tool,
     ]
     return tools
 
 
 def build_agent(
     db: AsyncSession,
-    user_id: uuid.UUID,
+    user_id: Optional[uuid.UUID],
+    session_id: uuid.UUID,
     *,
     allow_cart_mutation: bool = False,
 ):
@@ -206,7 +237,7 @@ def build_agent(
         max_retries=settings.AI_MAX_RETRIES,
     )
     tools = _build_tools(
-        db, user_id, allow_cart_mutation=allow_cart_mutation
+        db, user_id, session_id, allow_cart_mutation=allow_cart_mutation
     )
     llm_with_tools = llm.bind_tools(tools)
 
@@ -214,9 +245,43 @@ def build_agent(
         response = await llm_with_tools.ainvoke(state["messages"])
         return {"messages": [response]}
 
+    async def tools_node(state: AgentState):
+        last_message = state["messages"][-1]
+        if not hasattr(last_message, "tool_calls") or not last_message.tool_calls:
+            raise ValueError("No tool calls found in the last message.")
+        
+        tool_messages = []
+        tools_by_name = {t.name: t for t in tools}
+        
+        for tool_call in last_message.tool_calls:
+            name = tool_call["name"]
+            tool = tools_by_name[name]
+            try:
+                output = await tool.ainvoke(tool_call["args"])
+                if isinstance(output, ToolMessage):
+                    tool_messages.append(output)
+                else:
+                    tool_messages.append(
+                        ToolMessage(
+                            content=str(output),
+                            tool_call_id=tool_call["id"],
+                            name=name
+                        )
+                    )
+            except Exception as e:
+                tool_messages.append(
+                    ToolMessage(
+                        content=f"Error executing tool {name}: {str(e)}",
+                        tool_call_id=tool_call["id"],
+                        name=name,
+                        is_error=True
+                    )
+                )
+        return {"messages": tool_messages}
+
     workflow = StateGraph(AgentState)
     workflow.add_node("agent", agent_node)
-    workflow.add_node("tools", ToolNode(tools))
+    workflow.add_node("tools", tools_node)
     workflow.add_edge(START, "agent")
     # tools_condition routes to "tools" OR END — do NOT also add_edge to END
     workflow.add_conditional_edges("agent", tools_condition)
