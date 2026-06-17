@@ -372,10 +372,10 @@ async def checkout(
         db.add(oi)
     await db.flush()
 
-    if pm == PaymentMethodEnum.vnpay:
+    if pm == PaymentMethodEnum.sepay:
         expires_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
             minutes=(
-                settings.VNPAY_PAYMENT_TTL_MINUTES
+                settings.SEPAY_PAYMENT_TTL_MINUTES
                 + settings.INVENTORY_RESERVATION_GRACE_MINUTES
             )
         )
@@ -484,10 +484,10 @@ async def guest_checkout(
         db.add(oi)
     await db.flush()
 
-    if pm == PaymentMethodEnum.vnpay:
+    if pm == PaymentMethodEnum.sepay:
         expires_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
             minutes=(
-                settings.VNPAY_PAYMENT_TTL_MINUTES
+                settings.SEPAY_PAYMENT_TTL_MINUTES
                 + settings.INVENTORY_RESERVATION_GRACE_MINUTES
             )
         )

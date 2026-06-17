@@ -146,37 +146,46 @@ def test_refresh_token_rotation_rejects_replay(client):
     assert revoked_replacement.status_code == 401
 
 
-def test_vnpay_ipn_is_duplicate_safe(client, auth_headers):
-    order, _line = _create_order(client, auth_headers, payment_method="vnpay")
+def test_sepay_webhook_is_duplicate_safe(client, auth_headers):
+    import random
+    order, _line = _create_order(client, auth_headers, payment_method="sepay")
     payment = client.post(
-        f"/api/v1/payments/vnpay/create/{order['id']}",
+        f"/api/v1/payments/sepay/create/{order['id']}",
         headers=idempotency_headers(auth_headers),
     )
     assert payment.status_code == 200, payment.text
     merchant_ref = payment.json()["merchant_ref"]
-    detail = client.get(f"/api/v1/orders/{order['id']}", headers=auth_headers).json()
-    params = {
-        "vnp_TxnRef": merchant_ref,
-        "vnp_Amount": str(int(detail["total"]) * 100),
-        "vnp_ResponseCode": "00",
-        "vnp_TransactionStatus": "00",
-        "vnp_TransactionNo": uuid.uuid4().hex[:12],
+    
+    txn_id = random.randint(1000000, 9999999)
+    payload = {
+        "id": txn_id,
+        "gateway": "MBBank",
+        "transactionDate": "2026-06-16 12:00:00",
+        "accountNumber": "99999",
+        "code": merchant_ref,
+        "content": f"{merchant_ref} chuyen tien",
+        "transferType": "in",
+        "transferAmount": float(order["total"]),
+        "accumulated": float(order["total"])
     }
-    with patch(
-        "app.api.routers.payments.vnpay_service.validate_response",
-        return_value=True,
-    ):
-        first = client.get("/api/v1/payments/vnpay/ipn", params=params)
-        duplicate = client.get("/api/v1/payments/vnpay/ipn", params=params)
-    assert first.json()["RspCode"] == "00"
-    assert duplicate.json() == {
-        "RspCode": "00",
-        "Message": "Order already confirmed",
-    }
+    
+    with patch("app.api.routers.payments.settings.SEPAY_API_KEY", "test_key"):
+        first = client.post(
+            "/api/v1/payments/sepay/webhook",
+            json=payload,
+            headers={"Authorization": "Apikey test_key"}
+        )
+        duplicate = client.post(
+            "/api/v1/payments/sepay/webhook",
+            json=payload,
+            headers={"Authorization": "Apikey test_key"}
+        )
+    assert first.json() == {"success": True, "message": "Payment processed successfully"}
+    assert duplicate.json() == {"success": True, "message": "Transaction already processed"}
 
 
 def test_expired_reservation_releases_once(client, auth_headers):
-    order, _line = _create_order(client, auth_headers, payment_method="vnpay")
+    order, _line = _create_order(client, auth_headers, payment_method="sepay")
 
     async def expire():
         async with AsyncSessionLocal() as db:
@@ -230,10 +239,10 @@ def test_ready_health_reports_redis_failure(client):
     assert response.json()["dependencies"]["redis"] == "unavailable"
 
 
-def test_payment_state_persisted_for_ipn(client, auth_headers):
-    order, _line = _create_order(client, auth_headers, payment_method="vnpay")
+def test_payment_state_persisted_for_webhook(client, auth_headers):
+    order, _line = _create_order(client, auth_headers, payment_method="sepay")
     payment = client.post(
-        f"/api/v1/payments/vnpay/create/{order['id']}",
+        f"/api/v1/payments/sepay/create/{order['id']}",
         headers=idempotency_headers(auth_headers),
     )
     assert payment.status_code == 200

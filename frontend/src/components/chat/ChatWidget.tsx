@@ -647,7 +647,7 @@ export default function ChatWidget() {
       <div className="flex items-center gap-3">
         {isOpen && !isClosing && (
           <>
-            <a href="mailto:help@thepawsome.store" aria-label="Email"
+            <a href="mailto:support@thepawsome.store" aria-label="Email"
               className="contact-btn contact-btn-3 w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white shadow-md transition-transform duration-200 ease-out hover:scale-125 active:scale-95"
               style={{ background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)" }}>
               <Mail size={18} />

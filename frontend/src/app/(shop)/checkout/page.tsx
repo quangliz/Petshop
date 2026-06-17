@@ -395,25 +395,25 @@ function CheckoutPage() {
         }
       }).catch(() => {});
       sessionStorage.removeItem('checkout_idempotency');
-      if (paymentMethod === 'vnpay') {
+      if (paymentMethod === 'sepay') {
         const paymentKeyName = `payment_idempotency:${order.id}`;
         let paymentKey = sessionStorage.getItem(paymentKeyName);
         if (!paymentKey) {
           paymentKey = crypto.randomUUID();
           sessionStorage.setItem(paymentKeyName, paymentKey);
         }
-        const vnpRes = await api.post(`/payments/vnpay/create/${order.id}`, null, {
+        const sepayRes = await api.post(`/payments/sepay/create/${order.id}`, null, {
           headers: {
             'Idempotency-Key': paymentKey,
             ...(order.guest_order_token ? { 'X-Guest-Order-Token': order.guest_order_token } : {}),
           },
         });
-        sessionStorage.setItem(`payment_context:${vnpRes.data.merchant_ref}`, JSON.stringify({
+        sessionStorage.setItem(`payment_context:${sepayRes.data.merchant_ref}`, JSON.stringify({
           guestOrderToken: order.guest_order_token || null,
           orderId: order.id,
           orderCode: order.order_code,
         }));
-        window.location.assign(vnpRes.data.payment_url);
+        router.push(`/orders/payment/sepay?ref=${sepayRes.data.merchant_ref}`);
       } else {
         toast.success('Đặt hàng thành công!');
         if (isGuest) {
@@ -522,11 +522,11 @@ function CheckoutPage() {
                   <div className="text-[13px] text-neutral-500">Trả tiền mặt cho shipper khi nhận được hàng</div>
                 </div>
               </label>
-              <label className={paymentOptionCls(paymentMethod === 'vnpay')}>
-                <input type="radio" name="payment" value="vnpay" checked={paymentMethod === 'vnpay'} onChange={() => setPaymentMethod('vnpay')} className="w-5 h-5" style={{ accentColor: 'var(--primary-600)' }} />
+              <label className={paymentOptionCls(paymentMethod === 'sepay')}>
+                <input type="radio" name="payment" value="sepay" checked={paymentMethod === 'sepay'} onChange={() => setPaymentMethod('sepay')} className="w-5 h-5" style={{ accentColor: 'var(--primary-600)' }} />
                 <div className="flex-1">
-                  <div className="font-bold text-[15px] text-[#005baa]">Ví điện tử VNPay</div>
-                  <div className="text-[13px] text-neutral-500">Thanh toán qua app ngân hàng hoặc thẻ ATM/Quốc tế</div>
+                  <div className="font-bold text-[15px] text-[#e056fd]">Chuyển khoản VietQR (SePay)</div>
+                  <div className="text-[13px] text-neutral-500">Quét mã QR để chuyển khoản nhanh bằng ứng dụng ngân hàng</div>
                 </div>
               </label>
             </div>

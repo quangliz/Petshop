@@ -38,3 +38,27 @@ async def send_reset_email(email: str, reset_link: str) -> None:
     )
     fm = FastMail(_get_mail_config())
     await fm.send_message(message)
+
+
+async def send_verification_email(email: str, verification_link: str) -> None:
+    html = f"""
+    <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
+        <h2 style="color:#333">Kích hoạt tài khoản của bạn</h2>
+        <p>Chào mừng bạn đến với ThePawsome! Cảm ơn bạn đã đăng ký tài khoản. Nhấn nút bên dưới để kích hoạt tài khoản của bạn:</p>
+        <a href="{verification_link}"
+           style="display:inline-block;padding:12px 28px;background:#10b981;color:#fff;
+                  border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0">
+            Kích hoạt tài khoản
+        </a>
+        <p style="font-size:13px;color:#888">Liên kết này sẽ hết hạn sau 24 giờ.
+        Nếu bạn không đăng ký tài khoản, vui lòng bỏ qua email này.</p>
+    </div>
+    """
+    message = MessageSchema(
+        subject="ThePawsome - Kích hoạt tài khoản của bạn",
+        recipients=[email],
+        body=html,
+        subtype=MessageType.html,
+    )
+    fm = FastMail(_get_mail_config())
+    await fm.send_message(message)

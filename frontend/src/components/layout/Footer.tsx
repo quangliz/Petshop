@@ -40,8 +40,8 @@ export default function Footer() {
               <Link href="/chinh-sach-giao-hang" className="text-[13px] text-inherit no-underline hover:text-white transition-colors">Giao hàng</Link>
               <Link href="/chinh-sach-thanh-toan" className="text-[13px] text-inherit no-underline hover:text-white transition-colors">Thanh toán</Link>
               <Link href="/chinh-sach-doi-tra" className="text-[13px] text-inherit no-underline hover:text-white transition-colors">Đổi trả</Link>
-              <a href="mailto:help@thepawsome.store" className="text-[13px] flex items-center gap-2 text-inherit no-underline hover:text-white transition-colors">
-                <Mail size={14} /> help@thepawsome.store
+              <a href="mailto:support@thepawsome.store" className="text-[13px] flex items-center gap-2 text-inherit no-underline hover:text-white transition-colors">
+                <Mail size={14} /> support@thepawsome.store
               </a>
               <a href="tel:+84888987400" className="text-[13px] flex items-center gap-2 text-inherit no-underline hover:text-white transition-colors">
                 <Phone size={14} /> +84888987400

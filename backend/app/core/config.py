@@ -45,11 +45,12 @@ class Settings(BaseSettings):
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379/0"
     
-    # VNPay Configuration
-    VNPAY_TMN_CODE: str = "your_tmn_code"
-    VNPAY_HASH_SECRET: str = "your_hash_secret"
-    VNPAY_URL: str = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-    VNPAY_RETURN_URL: str = "http://localhost:3000/orders/payment/callback"
+    # SePay Configuration
+    SEPAY_API_KEY: str = "your_sepay_api_key_or_token"
+    SEPAY_ACCOUNT_NUMBER: str = "123456789"
+    SEPAY_ACCOUNT_NAME: str = "NGUYEN VAN A"
+    SEPAY_BANK: str = "Bank"
+    SEPAY_RETURN_URL: str = "http://localhost:3000/orders/payment/callback"
     
     # AI & Cloudinary
     OPENAI_API_KEY: str = ""
@@ -74,7 +75,7 @@ class Settings(BaseSettings):
     COHERE_RERANK_MODEL: str = "rerank-multilingual-v3.0"
 
     # Commerce hardening
-    VNPAY_PAYMENT_TTL_MINUTES: int = 15
+    SEPAY_PAYMENT_TTL_MINUTES: int = 15
     INVENTORY_RESERVATION_GRACE_MINUTES: int = 5
     RESERVATION_SWEEP_INTERVAL_SECONDS: int = 60
     PET_AVATAR_MAX_BYTES: int = 5 * 1024 * 1024

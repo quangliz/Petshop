@@ -37,6 +37,7 @@ const STATUS_LABELS: Record<string, string> = {
 const PAYMENT_LABELS: Record<string, string> = {
   cod: 'Thanh toán khi nhận hàng',
   vnpay: 'VNPay',
+  sepay: 'Chuyển khoản VietQR',
 };
 
 function getRecentGuestOrder(): { email?: string; orderCode?: string } | null {

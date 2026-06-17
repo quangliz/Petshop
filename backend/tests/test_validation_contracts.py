@@ -19,16 +19,16 @@ def test_checkout_rejects_unknown_payment_method():
         )
 
 
-def test_checkout_accepts_vnpay_enum_without_fallback():
+def test_checkout_accepts_sepay_enum_without_fallback():
     checkout = CheckoutRequest.model_validate(
         {
             "ship_name": "Nguyen Van A",
             "ship_phone": "0909090909",
             "ship_address": "123 Nguyen Trai, Quan 1",
-            "payment_method": "vnpay",
+            "payment_method": "sepay",
         }
     )
-    assert checkout.payment_method is PaymentMethodEnum.vnpay
+    assert checkout.payment_method is PaymentMethodEnum.sepay
 
 
 def test_guest_checkout_validates_item_uuid_and_email():

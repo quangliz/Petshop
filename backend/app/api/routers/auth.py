@@ -19,8 +19,9 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     create_reset_token,
+    create_verification_token,
 )
-from app.core.email import send_reset_email
+from app.core.email import send_reset_email, send_verification_email
 from app.models.user import RefreshSession, User
 
 router = APIRouter()
@@ -47,6 +48,7 @@ class UserResponse(BaseModel):
     address: Optional[str] = None
     role: str
     is_expert_verified: bool = False
+    email_verified: bool = False
 
 
 class UserUpdate(BaseModel):
@@ -69,6 +71,14 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
 def _user_response(user: User) -> dict:
     return {
         "id": str(user.id),
@@ -78,6 +88,7 @@ def _user_response(user: User) -> dict:
         "address": user.address,
         "role": str(user.role.value),
         "is_expert_verified": bool(user.is_expert_verified),
+        "email_verified": bool(user.email_verified),
     }
 
 
@@ -119,15 +130,36 @@ async def register(request: Request, user_in: UserRegister, db: SessionDep) -> A
     result = await db.execute(select(User).where(User.email == user_in.email))
     user = result.scalar_one_or_none()
     if user:
-        raise HTTPException(status_code=400, detail="Email đã được đăng ký trong hệ thống.")
-    user = User(
-        email=user_in.email,
-        hashed_password=get_password_hash(user_in.password),
-        full_name=user_in.full_name,
-    )
-    db.add(user)
+        if user.email_verified:
+            raise HTTPException(status_code=400, detail="Email đã được đăng ký trong hệ thống.")
+        else:
+            # Update credentials for unverified user re-registering
+            user.hashed_password = get_password_hash(user_in.password)
+            user.full_name = user_in.full_name
+            db.add(user)
+    else:
+        user = User(
+            email=user_in.email,
+            hashed_password=get_password_hash(user_in.password),
+            full_name=user_in.full_name,
+            email_verified=False,
+            is_active=False,  # Unverified users cannot login
+        )
+        db.add(user)
+    
     await db.commit()
     await db.refresh(user)
+    
+    # Generate and send verification email
+    token = create_verification_token(str(user.id))
+    verification_link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+    try:
+        await send_verification_email(user.email, verification_link)
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Tài khoản đã được đăng ký nhưng không thể gửi email kích hoạt. Vui lòng thử lại sau."
+        )
     return _user_response(user)
 
 
@@ -138,6 +170,8 @@ async def login(request: Request, response: Response, db: SessionDep, form_data:
     user = result.scalar_one_or_none()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Email hoặc mật khẩu không chính xác")
+    if not user.email_verified:
+        raise HTTPException(status_code=400, detail="Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email của bạn để kích hoạt.")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Tài khoản đã bị khóa")
     access_token = create_access_token(subject=str(user.id))
@@ -145,6 +179,56 @@ async def login(request: Request, response: Response, db: SessionDep, form_data:
     await db.commit()
     _set_refresh_cookie(response, refresh_token)
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/verify-email")
+@limiter.limit("5/minute")
+async def verify_email(request: Request, body: VerifyEmailRequest, db: SessionDep) -> Any:
+    try:
+        payload = jwt.decode(body.token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != "verification":
+            raise HTTPException(status_code=400, detail="Mã kích hoạt không đúng loại.")
+        
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Mã kích hoạt không hợp lệ.")
+        
+        result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=400, detail="Tài khoản không tồn tại.")
+        
+        if user.email_verified:
+            return {"message": "Tài khoản đã được kích hoạt từ trước."}
+            
+        user.email_verified = True
+        user.is_active = True  # Ensure user is active upon verification
+        db.add(user)
+        await db.commit()
+        return {"message": "Kích hoạt tài khoản thành công."}
+    except jwt.JWTError:
+        raise HTTPException(status_code=400, detail="Mã kích hoạt không hợp lệ hoặc đã hết hạn.")
+
+
+@router.post("/resend-verification")
+@limiter.limit("3/minute")
+async def resend_verification(request: Request, body: ResendVerificationRequest, db: SessionDep) -> Any:
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+    if not user:
+        return {"message": "Nếu email chưa được kích hoạt, một link kích hoạt mới đã được gửi."}
+    
+    if user.email_verified:
+        return {"message": "Tài khoản đã được kích hoạt rồi."}
+        
+    token = create_verification_token(str(user.id))
+    verification_link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+    try:
+        await send_verification_email(user.email, verification_link)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Không thể gửi email kích hoạt. Vui lòng thử lại sau.")
+        
+    return {"message": "Link kích hoạt mới đã được gửi về email của bạn."}
 
 
 @router.post("/refresh", response_model=Token)

@@ -91,6 +91,15 @@ def auth_token(client: TestClient) -> str:
         "password": TEST_PASSWORD,
         "full_name": TEST_NAME,
     })
+    # Kích hoạt email_verified = True trực tiếp qua DB cho môi trường test
+    sync_session_cls = _ensure_test_schema()
+    with sync_session_cls() as session:
+        user = session.query(User).filter_by(email=TEST_EMAIL).first()
+        if user:
+            user.email_verified = True
+            user.is_active = True
+            session.commit()
+
     res = client.post("/api/v1/auth/login", data={
         "username": TEST_EMAIL,
         "password": TEST_PASSWORD,
@@ -117,12 +126,15 @@ def admin_token(client: TestClient) -> str:
         "full_name": "Admin Tester",
     })
 
-    # Use sync engine to set admin role — avoids event loop conflicts with TestClient
+    # Use sync engine to set admin role and email verification — avoids event loop conflicts with TestClient
     db = _ensure_test_schema()()
     try:
         user = db.query(User).filter(User.email == TEST_ADMIN_EMAIL).first()
-        if user and user.role != RoleEnum.admin:
-            user.role = RoleEnum.admin
+        if user:
+            user.email_verified = True
+            user.is_active = True
+            if user.role != RoleEnum.admin:
+                user.role = RoleEnum.admin
             db.commit()
     finally:
         db.close()
@@ -138,3 +150,13 @@ def admin_token(client: TestClient) -> str:
 @pytest.fixture(scope="session")
 def admin_headers(admin_token: str) -> dict:
     return {"Authorization": f"Bearer {admin_token}"}
+
+
+@pytest.fixture(autouse=True)
+def mock_email_sending(monkeypatch):
+    """Mock out email sending to avoid real SMTP calls during tests."""
+    from app.core import email
+    async def mock_send(*args, **kwargs):
+        pass
+    monkeypatch.setattr(email, "send_verification_email", mock_send)
+    monkeypatch.setattr(email, "send_reset_email", mock_send)

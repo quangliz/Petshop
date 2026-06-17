@@ -24,7 +24,7 @@ export default function PrivacyPolicyPage() {
           title: "Lưu trữ, bảo vệ và quyền người dùng",
           paragraphs: [
             "Dữ liệu được lưu trong thời gian cần thiết cho vận hành, nghĩa vụ giao dịch và xử lý tranh chấp. Hệ thống áp dụng kiểm soát truy cập, mã hóa khi truyền và log có che giấu dữ liệu nhạy cảm.",
-            "Người dùng có thể yêu cầu xem, sửa, rút lại sự đồng ý, hạn chế xử lý hoặc xóa dữ liệu theo pháp luật áp dụng bằng cách liên hệ help@thepawsome.store.",
+            "Người dùng có thể yêu cầu xem, sửa, rút lại sự đồng ý, hạn chế xử lý hoặc xóa dữ liệu theo pháp luật áp dụng bằng cách liên hệ support@thepawsome.store.",
           ],
         },
         {

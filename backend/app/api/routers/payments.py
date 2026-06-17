@@ -28,11 +28,20 @@ from app.services.inventory import (
     reacquire_released_reservations,
     release_order_reservations,
 )
-from app.services.vnpay import VNPay
+from app.services.sepay import SePay
 
 
 router = APIRouter()
-vnpay_service = VNPay()
+sepay_service = SePay()
+
+
+def _resolve_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client is not None:
+        return request.client.host
+    return "127.0.0.1"
 
 
 class PaymentUrlResponse(BaseModel):
@@ -46,22 +55,23 @@ class PaymentStatusResponse(BaseModel):
     status: str
     order_id: str
     order_code: str
+    amount: float
+    payment_url: str | None = None
 
 
-def _resolve_client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    if request.client is not None:
-        return request.client.host
-    return "127.0.0.1"
-
-
-def _parse_vnpay_amount(raw_amount: str | None) -> int | None:
-    try:
-        return int(raw_amount or "")
-    except ValueError:
-        return None
+class SePayWebhookPayload(BaseModel):
+    id: int
+    gateway: str
+    transactionDate: str
+    accountNumber: str
+    subAccount: str | None = ""
+    code: str | None = None
+    content: str
+    transferType: str
+    description: str | None = ""
+    transferAmount: float
+    accumulated: float
+    referenceCode: str | None = ""
 
 
 def _authorize_order(
@@ -96,7 +106,7 @@ def _public_payment_status(payment: Payment, order: Order) -> str:
     return "processing"
 
 
-@router.post("/vnpay/create/{order_id}", response_model=PaymentUrlResponse)
+@router.post("/sepay/create/{order_id}", response_model=PaymentUrlResponse)
 @limiter.limit("10/minute")
 async def create_payment_url(
     order_id: uuid.UUID,
@@ -116,8 +126,8 @@ async def create_payment_url(
         raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng")
     _authorize_order(order, current_user, guest_order_token)
 
-    if order.payment_method != PaymentMethodEnum.vnpay:
-        raise HTTPException(status_code=400, detail="Đơn hàng không dùng VNPay")
+    if order.payment_method != PaymentMethodEnum.sepay:
+        raise HTTPException(status_code=400, detail="Đơn hàng không dùng SePay")
     if order.payment_status == PaymentStatusEnum.paid:
         raise HTTPException(status_code=400, detail="Đơn hàng đã thanh toán")
     if order.status == OrderStatusEnum.cancelled:
@@ -148,21 +158,18 @@ async def create_payment_url(
     ):
         raise HTTPException(status_code=409, detail="Giữ hàng cho đơn này đã hết hạn")
 
-    merchant_ref = "PAY-" + uuid.uuid4().hex.upper()
+    merchant_ref = order.order_code
     expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.VNPAY_PAYMENT_TTL_MINUTES
+        minutes=settings.SEPAY_PAYMENT_TTL_MINUTES
     )
-    payment_url = vnpay_service.get_payment_url(
-        merchant_ref=merchant_ref,
-        amount=int(order.total),
-        ip_addr=_resolve_client_ip(request),
-        order_info=f"Thanh toan don hang {order.order_code}",
-        expires_at=expires_at,
+    payment_url = sepay_service.get_payment_url(
+        order_code=order.order_code,
+        amount=float(order.total),
     )
     db.add(
         Payment(
             order_id=order.id,
-            method=PaymentMethodEnum.vnpay,
+            method=PaymentMethodEnum.sepay,
             amount=order.total,
             status=TxnStatusEnum.pending,
             merchant_ref=merchant_ref,
@@ -179,7 +186,7 @@ async def create_payment_url(
     )
 
 
-@router.get("/vnpay/status/{merchant_ref}", response_model=PaymentStatusResponse)
+@router.get("/sepay/status/{merchant_ref}", response_model=PaymentStatusResponse)
 @limiter.limit("30/minute")
 async def payment_status(
     merchant_ref: str,
@@ -203,93 +210,98 @@ async def payment_status(
         "status": _public_payment_status(payment, order),
         "order_id": str(order.id),
         "order_code": order.order_code,
+        "amount": float(payment.amount),
+        "payment_url": payment.payment_url,
     }
 
 
-@router.get("/vnpay/ipn")
-async def vnpay_ipn(request: Request, db: SessionDep) -> Any:
-    params = dict(request.query_params)
-    if not vnpay_service.validate_response(params.copy()):
-        return {"RspCode": "97", "Message": "Invalid Checksum"}
+@router.post("/sepay/webhook")
+async def sepay_webhook(
+    request: Request,
+    payload: SePayWebhookPayload,
+    db: SessionDep,
+) -> Any:
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    expected_key = settings.SEPAY_API_KEY
+    if expected_key:
+        if not auth_header or not auth_header.startswith("Apikey ") or auth_header[7:].strip() != expected_key:
+            raise HTTPException(status_code=401, detail="Unauthorized")
 
-    merchant_ref = params.get("vnp_TxnRef")
-    response_code = params.get("vnp_ResponseCode")
-    transaction_status = params.get("vnp_TransactionStatus")
-    transaction_no = params.get("vnp_TransactionNo")
-    amount = _parse_vnpay_amount(params.get("vnp_Amount"))
+    if payload.transferType.lower() != "in":
+        return {"success": True, "message": "Ignored outbound transfer"}
+
+    txn_id = str(payload.id)
+    duplicate_result = await db.execute(
+        select(Payment).where(Payment.external_txn_id == txn_id)
+    )
+    if duplicate_result.scalar_one_or_none():
+        return {"success": True, "message": "Transaction already processed"}
+
+    order_code = None
+    if payload.code:
+        order_code = payload.code.strip().upper()
+    
+    import re
+    if not order_code or not re.match(r"^ORD-[A-F0-9]{12}$", order_code):
+        match = re.search(r"ORD-[A-F0-9]{12}", payload.content, re.IGNORECASE)
+        if match:
+            order_code = match.group(0).upper()
+
+    if not order_code:
+        return {"success": True, "message": "Order code not found in content"}
 
     result = await db.execute(
         select(Payment, Order)
         .join(Order, Order.id == Payment.order_id)
-        .where(Payment.merchant_ref == merchant_ref)
+        .where(Order.order_code == order_code)
         .with_for_update()
     )
     row = result.one_or_none()
     if not row:
-        return {"RspCode": "01", "Message": "Order Not Found"}
+        return {"success": True, "message": "Order not found"}
     payment, order = row
 
-    if amount is None or amount != int(payment.amount) * 100:
-        return {"RspCode": "04", "Message": "Invalid Amount"}
+    if int(payload.transferAmount) < int(payment.amount):
+        return {"success": True, "message": "Invalid amount"}
 
     if payment.status == TxnStatusEnum.success:
-        return {"RspCode": "00", "Message": "Order already confirmed"}
+        return {"success": True, "message": "Order already paid"}
 
-    if transaction_no:
-        duplicate_result = await db.execute(
-            select(Payment).where(
-                Payment.external_txn_id == transaction_no,
-                Payment.id != payment.id,
-            )
+    payment.external_txn_id = txn_id
+    payment.raw_response = payload.model_dump()
+
+    reservations_result = await db.execute(
+        select(InventoryReservation).where(
+            InventoryReservation.order_id == order.id
         )
-        if duplicate_result.scalar_one_or_none():
-            return {"RspCode": "02", "Message": "Transaction already recorded"}
+    )
+    reservations = list(reservations_result.scalars().all())
+    inventory_ok = True
+    if any(r.status == ReservationStatusEnum.released for r in reservations):
+        inventory_ok = await reacquire_released_reservations(db, order)
+    else:
+        await commit_order_reservations(db, order)
 
-    payment.external_txn_id = transaction_no
-    payment.raw_response = params
-    succeeded = response_code == "00" and transaction_status == "00"
+    payment.status = TxnStatusEnum.success
+    order.payment_status = PaymentStatusEnum.paid
+    payment.requires_review = not inventory_ok
 
-    if succeeded:
-        reservations_result = await db.execute(
-            select(InventoryReservation).where(
-                InventoryReservation.order_id == order.id
-            )
+    if inventory_ok:
+        items_result = await db.execute(
+            select(OrderItem).where(OrderItem.order_id == order.id)
         )
-        reservations = list(reservations_result.scalars().all())
-        inventory_ok = True
-        if any(r.status == ReservationStatusEnum.released for r in reservations):
-            inventory_ok = await reacquire_released_reservations(db, order)
-        else:
-            await commit_order_reservations(db, order)
-
-        payment.status = TxnStatusEnum.success
-        order.payment_status = PaymentStatusEnum.paid
-        payment.requires_review = not inventory_ok
-
-        if inventory_ok:
-            items_result = await db.execute(
-                select(OrderItem).where(OrderItem.order_id == order.id)
+        order_items = list(items_result.scalars().all())
+        product_ids = [oi.product_id for oi in order_items if oi.product_id]
+        if product_ids:
+            prods_result = await db.execute(
+                select(Product)
+                .where(Product.id.in_(product_ids))
+                .with_for_update()
             )
-            order_items = list(items_result.scalars().all())
-            product_ids = [oi.product_id for oi in order_items if oi.product_id]
-            if product_ids:
-                prods_result = await db.execute(
-                    select(Product)
-                    .where(Product.id.in_(product_ids))
-                    .with_for_update()
-                )
-                products = {p.id: p for p in prods_result.scalars().all()}
-                for item in order_items:
-                    if item.product_id in products:
-                        products[item.product_id].sold_count += item.quantity
+            products = {p.id: p for p in prods_result.scalars().all()}
+            for item in order_items:
+                if item.product_id in products:
+                    products[item.product_id].sold_count += item.quantity
 
-        await db.commit()
-        return {"RspCode": "00", "Message": "Confirm Success"}
-
-    payment.status = TxnStatusEnum.failed
-    order.payment_status = PaymentStatusEnum.failed
-    await release_order_reservations(db, order)
-    if order.status == OrderStatusEnum.pending:
-        order.status = OrderStatusEnum.cancelled
     await db.commit()
-    return {"RspCode": "00", "Message": "Transaction Failed"}
+    return {"success": True, "message": "Payment processed successfully"}

@@ -111,7 +111,7 @@ export default function OrderDetailPage() {
           <div className="flex flex-col gap-3">
             <div className="flex justify-between text-sm">
               <span className="text-neutral-500">Phương thức</span>
-              <span className="font-semibold">{order.payment_method === 'vnpay' ? 'VNPay' : 'Thanh toán khi nhận hàng'}</span>
+              <span className="font-semibold">{order.payment_method === 'sepay' ? 'Chuyển khoản VietQR' : order.payment_method === 'vnpay' ? 'VNPay' : 'Thanh toán khi nhận hàng'}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-neutral-500">Trạng thái TT</span>
@@ -122,6 +122,17 @@ export default function OrderDetailPage() {
                 {order.payment_status === 'paid' ? 'ĐÃ THANH TOÁN' : order.payment_status === 'unpaid' ? 'CHƯA THANH TOÁN' : 'THẤT BẠI'}
               </span>
             </div>
+            {order.payment_status === 'unpaid' && order.payment_method === 'sepay' && order.status === 'pending' && (
+              <div className="mt-2 pt-2 border-t border-neutral-100 flex justify-end">
+                <Link
+                  href={`/orders/payment/sepay?ref=${order.order_code}`}
+                  className="px-4 py-2 bg-[var(--primary-600)] hover:bg-[var(--primary-700)] text-white rounded-xl text-xs font-bold transition-all text-center"
+                  style={{ textDecoration: 'none' }}
+                >
+                  Thanh toán ngay
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>

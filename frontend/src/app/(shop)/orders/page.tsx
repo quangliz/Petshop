@@ -69,7 +69,7 @@ export default function OrdersPage() {
                       <div className="text-sm sm:text-base font-bold" style={{ color: 'var(--primary-600)' }}>{order.total.toLocaleString()}đ</div>
                       <div className="text-xs mt-0.5 text-neutral-400">
                         <span className="sm:hidden font-bold" style={{ color: st.color }}>{st.label} · </span>
-                        {order.payment_method === 'vnpay' ? 'VNPay' : 'COD'}
+                        {order.payment_method === 'sepay' ? 'VietQR' : order.payment_method === 'vnpay' ? 'VNPay' : 'COD'}
                       </div>
                     </div>
                     <ChevronRight size={16} className="text-neutral-300" />
