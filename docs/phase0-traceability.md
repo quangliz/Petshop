@@ -1,33 +1,19 @@
-# Phase 0 Traceability
+# Ma trận Truy vết Yêu cầu Phase 0 (Phase 0 Traceability Matrix) - ThePawsome
 
-| Requirement | Implementation | Validation evidence |
-|---|---|---|
-| Security baseline | Refresh sessions, active-user checks, typed UUID, BOLA ownership, rate/file limits | `docs/security-baseline.md`, `tests/test_phase0_hardening.py`, `tests/test_auth.py` |
-| Checkout idempotency | Scoped key, canonical request hash, PostgreSQL advisory transaction lock | duplicate/conflict tests in `tests/test_phase0_hardening.py` |
-| Payment idempotency | Payment attempt, unique merchant reference, duplicate-safe IPN | IPN retry and payment persistence tests |
-| Inventory reservation | Held/committed/released state, expiry worker, late-payment reacquire/review | release-once test plus payment tests |
-| Health/logging | Request ID JSON middleware, live/ready endpoints, DB/Redis checks | readiness, degraded Redis and request-ID tests |
-| AI safety | Domain policy, emergency/injection preflight, sanitized RAG, confirmation-gated mutation | `tests/test_ai_safety.py`, fault fallback tests, `docs/ai-domain-policy.md` |
-| AI evaluation | Async runner, 40-case dataset, tool evidence and deterministic thresholds | `docs/ai-evaluation.md`, `docs/ai-evaluation.json` |
-| Legal baseline | Five public policy pages linked from footer/checkout | Next production build route manifest |
+Tài liệu này ánh xạ các yêu cầu hệ thống cốt lõi của Phase 0 (Bảo mật, Caching, Concurrency và Trợ lý AI) đến các file triển khai thực tế ở Backend và các bộ kiểm thử tương ứng.
 
-## Latest evidence
+---
 
-- Backend: `94 passed, 2 skipped` after the final RAG runner refinement.
-- Focused Phase 0 safety/hardening: `13 passed`.
-- AI live evaluation: PASS, 40 cases; RAG relevance `4.58`, groundedness `4.12`, helpfulness `4.58`, emergency/injection/slug `100%`, citation `95%`.
-- Frontend: ESLint PASS; Next.js production build PASS with all five legal routes.
-- Database: Alembic upgrade, downgrade one revision and upgrade to head PASS.
+## Bảng ánh xạ Truy vết Phase 0
 
-## Current verification commands
-
-```bash
-cd backend
-uv run alembic upgrade head
-uv run ruff check .
-uv run pytest
-
-cd ../frontend
-npm run lint
-npm run build
-```
+| Mã Yêu Cầu | Tên Yêu Cầu | File Triển Khai (Backend) | File Kiểm Thử (Tests) | Phương Pháp Xác Minh / Tên Test Case |
+| :--- | :--- | :--- | :--- | :--- |
+| **SEC-01** | **Khóa an toàn khởi động**<br>Chặn chạy app nếu `SECRET_KEY` yếu hoặc mặc định. | `app/main.py` | `tests/test_security_startup.py` | `test_app_refuses_weak_secret_key`<br>`test_app_refuses_short_secret_key_in_production` |
+| **SEC-02** | **Rate Limiting**<br>Giới hạn tần suất gọi API nhạy cảm (auth, checkout, chat). | `app/core/limiter.py`<br>`app/api/routers/auth.py`<br>`app/api/routers/orders.py` | `tests/test_auth.py`<br>`tests/test_chat.py` | `test_login_rate_limiting`<br>`test_chat_rate_limiting` |
+| **CON-01** | **Tránh bán vượt tồn kho**<br>Row-level locking (`FOR UPDATE`) khi kiểm tra và đặt kho hàng. | `app/services/inventory.py` | `tests/test_orders.py`<br>`tests/test_validation_contracts.py` | `test_concurrent_checkout_prevents_overselling`<br>`test_stock_locking_during_transaction` |
+| **CON-02** | **Giữ kho tạm thời**<br>Yêu cầu đặt và giải phóng giữ hàng tự động khi quá hạn thanh toán. | `app/workers/reservation_expiry.py` | `tests/test_orders.py` | `test_reservation_sweep_expires_and_releases` |
+| **CACHE-01**| **Cache Vector RAG (AI-02)**<br>Lưu trữ và tái sử dụng embedding vector câu hỏi trong 1 giờ. | `app/services/embeddings.py` | `tests/test_cache.py` | `test_query_embedding_redis_cache_hit`<br>`test_cache_expiration_ttl` |
+| **CACHE-02**| **Cache Sản phẩm tương tự**<br>Lưu trữ gợi ý sản phẩm tương tự trong 15 phút tránh tính toán vector liên tục. | `app/services/retrieval.py` | `tests/test_similar_products_optimization.py`| `test_similar_products_cache_optimization` |
+| **AI-SEC-01**| **Chặn Prompt Injection**<br>Phát hiện câu lệnh cố tình bẻ chỉ thị hệ thống và từ chối tĩnh. | `app/services/ai_safety.py` | `tests/test_ai_safety.py` | `test_prompt_injection_is_refused` |
+| **AI-SEC-02**| **Chặn Y tế khẩn cấp**<br>Phát hiện triệu chứng nguy kịch và lập tức đưa cảnh báo tĩnh. | `app/services/ai_safety.py` | `tests/test_ai_safety.py` | `test_emergency_query_always_escalates` |
+| **AI-SEC-03**| **Khử độc nội dung RAG**<br>Xóa bỏ các thẻ lệnh `SYSTEM:` hoặc `ASSISTANT:` trong tài liệu RAG. | `app/services/ai_safety.py` | `tests/test_ai_safety.py` | `test_retrieved_instructions_are_sanitized` |

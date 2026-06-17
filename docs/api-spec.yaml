@@ -1,1239 +1,484 @@
-openapi: 3.1.0
+openapi: 3.0.0
 info:
   title: ThePawsome API
-  version: "1.0.0"
-  description: |
-    API contract tham khảo theo implementation hiện tại.
-    Base path của backend là `/api/v1`.
-servers:
-  - url: http://localhost:8000/api/v1
-    description: Local development
-  - url: /api/v1
-    description: Production behind Nginx
-
-security:
-  - bearerAuth: []
-
-tags:
-  - name: auth
-  - name: products
-  - name: categories
-  - name: banners
-  - name: cart
-  - name: orders
-  - name: payments
-  - name: pets
-  - name: chat
-  - name: reviews
-  - name: admin
-
+  version: 1.0.0
+  description: Tài liệu đặc tả API dành cho hệ thống Petshop E-commerce tích hợp trợ lý AI ThePawsome.
 paths:
-  /auth/register:
+  /api/v1/auth/register:
     post:
-      tags: [auth]
-      security: []
-      summary: Register a user
+      tags:
+        - auth
+      summary: Đăng ký tài khoản mới
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RegisterInput"
+              type: object
+              required:
+                - email
+                - password
+                - full_name
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                full_name:
+                  type: string
+                phone:
+                  type: string
+                address:
+                  type: string
       responses:
-        "200":
-          $ref: "#/components/responses/UserResponse"
-        "400":
-          $ref: "#/components/responses/Error"
+        '200':
+          description: Đăng ký thành công
+        '400':
+          description: Email đã tồn tại hoặc dữ liệu không hợp lệ
 
-  /auth/login:
+  /api/v1/auth/login:
     post:
-      tags: [auth]
-      security: []
-      summary: Login with OAuth2 password form
+      tags:
+        - auth
+      summary: Đăng nhập hệ thống
       requestBody:
         required: true
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
               type: object
-              required: [username, password]
+              required:
+                - email
+                - password
               properties:
-                username:
+                email:
                   type: string
                   format: email
                 password:
                   type: string
       responses:
-        "200":
-          $ref: "#/components/responses/TokenResponse"
+        '200':
+          description: Đăng nhập thành công, trả về tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+        '401':
+          description: Sai email hoặc mật khẩu
 
-  /auth/refresh:
+  /api/v1/auth/logout:
     post:
-      tags: [auth]
-      security: []
-      summary: Issue a new access token from refresh cookie
+      tags:
+        - auth
+      summary: Đăng xuất tài khoản
+      security:
+        - BearerAuth: []
       responses:
-        "200":
-          $ref: "#/components/responses/TokenResponse"
-        "401":
-          $ref: "#/components/responses/Error"
+        '200':
+          description: Đăng xuất thành công
 
-  /auth/logout:
+  /api/v1/auth/refresh:
     post:
-      tags: [auth]
-      security: []
-      summary: Clear refresh cookie
+      tags:
+        - auth
+      summary: Làm mới access token bằng refresh token trong cookie
       responses:
-        "200":
-          $ref: "#/components/responses/Message"
+        '200':
+          description: Làm mới thành công, trả về access token mới
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
 
-  /auth/forgot-password:
-    post:
-      tags: [auth]
-      security: []
-      summary: Send reset password email
-      requestBody:
-        $ref: "#/components/requestBodies/ForgotPassword"
-      responses:
-        "200":
-          $ref: "#/components/responses/Message"
-
-  /auth/reset-password:
-    post:
-      tags: [auth]
-      security: []
-      summary: Reset password with token
-      requestBody:
-        $ref: "#/components/requestBodies/ResetPassword"
-      responses:
-        "200":
-          $ref: "#/components/responses/Message"
-
-  /auth/change-password:
-    post:
-      tags: [auth]
-      summary: Change current user's password
-      requestBody:
-        $ref: "#/components/requestBodies/ChangePassword"
-      responses:
-        "200":
-          $ref: "#/components/responses/Message"
-
-  /auth/google:
-    post:
-      tags: [auth]
-      security: []
-      summary: Login with Google authorization code
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [code, redirect_uri]
-              properties:
-                code:
-                  type: string
-                redirect_uri:
-                  type: string
-      responses:
-        "200":
-          $ref: "#/components/responses/TokenResponse"
-
-  /auth/me:
+  /api/v1/auth/me:
     get:
-      tags: [auth]
-      summary: Get current user
+      tags:
+        - auth
+      summary: Lấy thông tin tài khoản hiện tại
+      security:
+        - BearerAuth: []
       responses:
-        "200":
-          $ref: "#/components/responses/UserResponse"
-    put:
-      tags: [auth]
-      summary: Update current user
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UserUpdate"
-      responses:
-        "200":
-          $ref: "#/components/responses/UserResponse"
+        '200':
+          description: Trả về thông tin chi tiết của user
 
-  /categories/:
+  /api/v1/products:
     get:
-      tags: [categories]
-      security: []
-      summary: List categories
-      responses:
-        "200":
-          $ref: "#/components/responses/List"
-
-  /banners:
-    get:
-      tags: [banners]
-      security: []
-      summary: List active public banners
-      responses:
-        "200":
-          $ref: "#/components/responses/List"
-
-  /products/:
-    get:
-      tags: [products]
-      security: []
-      summary: List/search/filter products
+      tags:
+        - products
+      summary: Lấy danh sách sản phẩm (Hỗ trợ phân trang, lọc, tìm kiếm hybrid RAG)
       parameters:
-        - $ref: "#/components/parameters/SearchQuery"
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Từ khóa tìm kiếm (Kích hoạt tìm kiếm Hybrid RRF nếu có)
         - name: category_slug
           in: query
+          required: false
           schema:
             type: array
             items:
               type: string
         - name: brand
           in: query
+          required: false
           schema:
             type: array
             items:
               type: string
         - name: min_price
           in: query
+          required: false
           schema:
             type: number
         - name: max_price
           in: query
+          required: false
           schema:
             type: number
         - name: sort
           in: query
+          required: false
           schema:
             type: string
             enum: [newest, price_asc, price_desc]
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/Size"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 12
+        - name: keyword_only
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
       responses:
-        "200":
-          $ref: "#/components/responses/Page"
+        '200':
+          description: Danh sách sản phẩm được phân trang
 
-  /products/brands:
+  /api/v1/products/{slug}:
     get:
-      tags: [products]
-      security: []
-      summary: List product brands
-      responses:
-        "200":
-          $ref: "#/components/responses/List"
-
-  /products/facets:
-    get:
-      tags: [products]
-      security: []
-      summary: List category and brand facets
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /products/best-sellers:
-    get:
-      tags: [products]
-      security: []
-      summary: Best-selling products
+      tags:
+        - products
+      summary: Lấy thông tin chi tiết một sản phẩm bằng slug
       parameters:
-        - $ref: "#/components/parameters/Limit"
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
       responses:
-        "200":
-          $ref: "#/components/responses/Page"
+        '200':
+          description: Thông tin sản phẩm chi tiết cùng các biến thể sản phẩm
 
-  /products/new-arrivals:
+  /api/v1/products/{slug}/similar:
     get:
-      tags: [products]
-      security: []
-      summary: New arrival products
+      tags:
+        - products
+      summary: Tìm sản phẩm tương tự bằng vector kết hợp trgm index
       parameters:
-        - $ref: "#/components/parameters/Limit"
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 6
       responses:
-        "200":
-          $ref: "#/components/responses/Page"
+        '200':
+          description: Danh sách các sản phẩm tương tự
 
-  /products/recommendations:
+  /api/v1/cart:
     get:
-      tags: [products]
-      summary: Product recommendations for current user
-      parameters:
-        - $ref: "#/components/parameters/Limit"
+      tags:
+        - cart
+      summary: Lấy giỏ hàng của người dùng hiện tại
+      security:
+        - BearerAuth: []
       responses:
-        "200":
-          $ref: "#/components/responses/Page"
+        '200':
+          description: Giỏ hàng thành công
 
-  /products/{slug}/similar:
-    get:
-      tags: [products]
-      security: []
-      summary: Similar products by slug
-      parameters:
-        - $ref: "#/components/parameters/Slug"
-        - $ref: "#/components/parameters/Limit"
-      responses:
-        "200":
-          $ref: "#/components/responses/Page"
-
-  /products/{slug}:
-    get:
-      tags: [products]
-      security: []
-      summary: Product detail by slug
-      parameters:
-        - $ref: "#/components/parameters/Slug"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-        "404":
-          $ref: "#/components/responses/Error"
-
-  /products/{product_id}/reviews:
+  /api/v1/cart/items:
     post:
-      tags: [reviews]
-      summary: Create a product review
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-    get:
-      tags: [reviews]
-      security: []
-      summary: List product reviews
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/Size"
-      responses:
-        "200":
-          $ref: "#/components/responses/Page"
-
-  /products/{product_id}/rating-summary:
-    get:
-      tags: [reviews]
-      security: []
-      summary: Get product rating summary
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /products/{product_id}/can-review:
-    get:
-      tags: [reviews]
-      summary: Check if current user can review product
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /products/{product_id}/reviews/{review_id}:
-    delete:
-      tags: [reviews]
-      summary: Delete own product review
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-        - $ref: "#/components/parameters/ReviewId"
-      responses:
-        "204":
-          description: Deleted
-
-  /cart/:
-    get:
-      tags: [cart]
-      summary: Get current user's cart
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /cart/items:
-    post:
-      tags: [cart]
-      summary: Add item to cart
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /cart/items/{item_id}:
-    put:
-      tags: [cart]
-      summary: Update cart item quantity
-      parameters:
-        - $ref: "#/components/parameters/ItemId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-    delete:
-      tags: [cart]
-      summary: Remove cart item
-      parameters:
-        - $ref: "#/components/parameters/ItemId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /orders/checkout:
-    post:
-      tags: [orders]
-      summary: Checkout current user's cart
-      parameters:
-        - $ref: "#/components/parameters/IdempotencyKey"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /orders/guest-checkout:
-    post:
-      tags: [orders]
-      security: []
-      summary: Checkout as guest
-      parameters:
-        - $ref: "#/components/parameters/IdempotencyKey"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /orders/:
-    get:
-      tags: [orders]
-      summary: List current user's orders
-      responses:
-        "200":
-          $ref: "#/components/responses/List"
-
-  /orders/guest-lookup:
-    post:
-      tags: [orders]
-      security: []
-      summary: Look up guest order by email and order code
+      tags:
+        - cart
+      summary: Thêm sản phẩm hoặc biến thể vào giỏ hàng
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [email, order_code]
+              required:
+                - product_id
+                - quantity
               properties:
-                email:
+                product_id:
                   type: string
-                  format: email
-                order_code:
+                  format: uuid
+                variant_id:
                   type: string
+                  format: uuid
+                quantity:
+                  type: integer
+                  minimum: 1
       responses:
-        "200":
-          $ref: "#/components/responses/Object"
+        '200':
+          description: Đã thêm vào giỏ hàng thành công
 
-  /orders/{order_id}:
-    get:
-      tags: [orders]
-      summary: Get order detail
+  /api/v1/cart/items/{item_id}:
+    put:
+      tags:
+        - cart
+      summary: Cập nhật số lượng mặt hàng trong giỏ
+      security:
+        - BearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/OrderId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /payments/vnpay/status/{merchant_ref}:
-    get:
-      tags: [payments]
-      summary: Poll persisted VNPay payment status
-      parameters:
-        - name: merchant_ref
+        - name: item_id
           in: path
           required: true
           schema:
             type: string
-        - $ref: "#/components/parameters/GuestOrderToken"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /orders/{order_id}/cancel:
-    put:
-      tags: [orders]
-      summary: Cancel pending order
-      parameters:
-        - $ref: "#/components/parameters/OrderId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Message"
-
-  /payments/vnpay/create/{order_id}:
-    post:
-      tags: [payments]
-      summary: Create VNPay payment URL
-      parameters:
-        - $ref: "#/components/parameters/OrderId"
-        - $ref: "#/components/parameters/IdempotencyKey"
-        - $ref: "#/components/parameters/GuestOrderToken"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /payments/vnpay/ipn:
-    get:
-      tags: [payments]
-      security: []
-      summary: VNPay IPN callback
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /pets/:
-    get:
-      tags: [pets]
-      summary: List current user's pets
-      responses:
-        "200":
-          $ref: "#/components/responses/List"
-    post:
-      tags: [pets]
-      summary: Create pet profile
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /pets/{pet_id}:
-    put:
-      tags: [pets]
-      summary: Update pet profile
-      parameters:
-        - $ref: "#/components/parameters/PetId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-    delete:
-      tags: [pets]
-      summary: Delete pet profile
-      parameters:
-        - $ref: "#/components/parameters/PetId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Message"
-
-  /pets/{pet_id}/avatar:
-    post:
-      tags: [pets]
-      summary: Upload pet avatar
-      parameters:
-        - $ref: "#/components/parameters/PetId"
-      requestBody:
-        $ref: "#/components/requestBodies/MultipartFile"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /chat/sessions:
-    get:
-      tags: [chat]
-      summary: List chat sessions
-      responses:
-        "200":
-          $ref: "#/components/responses/List"
-
-  /chat/sessions/{session_id}/messages:
-    get:
-      tags: [chat]
-      summary: List chat messages in a session
-      parameters:
-        - $ref: "#/components/parameters/SessionId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /chat/stream:
-    post:
-      tags: [chat]
-      summary: Stream AI chat response with SSE
+            format: uuid
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ChatRequest"
+              type: object
+              required:
+                - quantity
+              properties:
+                quantity:
+                  type: integer
+                  minimum: 1
       responses:
-        "200":
-          description: text/event-stream with message, products, cart_updated, done, error events
-          content:
-            text/event-stream:
-              schema:
-                type: string
-
-  /admin/stats:
-    get:
-      tags: [admin]
-      summary: Admin dashboard stats
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/products:
-    get:
-      tags: [admin]
-      summary: List products for admin
-      responses:
-        "200":
-          $ref: "#/components/responses/Page"
-    post:
-      tags: [admin]
-      summary: Create product
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/products/full:
-    post:
-      tags: [admin]
-      summary: Create product with variants/images payload
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/products/{product_id}:
-    put:
-      tags: [admin]
-      summary: Update product
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
+        '200':
+          description: Cập nhật thành công
     delete:
-      tags: [admin]
-      summary: Delete product
+      tags:
+        - cart
+      summary: Xóa một mặt hàng khỏi giỏ hàng
+      security:
+        - BearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/ProductId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Message"
-
-  /admin/products/{product_id}/full:
-    put:
-      tags: [admin]
-      summary: Update product with variants/images payload
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/products/{product_id}/detail:
-    get:
-      tags: [admin]
-      summary: Product detail for admin editor
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/products/{product_id}/image:
-    post:
-      tags: [admin]
-      summary: Upload main product image
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-      requestBody:
-        $ref: "#/components/requestBodies/MultipartFile"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/products/{product_id}/images:
-    post:
-      tags: [admin]
-      summary: Upload product gallery images
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-      requestBody:
-        $ref: "#/components/requestBodies/MultipartFile"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/products/{product_id}/images/{image_id}:
-    delete:
-      tags: [admin]
-      summary: Delete product image
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-        - $ref: "#/components/parameters/ImageId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Message"
-
-  /admin/products/{product_id}/variants:
-    post:
-      tags: [admin]
-      summary: Create product variant
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/products/{product_id}/variants/{variant_id}:
-    put:
-      tags: [admin]
-      summary: Update product variant
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-        - $ref: "#/components/parameters/VariantId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-    delete:
-      tags: [admin]
-      summary: Delete product variant
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-        - $ref: "#/components/parameters/VariantId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Message"
-
-  /admin/products/{product_id}/variants/{variant_id}/image:
-    post:
-      tags: [admin]
-      summary: Upload variant image
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-        - $ref: "#/components/parameters/VariantId"
-      requestBody:
-        $ref: "#/components/requestBodies/MultipartFile"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/products/{product_id}/attr-images:
-    post:
-      tags: [admin]
-      summary: Upload attribute image
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-      requestBody:
-        $ref: "#/components/requestBodies/MultipartFile"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/products/{product_id}/sync-thumbnail:
-    post:
-      tags: [admin]
-      summary: Sync legacy thumbnail from product images
-      parameters:
-        - $ref: "#/components/parameters/ProductId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/rewrite-markdown:
-    post:
-      tags: [admin]
-      summary: Rewrite product description markdown with AI
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/orders:
-    get:
-      tags: [admin]
-      summary: List all orders
-      responses:
-        "200":
-          $ref: "#/components/responses/List"
-
-  /admin/orders/{order_id}/status:
-    put:
-      tags: [admin]
-      summary: Update order status
-      parameters:
-        - $ref: "#/components/parameters/OrderId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/users:
-    get:
-      tags: [admin]
-      summary: List users
-      responses:
-        "200":
-          $ref: "#/components/responses/List"
-
-  /admin/users/{user_id}/toggle-active:
-    put:
-      tags: [admin]
-      summary: Toggle user active flag
-      parameters:
-        - name: user_id
+        - name: item_id
           in: path
           required: true
           schema:
             type: string
             format: uuid
       responses:
-        "200":
-          $ref: "#/components/responses/Object"
+        '200':
+          description: Xóa thành công
 
-  /admin/banners:
-    get:
-      tags: [admin]
-      summary: List banners
-      responses:
-        "200":
-          $ref: "#/components/responses/List"
+  /api/v1/orders/checkout:
     post:
-      tags: [admin]
-      summary: Create banner
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-
-  /admin/banners/{banner_id}:
-    put:
-      tags: [admin]
-      summary: Update banner
-      parameters:
-        - name: banner_id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-    delete:
-      tags: [admin]
-      summary: Delete banner
-      parameters:
-        - name: banner_id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "200":
-          $ref: "#/components/responses/Message"
-
-  /admin/banners/{banner_id}/image:
-    post:
-      tags: [admin]
-      summary: Upload banner image
-      parameters:
-        - name: banner_id
-          in: path
-          required: true
-          schema:
-            type: integer
+      tags:
+        - orders
+      summary: Đặt hàng thanh toán (Khách đã đăng nhập)
+      security:
+        - BearerAuth: []
       requestBody:
-        $ref: "#/components/requestBodies/MultipartFile"
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ship_name
+                - ship_phone
+                - ship_address
+                - payment_method
+              properties:
+                ship_name:
+                  type: string
+                ship_phone:
+                  type: string
+                ship_address:
+                  type: string
+                payment_method:
+                  type: string
+                  enum: [cod, vnpay, sepay]
+                product_coupon_code:
+                  type: string
+                shipping_coupon_code:
+                  type: string
       responses:
-        "200":
-          $ref: "#/components/responses/Object"
+        '200':
+          description: Đặt hàng thành công, tạo đơn hàng mới
 
-  /admin/knowledge:
-    get:
-      tags: [admin]
-      summary: List knowledge docs
-      responses:
-        "200":
-          $ref: "#/components/responses/List"
+  /api/v1/orders/guest-checkout:
     post:
-      tags: [admin]
-      summary: Create knowledge doc
+      tags:
+        - orders
+      summary: Đặt hàng thanh toán không cần đăng nhập
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - guest_email
+                - ship_name
+                - ship_phone
+                - ship_address
+                - payment_method
+                - items
+              properties:
+                guest_email:
+                  type: string
+                  format: email
+                ship_name:
+                  type: string
+                ship_phone:
+                  type: string
+                ship_address:
+                  type: string
+                payment_method:
+                  type: string
+                  enum: [cod, vnpay, sepay]
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      product_id:
+                        type: string
+                      variant_id:
+                        type: string
+                      quantity:
+                        type: integer
       responses:
-        "200":
-          $ref: "#/components/responses/Object"
+        '200':
+          description: Đặt hàng thành công cho khách
 
-  /admin/knowledge/{doc_id}:
+  /api/v1/pets:
     get:
-      tags: [admin]
-      summary: Get knowledge doc
-      parameters:
-        - $ref: "#/components/parameters/DocId"
+      tags:
+        - pets
+      summary: Lấy danh sách thú cưng của người dùng
+      security:
+        - BearerAuth: []
       responses:
-        "200":
-          $ref: "#/components/responses/Object"
-    put:
-      tags: [admin]
-      summary: Update knowledge doc
-      parameters:
-        - $ref: "#/components/parameters/DocId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Object"
-    delete:
-      tags: [admin]
-      summary: Delete knowledge doc
-      parameters:
-        - $ref: "#/components/parameters/DocId"
-      responses:
-        "200":
-          $ref: "#/components/responses/Message"
-
-  /admin/embeddings/{collection}:
-    get:
-      tags: [admin]
-      summary: List embeddings in collection
-      parameters:
-        - $ref: "#/components/parameters/Collection"
-      responses:
-        "200":
-          $ref: "#/components/responses/List"
-
-  /admin/embeddings/{collection}/reindex:
+        '200':
+          description: Trả về danh sách hồ sơ thú cưng
     post:
-      tags: [admin]
-      summary: Reindex products or knowledge collection
-      parameters:
-        - $ref: "#/components/parameters/Collection"
+      tags:
+        - pets
+      summary: Thêm hồ sơ thú cưng mới
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - species
+              properties:
+                name:
+                  type: string
+                species:
+                  type: string
+                  enum: [dog, cat, bird, fish, rabbit, other]
+                breed:
+                  type: string
+                age_months:
+                  type: integer
+                weight_kg:
+                  type: number
+                gender:
+                  type: string
+                  enum: [male, female, unknown]
+                health_notes:
+                  type: string
+                allergies:
+                  type: string
       responses:
-        "200":
-          $ref: "#/components/responses/Object"
+        '200':
+          description: Thêm thú cưng thành công
 
-  /admin/embeddings/{collection}/{embedding_id}:
-    delete:
-      tags: [admin]
-      summary: Delete embedding by id
+  /api/v1/chat/stream:
+    post:
+      tags:
+        - chat
+      summary: Chat stream hội thoại với Catbot (Server-Sent Events)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                session_id:
+                  type: string
+                  format: uuid
+                pet_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Kết nối SSE thành công để stream câu trả lời
+
+  /api/v1/forum/threads:
+    get:
+      tags:
+        - forum
+      summary: Danh sách bài viết trên diễn đàn
       parameters:
-        - $ref: "#/components/parameters/Collection"
-        - name: embedding_id
-          in: path
-          required: true
+        - name: category
+          in: query
           schema:
             type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
       responses:
-        "200":
-          $ref: "#/components/responses/Message"
+        '200':
+          description: Trả về danh sách bài viết thảo luận
 
 components:
   securitySchemes:
-    bearerAuth:
+    BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
-  parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: true
-      schema:
-        type: string
-        minLength: 8
-        maxLength: 128
-    GuestOrderToken:
-      name: X-Guest-Order-Token
-      in: header
-      required: false
-      schema:
-        type: string
-    SearchQuery:
-      name: q
-      in: query
-      schema:
-        type: string
-    Page:
-      name: page
-      in: query
-      schema:
-        type: integer
-        minimum: 1
-        default: 1
-    Size:
-      name: size
-      in: query
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 12
-    Limit:
-      name: limit
-      in: query
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 20
-        default: 8
-    Slug:
-      name: slug
-      in: path
-      required: true
-      schema:
-        type: string
-    ProductId:
-      name: product_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    ReviewId:
-      name: review_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    ItemId:
-      name: item_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    OrderId:
-      name: order_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    PetId:
-      name: pet_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    SessionId:
-      name: session_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    ImageId:
-      name: image_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    VariantId:
-      name: variant_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    DocId:
-      name: doc_id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    Collection:
-      name: collection
-      in: path
-      required: true
-      schema:
-        type: string
-        enum: [products, knowledge]
-
-  requestBodies:
-    ForgotPassword:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            required: [email]
-            properties:
-              email:
-                type: string
-                format: email
-    ResetPassword:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            required: [token, new_password]
-            properties:
-              token:
-                type: string
-              new_password:
-                type: string
-                minLength: 8
-    ChangePassword:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            required: [current_password, new_password]
-            properties:
-              current_password:
-                type: string
-              new_password:
-                type: string
-                minLength: 8
-    MultipartFile:
-      required: true
-      content:
-        multipart/form-data:
-          schema:
-            type: object
-            properties:
-              file:
-                type: string
-                format: binary
-
-  responses:
-    TokenResponse:
-      description: JWT access token
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/Token"
-    UserResponse:
-      description: User object
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/User"
-    Object:
-      description: JSON object
-      content:
-        application/json:
-          schema:
-            type: object
-            additionalProperties: true
-    List:
-      description: JSON array
-      content:
-        application/json:
-          schema:
-            type: array
-            items:
-              type: object
-              additionalProperties: true
-    Page:
-      description: Paginated/list response
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              items:
-                type: array
-                items:
-                  type: object
-                  additionalProperties: true
-              total:
-                type: integer
-              page:
-                type: integer
-              size:
-                type: integer
-              pages:
-                type: integer
-            additionalProperties: true
-    Message:
-      description: Message response
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              message:
-                type: string
-            additionalProperties: true
-    Error:
-      description: Error response
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              detail:
-                oneOf:
-                  - type: string
-                  - type: array
-            additionalProperties: true
-
-  schemas:
-    RegisterInput:
-      type: object
-      required: [email, password, full_name]
-      properties:
-        email:
-          type: string
-          format: email
-        password:
-          type: string
-          minLength: 8
-          maxLength: 128
-        full_name:
-          type: string
-          minLength: 1
-          maxLength: 100
-    UserUpdate:
-      type: object
-      properties:
-        full_name:
-          type: string
-          minLength: 1
-          maxLength: 100
-        phone:
-          type: string
-          maxLength: 30
-        address:
-          type: string
-          maxLength: 500
-    Token:
-      type: object
-      required: [access_token, token_type]
-      properties:
-        access_token:
-          type: string
-        token_type:
-          type: string
-          example: bearer
-    User:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        email:
-          type: string
-          format: email
-        full_name:
-          type: string
-        phone:
-          type: string
-          nullable: true
-        address:
-          type: string
-          nullable: true
-        role:
-          type: string
-          enum: [user, admin]
-    ChatRequest:
-      type: object
-      required: [message]
-      properties:
-        message:
-          type: string
-        session_id:
-          type: string
-          format: uuid
-          nullable: true
-        pet_id:
-          type: string
-          format: uuid
-          nullable: true
-        product_slug:
-          type: string
-          nullable: true

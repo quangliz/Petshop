@@ -1,165 +1,161 @@
-# Entity Relationship Diagram - ThePawsome
+# Sơ đồ quan hệ thực thể (ERD) - ThePawsome
 
-ERD này phản ánh schema hiện tại trong `backend/app/models/` và Alembic migrations.
+Tài liệu này chứa sơ đồ thực thể mối quan hệ (Entity Relationship Diagram) của toàn bộ hệ thống cơ sở dữ liệu ThePawsome, được xây dựng dựa trên các model thực tế trong mã nguồn backend (`backend/app/models/`).
 
-## Tổng quan bảng
-
-| Nhóm | Bảng | Vai trò |
-|---|---|---|
-| Identity | `users` | Tài khoản user/admin |
-| Identity | `pets` | Hồ sơ thú cưng thuộc user |
-| Identity | `refresh_sessions` | Refresh token rotation/revocation |
-| Catalog | `categories` | Danh mục phân cấp |
-| Catalog | `banners` | Banner homepage responsive |
-| Catalog | `products` | Sản phẩm gốc |
-| Catalog | `product_variants` | Biến thể/SKU theo thuộc tính |
-| Catalog | `product_images` | Ảnh sản phẩm, variant hoặc attr image |
-| Commerce | `carts` | Một giỏ hàng cho mỗi user |
-| Commerce | `cart_items` | Dòng giỏ hàng |
-| Commerce | `orders` | Đơn hàng user hoặc guest |
-| Commerce | `order_items` | Snapshot dòng đơn |
-| Commerce | `payments` | Giao dịch COD/VNPay |
-| Commerce | `inventory_reservations` | Giữ hàng VNPay có TTL |
-| Review | `reviews` | Rating/comment của user cho sản phẩm |
-| AI Chat | `chat_sessions` | Phiên chat |
-| AI Chat | `chat_messages` | Lượt hội thoại |
-| Knowledge | `knowledge_docs` | Tài liệu chăm sóc thú cưng |
-| Vector store | `langchain_pg_collection` | Collection do LangChain PGVector quản lý |
-| Vector store | `langchain_pg_embedding` | Embedding sản phẩm/knowledge do LangChain quản lý |
-
-Legacy tables `product_embeddings` và `knowledge_chunks` đã bị drop trong migration `a1f2c3d4e5b6`.
-
-## ERD
+## Sơ đồ Mermaid ERD
 
 ```mermaid
 erDiagram
-    users ||--o{ pets : owns
-    users ||--o| carts : has
-    users ||--o{ orders : places
-    users ||--o{ chat_sessions : starts
-    users ||--o{ reviews : writes
-    users ||--o{ refresh_sessions : authenticates
+    User ||--o{ Pet : "owner"
+    User ||--o| Cart : "has"
+    User ||--o{ Order : "places"
+    User ||--o{ ChatSession : "owns"
+    User ||--o{ Review : "writes"
+    User ||--o{ RefreshSession : "has"
+    User ||--o{ ForumThread : "authors"
+    User ||--o{ ForumReply : "replies"
+    User ||--o{ WishlistItem : "adds"
+    User ||--o{ AuditLog : "triggers"
+    User ||--o{ AICallLog : "runs"
+    User ||--o{ OrderReturn : "requests"
 
-    categories ||--o{ categories : parent_of
-    categories ||--o{ products : contains
+    Pet ||--o{ ChatSession : "context_for"
 
-    products ||--o{ product_variants : has
-    products ||--o{ product_images : has
-    product_variants ||--o{ product_images : has
+    Category ||--o{ Category : "parent"
+    Category ||--o{ Product : "contains"
 
-    products ||--o{ cart_items : appears_in
-    product_variants ||--o{ cart_items : selected_as
-    carts ||--o{ cart_items : contains
+    Product ||--o{ ProductVariant : "has"
+    Product ||--o{ ProductImage : "has"
+    Product ||--o{ Review : "receives"
+    Product ||--o{ CartItem : "in"
+    Product ||--o{ OrderItem : "in"
+    Product ||--o{ WishlistItem : "in"
 
-    orders ||--o{ order_items : contains
-    products ||--o{ order_items : snapshot_of
-    product_variants ||--o{ order_items : snapshot_variant
-    orders ||--o{ payments : has
-    orders ||--o{ inventory_reservations : reserves
-    order_items ||--o| inventory_reservations : represented_by
+    ProductVariant ||--o{ ProductImage : "has"
+    ProductVariant ||--o{ CartItem : "in"
+    ProductVariant ||--o{ OrderItem : "in"
 
-    products ||--o{ reviews : reviewed
+    Cart ||--o{ CartItem : "contains"
 
-    pets ||--o{ chat_sessions : context_of
-    chat_sessions ||--o{ chat_messages : contains
+    Order ||--o{ OrderItem : "contains"
+    Order ||--o{ Payment : "has"
+    Order ||--o{ InventoryReservation : "holds"
+    Order ||--o{ OrderReturn : "returns"
+    Promotion ||--o{ Order : "product_coupon"
+    Promotion ||--o{ Order : "shipping_coupon"
 
-    langchain_pg_collection ||--o{ langchain_pg_embedding : contains
+    OrderItem ||--|| InventoryReservation : "reserves"
 
-    users {
+    OrderReturn ||--o{ OrderReturnItem : "contains"
+    OrderItem ||--|| OrderReturnItem : "returned"
+
+    ChatSession ||--o{ ChatMessage : "contains"
+    ChatSession ||--o{ AICallLog : "logs"
+
+    ForumThread ||--o{ ForumReply : "contains"
+    ForumThread ||--o{ ForumThreadVote : "votes"
+    ForumReply ||--o{ ForumReply : "parent"
+    ForumReply ||--o{ ForumReplyVote : "votes"
+
+    User {
         uuid id PK
         string email UK
         string hashed_password
         string full_name
         string phone
         text address
-        enum role "user|admin"
+        RoleEnum role
+        jsonb scopes
+        boolean is_expert_verified
         boolean is_active
-        timestamptz created_at
-        timestamptz updated_at
+        boolean email_verified
+        datetime created_at
+        datetime updated_at
     }
 
-    refresh_sessions {
+    RefreshSession {
         uuid id PK
         uuid user_id FK
         string jti UK
-        timestamptz expires_at
-        timestamptz revoked_at
+        datetime expires_at
+        datetime revoked_at
         string replaced_by_jti
+        datetime created_at
     }
 
-    pets {
+    Pet {
         uuid id PK
         uuid user_id FK
         string name
-        enum species "dog|cat|bird|fish|rabbit|other"
+        SpeciesEnum species
         string breed
-        int age_months
+        integer age_months
         numeric weight_kg
-        enum gender "male|female|unknown"
+        GenderEnum gender
         text health_notes
         text allergies
         string avatar_url
-        timestamptz created_at
-        timestamptz updated_at
+        datetime created_at
+        datetime updated_at
     }
 
-    categories {
-        int id PK
+    Category {
+        integer id PK
         string name
         string slug UK
-        int parent_id FK
+        integer parent_id FK
         string image_url
-        timestamptz created_at
+        datetime created_at
     }
 
-    banners {
-        int id PK
+    Banner {
+        integer id PK
         string image_url
         string desktop_image_url
         string mobile_image_url
         string title
         string subtitle
         string link_url
-        int sort_order
+        integer sort_order
         boolean is_active
-        timestamptz created_at
-        timestamptz updated_at
+        datetime created_at
+        datetime updated_at
     }
 
-    products {
+    Product {
         uuid id PK
-        int category_id FK
+        integer category_id FK
         string name
         string slug UK
         text description
         numeric price
         numeric sale_price
-        int stock_qty
+        integer stock_qty
         string brand
         jsonb images
         jsonb target_species
         jsonb attributes
         boolean is_active
-        int sold_count
+        integer sold_count
         numeric avg_rating
-        int review_count
-        timestamptz created_at
-        timestamptz updated_at
+        integer review_count
+        datetime created_at
+        datetime updated_at
     }
 
-    product_variants {
+    ProductVariant {
         uuid id PK
         uuid product_id FK
         string sku UK
         numeric price
         numeric sale_price
-        int stock_qty
+        integer stock_qty
         jsonb attributes
         boolean is_active
-        timestamptz created_at
+        datetime created_at
     }
 
-    product_images {
+    ProductImage {
         uuid id PK
         uuid product_id FK
         uuid variant_id FK
@@ -168,142 +164,268 @@ erDiagram
         string url
         string alt_text
         boolean is_main
-        int sort_order
+        integer sort_order
     }
 
-    carts {
+    Cart {
         uuid id PK
-        uuid user_id FK_UK
-        timestamptz created_at
-        timestamptz updated_at
+        uuid user_id FK "UK"
+        datetime created_at
+        datetime updated_at
     }
 
-    cart_items {
+    CartItem {
         uuid id PK
         uuid cart_id FK
         uuid product_id FK
         uuid variant_id FK
-        int quantity
-        timestamptz added_at
+        integer quantity
+        datetime added_at
     }
 
-    orders {
+    Promotion {
         uuid id PK
-        uuid user_id FK_nullable
+        string code UK
+        text description
+        PromotionTypeEnum promo_type
+        DiscountTypeEnum discount_type
+        numeric discount_value
+        numeric min_subtotal
+        numeric max_discount
+        datetime starts_at
+        datetime expires_at
+        integer usage_limit
+        integer usage_count
+        boolean is_active
+        datetime created_at
+    }
+
+    Order {
+        uuid id PK
+        uuid user_id FK
         string order_code UK
-        enum status "pending|confirmed|shipping|completed|cancelled"
+        OrderStatusEnum status
         numeric subtotal
         numeric shipping_fee
         numeric total
         string ship_name
         string ship_phone
         text ship_address
-        enum payment_method "cod|vnpay"
-        enum payment_status "unpaid|paid|failed|refunded"
+        PaymentMethodEnum payment_method
+        PaymentStatusEnum payment_status
         text note
         string guest_email
-        timestamptz created_at
-        timestamptz updated_at
+        uuid applied_product_coupon_id FK
+        uuid applied_shipping_coupon_id FK
+        numeric discount_amount
+        numeric shipping_discount_amount
+        string idempotency_scope
+        string idempotency_key
+        string request_hash
+        datetime created_at
+        datetime updated_at
     }
 
-    order_items {
+    OrderItem {
         uuid id PK
         uuid order_id FK
-        uuid product_id FK_nullable
-        uuid variant_id FK_nullable
+        uuid product_id FK
+        uuid variant_id FK
         string product_name_snapshot
         string variant_sku_snapshot
         jsonb variant_attributes_snapshot
         numeric unit_price_snapshot
-        int quantity
+        integer quantity
     }
 
-    payments {
+    Payment {
         uuid id PK
         uuid order_id FK
-        enum method "cod|vnpay"
+        PaymentMethodEnum method
         numeric amount
-        enum status "pending|success|failed|refunded"
+        TxnStatusEnum status
         string external_txn_id UK
         string merchant_ref UK
         string idempotency_key
-        timestamptz expires_at
+        text payment_url
+        datetime expires_at
         boolean requires_review
         jsonb raw_response
-        timestamptz created_at
+        datetime created_at
     }
 
-    inventory_reservations {
+    InventoryReservation {
         uuid id PK
         uuid order_id FK
-        uuid order_item_id FK_UK
-        uuid product_id FK_nullable
-        uuid variant_id FK_nullable
-        int quantity
-        enum status "held|committed|released"
-        timestamptz expires_at
-        timestamptz released_at
-        timestamptz committed_at
-    }
-
-    reviews {
-        uuid id PK
-        uuid user_id FK
+        uuid order_item_id FK "UK"
         uuid product_id FK
-        int rating
-        text comment
-        timestamptz created_at
+        uuid variant_id FK
+        integer quantity
+        ReservationStatusEnum status
+        datetime expires_at
+        datetime released_at
+        datetime committed_at
+        datetime created_at
     }
 
-    chat_sessions {
+    OrderReturn {
+        uuid id PK
+        uuid order_id FK
+        uuid user_id FK
+        ReturnStatusEnum status
+        text reason
+        numeric refund_amount
+        text admin_notes
+        datetime created_at
+        datetime updated_at
+    }
+
+    OrderReturnItem {
+        uuid id PK
+        uuid return_id FK
+        uuid order_item_id FK "UK"
+        integer quantity
+    }
+
+    ChatSession {
         uuid id PK
         uuid user_id FK
-        uuid pet_id FK_nullable
+        uuid pet_id FK
         string title
-        timestamptz created_at
-        timestamptz updated_at
+        ChatRoutingStatusEnum routing_status
+        datetime created_at
+        datetime updated_at
     }
 
-    chat_messages {
+    ChatMessage {
         uuid id PK
         uuid session_id FK
-        enum role "user|assistant|system|tool"
+        ChatRoleEnum role
         text content
         jsonb tool_calls
         jsonb token_usage
-        timestamptz created_at
+        boolean is_from_human
+        datetime created_at
     }
 
-    knowledge_docs {
+    KnowledgeDoc {
         uuid id PK
         string title
         string source_url
-        enum category "nutrition|health|training|grooming|breed|product"
+        DocCategoryEnum category
         text content
-        timestamptz created_at
-        timestamptz updated_at
+        uuid owner_id FK
+        string review_status
+        datetime last_reviewed_at
+        integer version
+        datetime created_at
+        datetime updated_at
     }
 
-    langchain_pg_collection {
-        uuid uuid PK
-        string name UK
-        jsonb cmetadata
-    }
-
-    langchain_pg_embedding {
+    Review {
         uuid id PK
-        uuid collection_id FK
-        string document
-        jsonb cmetadata
-        vector embedding
+        uuid user_id FK
+        uuid product_id FK
+        integer rating
+        text comment
+        datetime created_at
+    }
+
+    ForumThread {
+        uuid id PK
+        uuid author_id FK
+        string title
+        string slug UK
+        ForumCategoryEnum category
+        text body
+        jsonb tags
+        ForumStatusEnum status
+        boolean is_locked
+        boolean is_ai_blocked
+        KnowledgeStatusEnum knowledge_status
+        integer knowledge_score
+        datetime knowledge_indexed_at
+        integer upvote_count
+        integer downvote_count
+        integer reply_count
+        uuid accepted_reply_id
+        datetime last_activity_at
+        datetime created_at
+        datetime updated_at
+    }
+
+    ForumReply {
+        uuid id PK
+        uuid thread_id FK
+        uuid parent_reply_id FK
+        uuid author_id FK
+        text body
+        ForumStatusEnum status
+        boolean is_ai_blocked
+        boolean is_expert_answer
+        boolean is_accepted
+        integer upvote_count
+        integer downvote_count
+        integer expert_upvote_count
+        KnowledgeStatusEnum knowledge_status
+        integer knowledge_score
+        datetime knowledge_indexed_at
+        datetime created_at
+        datetime updated_at
+    }
+
+    ForumThreadVote {
+        uuid id PK
+        uuid thread_id FK
+        uuid user_id FK
+        integer value
+        datetime created_at
+        datetime updated_at
+    }
+
+    ForumReplyVote {
+        uuid id PK
+        uuid reply_id FK
+        uuid user_id FK
+        integer value
+        datetime created_at
+        datetime updated_at
+    }
+
+    AuditLog {
+        uuid id PK
+        uuid user_id FK
+        string action
+        string resource_type
+        string resource_id
+        jsonb old_values
+        jsonb new_values
+        string ip_address
+        string user_agent
+        datetime created_at
+    }
+
+    AICallLog {
+        uuid id PK
+        uuid user_id FK
+        uuid session_id FK
+        string model_name
+        integer prompt_tokens
+        integer completion_tokens
+        numeric cost_usd
+        integer latency_ms
+        datetime created_at
+    }
+
+    WishlistItem {
+        uuid id PK
+        uuid user_id FK
+        uuid product_id FK
+        datetime created_at
     }
 ```
 
-## Quan hệ quan trọng
-
-- `orders.user_id` nullable để hỗ trợ guest checkout.
-- `order_items` lưu snapshot tên, giá, SKU và attributes để lịch sử đơn không đổi khi product/variant thay đổi.
-- `cart_items.variant_id` nullable; sản phẩm có biến thể bắt buộc chọn variant ở business logic.
-- `product_images` có thể gắn trực tiếp với product, variant hoặc cặp `attr_key/attr_value`.
-- `reviews` gắn user-product và cập nhật aggregate `avg_rating`, `review_count` trên `products`.
-- Vector documents không nằm trong model riêng của app mà nằm trong bảng LangChain PGVector.
+## Các ràng buộc và quan hệ đặc biệt
+- **Idempotency (Không trùng lặp giao dịch/đơn hàng):** Bảng `Order` định nghĩa ràng buộc duy nhất `uq_orders_idempotency_scope_key` trên `(idempotency_scope, idempotency_key)`. Bảng `Payment` có ràng buộc duy nhất trên `(order_id, idempotency_key)`.
+- **Inventory Reservation:** Ràng buộc chặt chẽ `order_item_id` là duy nhất (`unique=True`) trong bảng `InventoryReservation`, đảm bảo mỗi dòng mặt hàng trong đơn hàng chỉ được tạo tối đa một yêu cầu giữ kho.
+- **Forum & RAG Knowledge Sync:** Trạng thái `knowledge_status` (eligible, not_eligible, blocked) của forum thread và replies trực tiếp xác định dữ liệu đó có được đưa vào PGVector phục vụ RAG hay không.

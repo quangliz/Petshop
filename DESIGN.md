@@ -1,186 +1,64 @@
-# Design System - ThePawsome
+# Ngôn ngữ Thiết kế & Trải nghiệm Người dùng (Design Tokens & UX Guidelines) - ThePawsome
 
-ThePawsome dùng phong cách retail ấm, vui và rõ chức năng. UI ưu tiên mua hàng nhanh, đọc được trên mobile, đồng thời tạo tín hiệu riêng cho các tính năng AI.
+Tài liệu này đặc tả quy chuẩn thiết kế giao diện (UI Style Guide), hệ màu sắc, phông chữ và các nguyên tắc thiết kế trải nghiệm người dùng (UX) được áp dụng đồng bộ trên toàn ứng dụng Next.js.
 
-## Nguyên tắc
+---
 
-- Mobile-first, desktop mở rộng bằng grid/sidebar/carousel.
-- Commerce UI phải rõ: giá, tồn kho, variant, CTA và trạng thái đơn.
-- AI UI có tín hiệu riêng bằng teal, nhưng không lấn át luồng mua hàng.
-- Mỗi list/table/form cần có loading, empty, error và success feedback.
-- Admin UI ưu tiên thao tác nhanh, mật độ thông tin cao hơn storefront.
-- Không tạo style mới nếu token hiện có đủ dùng.
+## 1. Hệ thống Màu sắc (Color System)
 
-## Token nguồn
+ThePawsome sử dụng bảng màu hiện đại, hướng tới cảm giác thân thiện, ấm áp và cao cấp dành cho những người yêu thương thú cưng.
 
-Token chính nằm trong:
+### A. Màu sắc chủ đạo (Primary & Brand Colors)
+- **Màu thương hiệu (Primary Yellow/Orange):** `#F59E0B` (Amber-500) và `#D97706` (Amber-600).
+  - Tượng trưng cho sự ấm áp, năng động và tình yêu thương động vật.
+  - Sử dụng cho các nút hành động chính (Primary Buttons), nhãn tiêu đề nổi bật, trạng thái hoạt động của menu điều hướng và icon Catbot.
+- **Màu bổ trợ (Secondary Colors):**
+  - **Teal (Xanh lục mòng két):** `#0D9488` (Teal-600) - Sử dụng cho các nhãn chuyên gia, câu trả lời chuyên gia đã xác minh, và các nút thanh toán an toàn.
+  - **Rose (Đỏ hoa hồng):** `#E11D48` (Rose-600) - Sử dụng cho nhãn giảm giá sản phẩm, nút xóa, và cảnh báo dị ứng thú cưng.
 
-- `frontend/src/app/globals.css`
-- `frontend/tailwind.config.ts`
+### B. Màu nền và Màu chữ (Neutrals)
+- **Nền ứng dụng (Backgrounds):**
+  - Môi trường sáng (Light mode): Nền chính màu trắng `#FFFFFF`, nền phụ màu xám nhẹ `#F3F4F6` (Gray-100) để phân tách các khối nội dung.
+  - Môi trường tối (Dark mode - đối với Dashboard Admin): Nền tối sâu `#0F172A` (Slate-900) kết hợp với card màu `#1E293B` (Slate-800) tạo hiệu ứng kính mờ (Glassmorphism).
+- **Màu chữ (Typography Colors):**
+  - Chữ tiêu đề chính: `#1F2937` (Gray-800) tạo độ tương phản cao.
+  - Chữ nội dung (Body text): `#4B5563` (Gray-600) giúp đọc văn bản dài không bị mỏi mắt.
+  - Chữ ghi chú phụ: `#9CA3AF` (Gray-400) cho mô tả bổ sung hoặc thời gian đăng bài.
 
-## Màu sắc
+---
 
-### Primary orange
+## 2. Phông chữ & Cỡ chữ (Typography)
 
-Biến CSS: `--primary-50` đến `--primary-800`.
+- **Phông chữ mặc định:** Hệ thống sử dụng phông chữ **Outfit** (hoặc **Inter**) tải trực tiếp từ Google Fonts để tạo vẻ hiện đại, gọn gàng và dễ đọc trên mọi màn hình.
+- **Phân cấp cỡ chữ (Font Scales):**
+  - `h1`: 32px (Bold) - Tiêu đề chính của trang.
+  - `h2`: 24px (Semibold) - Tiêu đề phân mục chính.
+  - `h3`: 20px (Medium) - Tiêu đề thẻ sản phẩm hoặc bài viết diễn đàn.
+  - `body`: 16px (Regular) - Nội dung bình luận, mô tả sản phẩm.
+  - `small`: 14px (Regular) - Nhãn phụ, thời gian, tên tag.
 
-Dùng cho:
+---
 
-- CTA chính: mua hàng, checkout, lưu thay đổi.
-- Link/action quan trọng.
-- Giá sale hoặc nhấn mạnh commerce.
-- Active state.
+## 3. Trạng thái giao diện và Hiệu ứng tương tác (Micro-interactions)
 
-### Teal accent
+Một ứng dụng mang lại cảm giác sống động và cao cấp cần được tối ưu hóa các trạng thái tương tác nhỏ:
 
-Biến CSS: `--teal-50`, `--teal-100`, `--teal-500`, `--teal-600`, `--teal-700`.
+- **Loading States (Trạng thái tải dữ liệu):**
+  - Áp dụng kỹ thuật **Skeleton Screen** (Khung xương xám chuyển động mờ) thay vì biểu tượng quay tròn truyền thống khi tải trang danh sách sản phẩm hoặc chi tiết đơn hàng. Điều này giúp giảm cảm giác chờ đợi của khách hàng.
+- **Hover Effects (Hiệu ứng di chuột):**
+  - Thẻ sản phẩm: Khi di chuột qua, thẻ sản phẩm tự động nâng nhẹ lên ($Y$-axis shift $-4px$) kết hợp hiệu ứng đổ bóng mờ mịn (shadow-lg) và hiển thị nút "Thêm nhanh vào giỏ hàng".
+  - Nút bấm: Tất cả các nút bấm chuyển màu mượt mà (transition duration 200ms) khi hover.
+- **Empty States (Trạng thái trống):**
+  - Trang giỏ hàng trống hoặc danh sách bài viết forum trống đều được thiết kế kèm hình minh họa hoạt hình chú mèo dễ thương và một nút kêu gọi hành động (CTA) rõ ràng (ví dụ: "Tiếp tục mua sắm" hoặc "Tạo câu hỏi ngay").
 
-Dùng riêng cho:
+---
 
-- Chat widget.
-- AI badge.
-- AI recommendation hoặc trạng thái đang suy nghĩ.
+## 4. Giao diện Phản hồi Thiết bị (Responsive Web Design)
 
-Không dùng teal làm màu commerce thông thường để giữ ý nghĩa "AI".
-
-### Warm neutrals
-
-Biến CSS: `--neutral-0` đến `--neutral-900`.
-
-Dùng cho:
-
-- Nền trang: `--neutral-50`.
-- Card/surface: white hoặc neutral rất nhạt.
-- Text chính: `--neutral-800/900`.
-- Text phụ: `--neutral-500/600`.
-- Border: `--neutral-100/200`.
-
-### Semantic
-
-- Success: `--success`, `--success-bg`.
-- Danger: `--danger`, `--danger-bg`.
-- Warning/rating: `--warning`, `--warning-bg`.
-
-Danger chỉ dùng cho lỗi, xóa, sale badge mạnh hoặc cảnh báo quan trọng.
-
-## Typography
-
-Frontend hiện nạp:
-
-- `VNMMono`: font local, đang được map làm `font-sans` trong Tailwind và body font chính.
-- `GoodPawoo`: font display/brand có thể dùng cho logo hoặc điểm nhấn.
-- `Be Vietnam Pro`: được nạp ở root layout, phù hợp cho body text tiếng Việt nếu cần chuyển typography mềm hơn.
-- `JetBrains Mono`: mono utility.
-
-Quy ước:
-
-- Heading storefront: đậm, ngắn, dễ scan.
-- Product name: tối đa 2 dòng trong card.
-- Price: font weight cao hơn description.
-- Admin table text: nhỏ, rõ, không dùng display font quá lớn.
-- Button label: ngắn, động từ rõ nghĩa.
-
-## Spacing và layout
-
-- Radius token: 8, 12, 16, 20, 24px và pill.
-- Card product: ưu tiên 16px radius, border nhẹ, hover shadow/lift.
-- Form/input: 12px radius, label rõ, error dưới field.
-- Section storefront: padding ngang `px-4 md:px-12`.
-- Header sticky, shop main có top padding để tránh bị che.
-- Product image nên giữ aspect ratio ổn định để tránh layout shift.
-
-## Component patterns
-
-### Header
-
-- Logo dẫn về `/`.
-- Search/navigation cho desktop.
-- Cart badge, auth section, mobile menu.
-- Sticky trên shop layout.
-
-### Banner carousel
-
-- Ảnh desktop/mobile riêng nếu có.
-- Link banner phải bọc được toàn slide hoặc CTA rõ.
-- Nên có fallback khi chưa có banner active.
-
-### Product card
-
-Thông tin tối thiểu:
-
-- Ảnh hoặc placeholder.
-- Sale badge nếu có `sale_price`.
-- Brand.
-- Tên sản phẩm 2 dòng.
-- Rating/review count nếu có.
-- Giá chính và giá gốc gạch ngang nếu sale.
-- CTA thêm giỏ hoặc link chi tiết tùy ngữ cảnh.
-
-### Product detail
-
-Ưu tiên:
-
-- Gallery ảnh.
-- Variant selector nếu có biến thể.
-- Giá/tồn kho theo variant.
-- CTA thêm giỏ/mua ngay.
-- Review section.
-- Sản phẩm tương tự.
-- Nút hỏi AI về sản phẩm đang xem.
-
-### Cart/checkout
-
-- Dòng giỏ cố định chiều cao hợp lý.
-- Quantity control không làm nhảy layout.
-- Tổng tiền tách rõ subtotal, shipping fee, total.
-- Checkout form validate sớm, đặc biệt phone/address/payment method.
-- VNPay redirect/callback cần trạng thái loading/success/failure rõ.
-
-### Chat widget
-
-- Teal là màu nhận diện.
-- Response stream phải có trạng thái typing.
-- Product tag `<product>slug</product>` render thành card/link.
-- Khi ở trang sản phẩm, context sản phẩm đang xem lấy từ `useViewingProductStore`.
-- Câu trả lời dài cần dễ đọc: paragraph ngắn, list ngắn, link/source rõ.
-
-### Admin
-
-- Admin layout tách khỏi storefront.
-- Table/list có skeleton, empty state, pagination hoặc scroll rõ.
-- Mutation cần toast và refresh query.
-- Form sản phẩm cần xử lý biến thể/ảnh/thuộc tính mà không giấu lỗi.
-- Các action nguy hiểm như xóa cần confirm.
-
-## Responsive
-
-- Mobile nhỏ nhất nên hỗ trợ từ 360px.
-- Product listing mobile dùng grid 2 cột hoặc list tùy density.
-- Filter desktop là sidebar; mobile nên là drawer/sheet.
-- Admin table có thể scroll ngang nếu dữ liệu nhiều.
-- Chat widget mobile nên chiếm phần lớn viewport; desktop là panel nổi.
-
-## Accessibility
-
-- Button/icon button phải có label hoặc title/aria-label nếu không có text.
-- Form error phải gần field liên quan.
-- Màu text phụ không quá nhạt trên nền warm neutral.
-- Focus state cần nhìn thấy, đặc biệt trong form checkout/admin.
-- Toast không phải kênh duy nhất cho lỗi quan trọng.
-
-## Trạng thái bắt buộc
-
-Mỗi màn hình dữ liệu cần có:
-
-- Loading: skeleton hoặc spinner có vùng cố định.
-- Empty: thông điệp ngắn và CTA nếu có hành động tiếp theo.
-- Error: mô tả lỗi, retry hoặc hướng dẫn.
-- Success: toast hoặc cập nhật UI tức thì.
-
-## Khi thêm UI mới
-
-1. Tìm component tương tự trong `src/components`.
-2. Dùng token có sẵn trong `globals.css`/Tailwind.
-3. Dùng lucide icon nếu cần icon.
-4. Kiểm tra mobile và desktop.
-5. Cập nhật `frontend/README.md` hoặc `docs/wireframes.md` nếu thêm route/workflow lớn.
+Hệ thống Next.js tự động tối ưu hóa hiển thị cho mọi kích thước màn hình:
+- **Desktop (>= 1024px):** Hiển thị dạng lưới sản phẩm 4 cột, bộ lọc danh mục và thương hiệu hiển thị cố định ở cột bên trái.
+- **Tablet (768px - 1023px):** Lưới sản phẩm co thành 3 cột.
+- **Mobile (< 768px):**
+  - Lưới sản phẩm hiển thị 2 cột để tối ưu không gian cuộn.
+  - Bộ lọc sản phẩm được ẩn vào trong một ngăn kéo vuốt từ dưới lên (Bottom Sheet Drawer).
+  - Thanh Navigation chính co gọn vào menu Hamburger ở góc trái.

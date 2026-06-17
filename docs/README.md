@@ -1,40 +1,34 @@
-# Documentation Index
+# Thư mục Tài liệu Dự án (Project Documentation Directory) - ThePawsome
 
-Thư mục này chứa tài liệu kỹ thuật và tài liệu phục vụ báo cáo đồ án của ThePawsome.
+Chào mừng bạn đến với thư mục tài liệu của dự án tốt nghiệp **ThePawsome** — Hệ thống Thương mại Điện tử Petshop tích hợp trợ lý ảo AI thông minh và Diễn đàn cộng đồng Chuyên gia.
 
-## Nên đọc theo thứ tự
+Tài liệu ở đây được đồng bộ hóa trực tiếp dựa trên mã nguồn thực tế triển khai ở backend (`backend/app/`) và frontend (`frontend/src/`).
 
-1. [../README.md](../README.md): tổng quan project, quickstart, deploy.
-2. [../DATN.md](../DATN.md): phạm vi đồ án, yêu cầu, luồng nghiệp vụ, tiêu chí bảo vệ.
-3. [../ARCHITECTURE.md](../ARCHITECTURE.md): kiến trúc hệ thống, luồng request, dữ liệu, AI/RAG và deploy.
-4. [enterprise-requirements.md](./enterprise-requirements.md): khảo sát thị trường, định vị phạm vi đồ án và yêu cầu để nâng hệ thống lên mức doanh nghiệp.
-5. [requirements.md](./requirements.md): actor, use case, NFR và traceability.
-6. [erd.md](./erd.md): ERD hiện tại.
-7. [data-dictionary.md](./data-dictionary.md): bảng/cột/ràng buộc chính.
-8. [../DESIGN.md](../DESIGN.md): design system frontend.
-9. [wireframes.md](./wireframes.md): mô tả màn hình và workflow UI.
-10. [api-spec.yaml](./api-spec.yaml): API contract tham khảo.
-11. [production-readiness-plan.md](./production-readiness-plan.md): roadmap hardening.
-12. [db-design-decisions.md](./db-design-decisions.md): quyết định thiết kế dữ liệu.
-13. [security-baseline.md](./security-baseline.md): ma trận OWASP cho Phase 0.
-14. [ai-domain-policy.md](./ai-domain-policy.md): policy an toàn và escalation của Catbot.
-15. [ai-evaluation.md](./ai-evaluation.md): scorecard live 40 case; evidence ở `ai-evaluation.json`.
-16. [phase0-traceability.md](./phase0-traceability.md): requirement -> implementation -> test/evidence cho Phase 0.
-17. [phase1-traceability.md](./phase1-traceability.md): requirement -> implementation -> test/evidence cho Phase 1 SME production.
+---
 
-## Source of truth
+## Mục lục Tài liệu
 
-- Schema database: Alembic migrations trong `backend/alembic/versions/`.
-- Models: `backend/app/models/`.
-- API implementation: `backend/app/api/routers/`.
-- Frontend routes: `frontend/src/app/`.
-- Design tokens: `frontend/src/app/globals.css` và `frontend/tailwind.config.ts`.
-- RAG/AI flow: `backend/app/services/chat_agent.py`, `retrieval.py`, `indexing.py`, `embeddings.py`.
+### 1. Đặc tả Yêu cầu & Thiết kế Hệ thống
+- [**Yêu cầu Hệ thống (requirements.md)**](file:///home/quang/Documents/DATN/docs/requirements.md): Tổng quan về yêu cầu chức năng và phi chức năng đã hoàn thành.
+- [**Bản vẽ Giao diện (wireframes.md)**](file:///home/quang/Documents/DATN/docs/wireframes.md): Mô tả cấu trúc các trang Next.js, bộ chọn biến thể sản phẩm, cổng thanh toán VietQR và widget Catbot.
+- [**Bảo mật hệ thống (security-baseline.md)**](file:///home/quang/Documents/DATN/docs/security-baseline.md): Chi tiết phòng chống OWASP Top 10, quản lý JWT Refresh Session, Rate Limiting và nhật ký kiểm toán.
 
-Nếu tài liệu và code lệch nhau, ưu tiên code/migration hiện tại rồi cập nhật tài liệu.
+### 2. Thiết kế Cơ sở Dữ liệu & API
+- [**Sơ đồ Thực thể Quan hệ (erd.md)**](file:///home/quang/Documents/DATN/docs/erd.md): Sơ đồ thực thể ERD vẽ bằng Mermaid.js của 28 bảng trong PostgreSQL.
+- [**Từ điển Dữ liệu (data-dictionary.md)**](file:///home/quang/Documents/DATN/docs/data-dictionary.md): Chi tiết tất cả các cột, kiểu dữ liệu, khóa ngoại, ràng buộc check và mô tả cột.
+- [**Quyết định Thiết kế DB (db-design-decisions.md)**](file:///home/quang/Documents/DATN/docs/db-design-decisions.md): Giải thích lý do chọn pgvector, thiết kế UUIDv4, khóa bi quan giữ kho, và chiến lược Caching bằng Redis.
+- [**Đặc tả API OpenAPI (api-spec.yaml)**](file:///home/quang/Documents/DATN/docs/api-spec.yaml): Tài liệu đặc tả API chuẩn OpenAPI 3.0.0 bao gồm cấu trúc request/response của các endpoint.
 
-## Ghi chú trạng thái
+### 3. Chính sách & Đánh giá Trí tuệ Nhân tạo (AI / RAG)
+- [**Chính sách An toàn AI (ai-domain-policy.md)**](file:///home/quang/Documents/DATN/docs/ai-domain-policy.md): Rào cản bảo vệ (Guardrails) của Catbot, bộ lọc triệu chứng y tế khẩn cấp, chống prompt injection gián tiếp và luồng chuyển giao người thật (HITL).
+- [**Đánh giá Hiệu năng AI (ai-evaluation.md)**](file:///home/quang/Documents/DATN/docs/ai-evaluation.md): Bộ chỉ số chất lượng câu trả lời RAG, RRF hybrid search, tối ưu hóa độ trễ và chi phí token.
 
-Một số tài liệu cũ từng mô tả legacy embedding tables (`product_embeddings`, `knowledge_chunks`). Hiện tại hai bảng này đã bị drop và được thay bằng LangChain PGVector collections (`langchain_pg_collection`, `langchain_pg_embedding`).
+### 4. Ma trận Truy vết Kiểm thử (Traceability)
+- [**Ma trận Truy vết Phase 0 (phase0-traceability.md)**](file:///home/quang/Documents/DATN/docs/phase0-traceability.md): Ánh xạ bảo mật cơ bản, giữ kho tạm thời, cache vector và safety filters đến code và file unit test.
+- [**Ma trận Truy vết Phase 1 (phase1-traceability.md)**](file:///home/quang/Documents/DATN/docs/phase1-traceability.md): Ánh xạ biến thể sản phẩm, chuyển khoản VietQR, đổi trả hàng, diễn đàn chất lượng cao và định tuyến support người thật đến code và unit test.
 
-Importer, knowledge seed/embed và AI evaluation đang dùng async stack. Các script lịch sử khác trong `backend/scripts/` cần được kiểm tra trước khi đưa vào demo.
+---
+
+## Hướng dẫn cho Lập trình viên
+- Mọi thay đổi về cấu trúc bảng trong PostgreSQL bắt buộc phải được đồng bộ hóa vào [Sơ đồ ERD](file:///home/quang/Documents/DATN/docs/erd.md) và [Từ từ điển dữ liệu](file:///home/quang/Documents/DATN/docs/data-dictionary.md).
+- Các endpoint API mới được thêm vào backend phải cập nhật tương ứng trong [OpenAPI Spec](file:///home/quang/Documents/DATN/docs/api-spec.yaml).
