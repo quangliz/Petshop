@@ -303,8 +303,6 @@ async def chat_stream(
                     async for chunk, metadata in agent.astream(
                         state, stream_mode="messages", config=run_config
                     ):
-                        lg_node = metadata.get("langgraph_node", "")
-
                         # ── AIMessageChunk: LLM is generating ────────
                         if isinstance(chunk, AIMessageChunk):
                             # Detect new LLM-call start

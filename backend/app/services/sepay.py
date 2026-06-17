@@ -1,4 +1,3 @@
-import datetime
 from app.core.config import settings
 
 class SePay:

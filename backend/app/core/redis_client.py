@@ -4,13 +4,12 @@ Uses redis.asyncio (ships with redis>=7.4.0 already in pyproject.toml).
 decode_responses=False so callers get raw bytes; callers handle encoding.
 """
 import redis.asyncio as aioredis
+import asyncio
 
 from app.core.config import settings
 
 _redis: aioredis.Redis | None = None
 
-
-import asyncio
 
 async def get_redis() -> aioredis.Redis:
     """Return the shared async Redis client, creating it on first call."""

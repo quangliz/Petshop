@@ -23,7 +23,7 @@ from sqlalchemy.orm import sessionmaker as sessionmaker_cls  # noqa: E402
 from app.models.user import User, RoleEnum  # noqa: E402
 
 # Mock email sending at module level BEFORE importing app to ensure all modules import the mock
-import app.core.email as core_email
+import app.core.email as core_email  # noqa: E402
 
 async def mock_send_verification(recipient_email: str, verification_link: str):
     # Auto-verify the user in the test DB

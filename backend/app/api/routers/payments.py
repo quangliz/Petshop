@@ -26,7 +26,6 @@ from app.models.commerce import (
 from app.services.inventory import (
     commit_order_reservations,
     reacquire_released_reservations,
-    release_order_reservations,
 )
 from app.services.sepay import SePay
 
