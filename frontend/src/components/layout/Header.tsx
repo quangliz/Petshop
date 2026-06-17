@@ -38,7 +38,7 @@ const SearchSuggestionSkeletons = () => (
 );
 
 export default function Header() {
-  const { user, token, setUser, setLoading, isLoading, logout } = useAuthStore();
+  const { user, isLoading, logout } = useAuthStore();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -48,16 +48,7 @@ export default function Header() {
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-  useEffect(() => {
-    if (token && !user) {
-      setLoading(true);
-      api.get('/auth/me').then((res) => setUser(res.data)).catch(() => {
-        if (typeof window !== 'undefined') localStorage.removeItem('token');
-        setUser(null);
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

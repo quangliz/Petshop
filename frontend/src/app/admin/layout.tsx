@@ -55,20 +55,20 @@ const SidebarContent = ({ pathname, userRole }: { pathname: string; userRole: st
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuthStore();
+  const { user, isLoading } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (user !== undefined) {
+    if (!isLoading) {
       if (!user) {
-        router.replace("/auth/login?redirect=/admin");
+        router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
       } else if (!["admin", "catalog_manager", "order_operator", "support", "content_manager"].includes(user.role)) {
         router.replace("/");
       }
     }
-  }, [user, router]);
+  }, [user, isLoading, router, pathname]);
 
   useEffect(() => {
     if (user) {
@@ -86,7 +86,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (mobileMenuOpen) setMobileMenuOpen(false);
   }
 
-  if (user === undefined) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
         <Loader2 className="w-8 h-8 animate-spin text-orange-500" />

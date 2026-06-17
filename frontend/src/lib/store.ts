@@ -37,19 +37,22 @@ export const useViewingProductStore = create<ViewingProductState>((set) => ({
   setViewingProduct: (p) => set({ viewingProduct: p }),
 }));
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  token: typeof window !== 'undefined' ? localStorage.getItem('token') : null,
-  isLoading: false,
-  setAuth: (user, token) => {
-    if (typeof window !== 'undefined') localStorage.setItem('token', token);
-    set({ user, token, isLoading: false });
-  },
-  setUser: (user) => set({ user, isLoading: false }),
-  setLoading: (v) => set({ isLoading: v }),
-  logout: () => {
-    api.post('/auth/logout').catch(() => {});
-    if (typeof window !== 'undefined') localStorage.removeItem('token');
-    set({ user: null, token: null, isLoading: false });
-  },
-}));
+export const useAuthStore = create<AuthState>((set) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  return {
+    user: null,
+    token,
+    isLoading: !!token,
+    setAuth: (user, token) => {
+      if (typeof window !== 'undefined') localStorage.setItem('token', token);
+      set({ user, token, isLoading: false });
+    },
+    setUser: (user) => set({ user, isLoading: false }),
+    setLoading: (v) => set({ isLoading: v }),
+    logout: () => {
+      api.post('/auth/logout').catch(() => {});
+      if (typeof window !== 'undefined') localStorage.removeItem('token');
+      set({ user: null, token: null, isLoading: false });
+    },
+  };
+});

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -24,7 +24,7 @@ const loginSchema = z.object({
 });
 type LoginForm = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+function LoginContent() {
   const { register, handleSubmit, control, setError, clearErrors, formState: { errors, isSubmitting } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -37,6 +37,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const { setAuth } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const acceptedTerms = useWatch({ control, name: 'acceptedTerms' });
 
   React.useEffect(() => {
@@ -70,7 +71,8 @@ export default function LoginPage() {
         clearGuestCart();
       }
       toast.success('Đăng nhập thành công!');
-      router.push('/');
+      const redirect = searchParams.get('redirect') || '/';
+      router.push(redirect);
     } catch {
       setServerError('Email hoặc mật khẩu không chính xác');
       toast.error('Đăng nhập thất bại');
@@ -161,5 +163,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <React.Suspense fallback={
+      <div className="min-h-[calc(100vh-200px)] flex items-center justify-center">
+        <Spinner size={32} />
+      </div>
+    }>
+      <LoginContent />
+    </React.Suspense>
   );
 }
