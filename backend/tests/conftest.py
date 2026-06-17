@@ -20,10 +20,30 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 from sqlalchemy.orm import sessionmaker as sessionmaker_cls  # noqa: E402
 
+from app.models.user import User, RoleEnum  # noqa: E402
+
+# Mock email sending at module level BEFORE importing app to ensure all modules import the mock
+import app.core.email as core_email
+
+async def mock_send_verification(recipient_email: str, verification_link: str):
+    # Auto-verify the user in the test DB
+    sync_session_cls = _ensure_test_schema()
+    with sync_session_cls() as session:
+        user = session.query(User).filter_by(email=recipient_email).first()
+        if user:
+            user.email_verified = True
+            user.is_active = True
+            session.commit()
+
+async def mock_send_reset(*args, **kwargs):
+    pass
+
+core_email.send_verification_email = mock_send_verification
+core_email.send_reset_email = mock_send_reset
+
 from app.main import app  # noqa: E402
 from app.core.limiter import limiter  # noqa: E402
 from app.database import Base  # noqa: E402
-from app.models.user import User, RoleEnum  # noqa: E402
 
 # Sync engine for test setup only (does not conflict with the async engine used by the app)
 _SYNC_URL = os.getenv("DATABASE_URL", "")
@@ -152,11 +172,3 @@ def admin_headers(admin_token: str) -> dict:
     return {"Authorization": f"Bearer {admin_token}"}
 
 
-@pytest.fixture(autouse=True)
-def mock_email_sending(monkeypatch):
-    """Mock out email sending to avoid real SMTP calls during tests."""
-    from app.core import email
-    async def mock_send(*args, **kwargs):
-        pass
-    monkeypatch.setattr(email, "send_verification_email", mock_send)
-    monkeypatch.setattr(email, "send_reset_email", mock_send)
