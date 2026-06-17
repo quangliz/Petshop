@@ -399,7 +399,11 @@ def test_forum_discussion_search_uses_thread_vector_and_filters_answers(client: 
             0.05,
         )
     ]
-    with patch("app.services.retrieval.get_knowledge_store", return_value=store):
+    async def mock_embed(*args, **kwargs):
+        return [0.1] * 1536
+
+    with patch("app.services.retrieval.get_knowledge_store", return_value=store), \
+         patch("app.services.embeddings.embed_query_cached", mock_embed):
         from app.database import AsyncSessionLocal
         from app.services.retrieval import search_forum_discussions
 
