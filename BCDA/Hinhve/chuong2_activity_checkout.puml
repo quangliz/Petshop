@@ -1,0 +1,38 @@
+@startuml
+
+title Quy trình nghiệp vụ mua hàng và thanh toán
+
+start
+:Xem / tìm kiếm sản phẩm;
+:Xem chi tiết và chọn biến thể;
+:Thêm / cập nhật giỏ hàng;
+:Nhập thông tin nhận hàng\nvà phương thức thanh toán;
+:Backend validate dữ liệu\nvà idempotency key;
+:Khóa dòng tồn kho\nSELECT FOR UPDATE;
+
+if (Đủ tồn kho?) then (Có)
+  :Tạo order, order items\nvà reservation 15 phút;
+  if (Phương thức thanh toán?) then (COD)
+    :COD: đơn chờ xử lý;
+    stop
+  else (VNPay / VietQR)
+    :Tạo yêu cầu thanh toán;
+    if (Quá hạn thanh toán?) then (Có)
+      :Giải phóng reservation;
+      stop
+    else (Không)
+      :Nhận callback / webhook;
+      if (Xác minh hợp lệ?) then (Có)
+        :Cập nhật đơn đã thanh toán;
+        stop
+      else (Không)
+        :Từ chối cập nhật và ghi log;
+        stop
+      endif
+    endif
+  endif
+else (Không)
+  :Trả lỗi và yêu cầu\nđiều chỉnh giỏ hàng;
+  stop
+endif
+@enduml
