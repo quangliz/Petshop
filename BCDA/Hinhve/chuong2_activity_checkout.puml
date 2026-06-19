@@ -11,19 +11,19 @@ start
 :Khóa dòng tồn kho\nSELECT FOR UPDATE;
 
 if (Đủ tồn kho?) then (Có)
-  :Tạo order, order items\nvà reservation 15 phút;
+  :Tạo order, order items\nvà reservation cho SePay;
   if (Phương thức thanh toán?) then (COD)
     :COD: đơn chờ xử lý;
     stop
-  else (VNPay / VietQR)
-    :Tạo yêu cầu thanh toán;
+  else (SePay VietQR)
+    :Tạo QR thanh toán\nhết hạn 15 phút;
     if (Quá hạn thanh toán?) then (Có)
       :Giải phóng reservation;
       stop
     else (Không)
-      :Nhận callback / webhook;
+      :Nhận webhook SePay;
       if (Xác minh hợp lệ?) then (Có)
-        :Cập nhật đơn đã thanh toán;
+        :Commit reservation\nvà cập nhật đã thanh toán;
         stop
       else (Không)
         :Từ chối cập nhật và ghi log;

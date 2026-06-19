@@ -11,7 +11,7 @@ usecase "Chọn biến thể\nSKU" as Variant
 usecase "Quản lý\ngiỏ hàng" as Cart
 usecase "Áp dụng\nkhuyến mãi" as Coupon
 usecase "Checkout /\ngiữ kho" as Checkout
-usecase "Thanh toán\nCOD / VNPay / VietQR" as Payment
+usecase "Thanh toán\nCOD / SePay VietQR" as Payment
 usecase "Theo dõi đơn /\ntra cứu guest" as Tracking
 usecase "Yêu cầu\nđổi trả" as Return
 usecase "Đánh giá\nđã mua" as Review

@@ -1,0 +1,40 @@
+digraph G {
+  graph [rankdir=LR, splines=ortho, bgcolor="white", fontname="DejaVu Sans", nodesep=0.55, ranksep=0.75];
+  node [shape=box, style="rounded,filled", fillcolor="#F8FAFC", color="#334155", fontname="DejaVu Sans", fontsize=11, margin="0.10,0.07"];
+  edge [color="#475569", fontname="DejaVu Sans", fontsize=10, arrowsize=0.8];
+
+  user [label="Người dùng"];
+  widget [label="ChatWidget\nNext.js"];
+  stream [label="POST /chat/stream\nSSE"];
+  safety [label="Preflight safety\nprompt injection / cấp cứu"];
+  graph_node [label="LangGraph agent\nagent <-> tools"];
+  llm [label="OpenAI Chat model"];
+  product_tool [label="search_products"];
+  knowledge_tool [label="search_knowledge\n+ forum discussions"];
+  pet_tool [label="list_pets\nget_pet_detail"];
+  human_tool [label="request_human_support"];
+  pg [label="PostgreSQL\nbusiness data"];
+  vector [label="PGVector collections\npetshop_products\npetshop_knowledge"];
+  redis [label="Redis cache\nquery embedding\npet profile"];
+  cohere [label="Cohere rerank\noptional"];
+  staff [label="Nhân viên hỗ trợ"];
+
+  user -> widget -> stream -> safety -> graph_node;
+  safety -> widget [label="fallback an toàn", constraint=false];
+  graph_node -> llm;
+  llm -> graph_node;
+  graph_node -> product_tool;
+  graph_node -> knowledge_tool;
+  graph_node -> pet_tool;
+  graph_node -> human_tool;
+  product_tool -> pg;
+  product_tool -> vector;
+  knowledge_tool -> vector;
+  knowledge_tool -> pg;
+  pet_tool -> pg;
+  pet_tool -> redis;
+  vector -> cohere [label="rerank nếu cấu hình"];
+  human_tool -> staff;
+  graph_node -> stream [label="token + status"];
+  stream -> widget;
+}

@@ -1,0 +1,32 @@
+digraph G {
+  graph [rankdir=LR, splines=ortho, bgcolor="white", fontname="DejaVu Sans", nodesep=0.5, ranksep=0.7];
+  node [shape=ellipse, style="filled", fillcolor="#F8FAFC", color="#334155", fontname="DejaVu Sans", fontsize=11];
+  edge [color="#475569", arrowsize=0.8, fontname="DejaVu Sans", fontsize=10];
+  user [shape=box, style="rounded,filled", label="Khách hàng", fillcolor="#EEF2FF"];
+  guest [shape=box, style="rounded,filled", label="Khách vãng lai", fillcolor="#EEF2FF"];
+  sepay [shape=box, style="rounded,filled", label="SePay", fillcolor="#ECFDF5"];
+
+  browse [label="Duyệt / tìm kiếm\nsản phẩm"];
+  detail [label="Xem chi tiết\nvà chọn biến thể"];
+  cart [label="Quản lý giỏ hàng"];
+  coupon [label="Áp mã giảm giá"];
+  checkout [label="Checkout"];
+  order [label="Tạo đơn hàng"];
+  pay [label="Thanh toán\nCOD / SePay VietQR"];
+  lookup [label="Tra cứu đơn guest"];
+  review [label="Đánh giá sau mua"];
+  return_order [label="Yêu cầu đổi trả"];
+
+  user -> browse;
+  guest -> browse;
+  browse -> detail;
+  detail -> cart;
+  cart -> coupon;
+  cart -> checkout;
+  checkout -> order;
+  order -> pay;
+  pay -> sepay [label="webhook", dir=both];
+  guest -> lookup;
+  user -> review;
+  user -> return_order;
+}

@@ -31,6 +31,7 @@
 
 \usepackage[font=small,labelfont=bf]{caption}
 
+\usepackage{xcolor}
 \usepackage{listings}
 \usepackage{float}
 \usepackage{subcaption}
@@ -38,7 +39,26 @@
 
 \usepackage[nonumberlist, nopostdot, nogroupskip, acronym]{glossaries}
 \usepackage{glossary-superragged}
-\setglossarystyle{superraggedheaderborder}
+\newglossarystyle{pawsomeabbr}{%
+  \renewenvironment{theglossary}%
+    {\begin{longtable}{|>{\raggedright\arraybackslash}p{0.18\textwidth}|>{\raggedright\arraybackslash}p{0.72\textwidth}|}}%
+    {\end{longtable}}%
+  \renewcommand*{\glossaryheader}{%
+    \hline
+    \textbf{\entryname} & \textbf{\descriptionname} \\
+    \hline
+    \endhead
+    \hline
+    \endfoot}%
+  \renewcommand*{\glsgroupheading}[1]{}%
+  \renewcommand*{\glossentry}[2]{%
+    \glstarget{##1}{\textbf{\glossentryname{##1}}} & \glossentrydesc{##1} \\
+    \hline}%
+  \renewcommand*{\subglossentry}[3]{%
+    & \glssubentryitem{##2}\glossentrydesc{##2} \\
+    \hline}%
+}
+\setglossarystyle{pawsomeabbr}
 \usepackage{setspace}
 \usepackage{parskip}
 
@@ -50,17 +70,17 @@
 
 % ===================================================
 
-\renewcommand{\bibname}{Danh_sach_tai_lieu_tham_khao} 
-\usepackage[backend=bibtex,style=ieee]{biblatex}  %backend=biber is 'better'
+\renewcommand{\bibname}{Danh sách tài liệu tham khảo} 
+\usepackage[backend=biber,style=ieee]{biblatex}  %backend=biber is 'better'
 
 \renewcommand\appendixname{PHỤ LỤC}
 \renewcommand\appendixpagename{PHỤ LỤC}
 \renewcommand\appendixtocname{PHỤ LỤC}
 
 
-\addbibresource{Danh_sach_tai_lieu_tham_khao.bib} % chèn file chứa danh mục tài liệu tham khảo vào 
+\addbibresource{\subfix{Danh_sach_tai_lieu_tham_khao.bib}} % chèn file chứa danh mục tài liệu tham khảo vào 
 
-\include{lstlisting} % Phần này cho phép chèn code và formatting code như C, C++, Python
+\input{lstlisting} % Phần này cho phép chèn code và formatting code như C, C++, Python
 
 \input{Tu_viet_tat}
 
@@ -76,7 +96,7 @@
 \setlength{\headheight}{10pt}
 
 \def \TITLE{ĐỒ ÁN TỐT NGHIỆP}
-\def \AUTHOR{NGUYỄN VĂN ABC}
+\def \AUTHOR{[HỌ VÀ TÊN SINH VIÊN]}
 
 % ===================================================
 \titleformat{\chapter}[hang]{\centering\bfseries}{CHƯƠNG \thechapter.\ }{0pt}{}[]
@@ -142,7 +162,7 @@
 	
 \usepackage[all]{hypcap} % Cho phép tham chiếu chính xác đến hình ảnh và bảng biểu
 
-\graphicspath{{figures/}{../figures/}} % Thư mục chứa các hình ảnh
+\graphicspath{{\subfix{./}}} % Thư mục chứa các hình ảnh, dùng \subfix để chạy được cả khi biên dịch file con
 
 \counterwithin{figure}{chapter} % Đánh số hình ảnh kèm theo chapter. Ví dụ: Hình 1.1, 1.2,..
 
@@ -329,9 +349,9 @@
     {{\bfseries{\scshape} \thecontentslabel.\ }} % numbered format
     {}         % unnumbered format
     {\titlerule*[0.3pc]{.}\contentspage}         % filler-page-format, e.g dots
-\chapter{HƯỚNG DẪN VIẾT ĐỒ ÁN TỐT NGHIỆP}
+\chapter{HƯỚNG DẪN CÀI ĐẶT, TRIỂN KHAI VÀ KIỂM THỬ}
 \subfile{Chuong/Phu_luc_A}
 \newpage
-\chapter{ĐẶC TẢ USE CASE}
+\chapter{ĐẶC TẢ USE CASE BỔ SUNG}
 \subfile{Chuong/Phu_luc_B}
 \end{document}

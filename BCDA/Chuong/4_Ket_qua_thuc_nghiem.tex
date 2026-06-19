@@ -1,71 +1,318 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
 
+Chương này trình bày quá trình phân tích thiết kế, triển khai và đánh giá hệ thống ThePawsome dựa trên mã nguồn hiện tại. Khác với Chương \ref{chapter:Methodology}, chương này không tập trung vào lý thuyết chung của công nghệ, mà mô tả cách các công nghệ đã được đưa vào kiến trúc phần mềm, mô hình dữ liệu, luồng xử lý nghiệp vụ, giao diện, kiểm thử và triển khai.
+
 \section{Thiết kế kiến trúc}
+\label{section:4.1}
+
 \subsection{Lựa chọn kiến trúc phần mềm}
-Mục này có độ dài từ một đến ba trang. Sinh viên cần lựa chọn kiến trúc phần mềm cho ứng dụng của mình như: kiến trúc ba lớp MVC, MVP, SOA, Microservice, v.v. rồi giải thích sơ bộ về kiến trúc đó (không giải thích chi tiết/dài dòng).
-Sử dụng kiến trúc phần mềm đã chọn ở trên, sinh viên mô tả kiến trúc cụ thể cho ứng dụng của mình. Gợi ý: sinh viên áp dụng lý thuyết chung vào hệ thống/sản phẩm của mình như thế nào, có thay đổi, bổ sung hoặc cải tiến gì không. Ví dụ, thành phần M trong kiến trúc lý thuyết MVC sẽ là những thành phần cụ thể nào (ví dụ: là interface I + class C1 + class C2, v.v.) trong kiến trúc phần mềm của sinh viên.
+\label{subsection:4.1.1}
+
+ThePawsome sử dụng kiến trúc monorepo tách frontend và backend. Trong cùng repository, thư mục \texttt{backend/} chứa API FastAPI, models SQLAlchemy, services nghiệp vụ, migration Alembic và test backend; thư mục \texttt{frontend/} chứa ứng dụng Next.js App Router, component giao diện, store phía client và axios API client. Cách tổ chức này phù hợp với đồ án vì toàn bộ hệ thống vẫn là một sản phẩm thống nhất, nhưng ranh giới xử lý giữa UI và nghiệp vụ backend được phân tách rõ.
+
+Ở backend, kiến trúc được tổ chức theo các tầng chính: API routers, dependencies, services, models và database. Router nhận request, validate bằng Pydantic và gọi service hoặc ORM; dependency kiểm soát phiên CSDL, xác thực, phân quyền; service chứa logic có tính tái sử dụng như retrieval, indexing, inventory, payment, AI safety và audit; model định nghĩa schema quan hệ; database cung cấp engine/session bất đồng bộ. Thiết kế này giúp nghiệp vụ phức tạp như checkout, thanh toán webhook và Catbot không bị dồn toàn bộ vào route handler.
+
+Ở frontend, kiến trúc được tổ chức quanh Next.js route groups và component. Nhóm \texttt{(shop)} phục vụ khách hàng, \texttt{(auth)} phục vụ đăng nhập/đăng ký/khôi phục mật khẩu, còn \texttt{admin} phục vụ quản trị. Axios instance nằm tại \texttt{frontend/src/lib/api.ts} để gắn base URL, gửi access token và xử lý refresh token tập trung. TanStack Query được dùng cho server-state; Zustand được dùng cho client-state nhỏ như auth và ngữ cảnh sản phẩm đang xem.
 
 \subsection{Thiết kế tổng quan}
-Sinh viên vẽ biểu đồ gói UML (UML package diagram), nêu rõ sự phụ thuộc giữa các gói (package). SV cần vẽ các gói sao cho chúng được phân theo các tầng rõ ràng, không được sắp đặt package lộn xộn trong hình vẽ. Sinh viên chú ý các quy tắc thiết kế (Các gói không phụ thuộc lẫn nhau, gói tầng dưới không phụ thuộc gói tầng trên, không phụ thuộc bỏ qua tầng, v.v.) và cần giải thích sơ lược về mục đích/nhiệm vụ của từng package. SV tham khảo ví dụ minh họa trong Hình \ref{fig:Fig1}
-\begin{figure}[H]
-    \centering
-    \includegraphics{Hinhve/Picture1.png}
-    \caption{Ví dụ biểu đồ phụ thuộc gói}
-    \label{fig:Fig1}
-\end{figure}
-\subsection{Thiết kế chi tiết gói}
-Sinh viên thiết kế và lần lượt vẽ biểu đồ thiết kế cho từng package, hoặc một nhóm các package liên quan để giải quyết một vấn đề gì đó. Khi vẽ thiết kế gói, sinh viên chỉ cần đưa tên lớp, không cần chỉ ra các thành viên phương thức và thuộc tính. SV tham khảo ví dụ minh họa trong Hình \ref{fig:Fig2}.
+\label{subsection:4.1.2}
 
-Sinh viên cần vẽ rõ ràng quan hệ giữa các lớp trong biểu đồ. Các quan hệ bao gồm: phụ thuộc (dependency), kết hợp (association), kết tập (aggregation), hợp thành (composition), kế thừa (inheritance), và thực thi (implementation). Các quan hệ này đều đã được minh họa trong \ref{fig:Fig2}.
-
-Sau khi vẽ hình minh họa, sinh viên cần giải thích ngắn gọn về thiết kế của mình. 
+Hình \ref{fig:4.1} mô tả kiến trúc tổng quan của ThePawsome theo các tầng frontend, backend, data/runtime và dịch vụ ngoài. Sơ đồ được dựng lại từ cấu trúc mã nguồn hiện tại, không phải hình minh họa template.
 
 \begin{figure}[H]
-    \centering
-    \includegraphics{Hinhve/Picture2.png}
-    \caption{Ví dụ thiết kế gói}
-    \label{fig:Fig2}
+\centering
+\includegraphics[width=0.98\linewidth]{Hinhve/chuong4_kien_truc_tong_the.png}
+\caption{Kiến trúc tổng quan hệ thống ThePawsome}
+\label{fig:4.1}
 \end{figure}
 
-\section{Thiết kế chi tiết}
-\subsection{Thiết kế giao diện}
-Phần này có độ dài từ hai đến ba trang. Sinh viên đặc tả thông tin về màn hình mà ứng dụng của mình hướng tới, bao gồm độ phân giải màn hình, kích thước màn hình, số lượng màu sắc hỗ trợ, v.v. Tiếp đến, sinh viên đưa ra các thống nhất/chuẩn hóa của mình khi thiết kế giao diện như thiết kế nút, điều khiển, vị trí hiển thị thông điệp phản hồi, phối màu, v.v. Sau cùng sinh viên đưa ra một số hình ảnh minh họa thiết kế giao diện cho các chức năng quan trọng nhất. Lưu ý, sinh viên không nhầm lẫn giao diện thiết kế với giao diện của sản phẩm sau cùng.
-\subsection{Thiết kế lớp}
-Phần này có độ dài từ ba đến bốn trang. Sinh viên trình bày thiết kế chi tiết các thuộc tính và phương thức cho một số lớp chủ đạo/quan trọng nhất của ứng dụng (từ 2-4 lớp). Thiết kế chi tiết cho các lớp khác, nếu muốn trình bày, sinh viên đưa vào phần phụ lục.
+Luồng chính của hệ thống bắt đầu từ frontend gọi REST API hoặc SSE tới FastAPI. API router kiểm tra dependency xác thực/phân quyền, sau đó gọi các service nghiệp vụ. Dữ liệu bền vững được lưu trong PostgreSQL; dữ liệu vector của LangChain PGVector cũng nằm trong PostgreSQL thông qua các bảng \texttt{langchain\_pg\_collection} và \texttt{langchain\_pg\_embedding}. Redis hỗ trợ cache và rate limit. Một worker riêng chạy \texttt{app.workers.reservation\_expiry} để quét reservation quá hạn và trả tồn kho.
 
-Để minh họa thiết kế lớp, sinh viên thiết kế luồng truyền thông điệp giữa các đối tượng tham gia cho 2 đến 3 use case quan trọng nào đó bằng biểu đồ trình tự (hoặc biểu đồ giao tiếp).
-\subsection{Thiết kế cơ sở dữ liệu}
-Phần này có độ dài từ hai đến bốn trang. Sinh viên thiết kế, vẽ và giải thích biểu đồ thực thể liên kết (E-R diagram). Từ đó, sinh viên thiết kế cơ sở dữ liệu tùy theo hệ quản trị cơ sở dữ liệu mà mình sử dụng (SQL, NoSQL, Firebase, v.v.)
+\subsection{Thiết kế gói backend và frontend}
+\label{subsection:4.1.3}
 
-\section{Xây dựng ứng dụng}
-\subsection{Thư viện và công cụ sử dụng}
-Sinh viên liệt kê các công cụ, ngôn ngữ lập trình, API, thư viện, IDE, công cụ kiểm thử, v.v. mà mình sử dụng để phát triển ứng dụng. Mỗi công cụ phải được chỉ rõ phiên bản sử dụng. SV nên kẻ bảng mô tả tương tự như Bảng \ref{table:my_label}. Nếu có nhiều nội dung trình bày, sinh viên cần xoay ngang bảng.
+Bảng \ref{table:4.1} mô tả các gói backend quan trọng và trách nhiệm của từng gói. Các gói này tương ứng trực tiếp với thư mục trong \texttt{backend/app}.
 
 \begin{table}[H]
-\centering{}
-    \begin{tabular}{lll}
-        \hline
-        \textbf{Mục đích} & \textbf{Công cụ}       & \textbf{Địa chỉ URL}    \\ \hline
-        IDE lập trình     & Eclipse Oxygen a64 bit & http://www.eclipse.org/ \\ \hline
-        v.v.              & v.v.                   & v.v.                    \\ \hline
-        \end{tabular}
-    \caption{Danh sách thư viện và công cụ sử dụng}
-    \label{fig:my_label}
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\caption{Các gói chính của backend}
+\label{table:4.1}
+\begin{tabular}{|p{3.2cm}|p{10.8cm}|}
+\hline
+\textbf{Gói} & \textbf{Trách nhiệm} \\ \hline
+\texttt{api/routers} & Định nghĩa endpoint public và admin cho auth, products, cart, orders, payments, pets, chat, forum, reviews, banners, promotions, returns, audit logs và observability. \\ \hline
+\texttt{api/deps.py} & Cung cấp dependency dùng chung: phiên \texttt{AsyncSession}, người dùng hiện tại, optional user, admin user và các role như catalog manager, order operator, support, content manager. \\ \hline
+\texttt{models} & Định nghĩa 28 bảng nghiệp vụ bằng SQLAlchemy ORM, bao phủ user, catalog, commerce, forum, chat, knowledge, audit và AI observability. \\ \hline
+\texttt{services} & Chứa logic nghiệp vụ dùng lại: RAG retrieval, embedding/indexing, safety, inventory reservation, SePay service, VNPay helper chưa expose end-to-end, forum knowledge scoring, pet profile cache và audit. \\ \hline
+\texttt{core} & Chứa cấu hình, security, email, Redis client, limiter và logging. \\ \hline
+\texttt{workers} & Chạy tác vụ nền, hiện tại có worker giải phóng reservation tồn kho quá hạn. \\ \hline
+\end{tabular}
 \end{table}
 
-\subsection{Kết quả đạt được}
-Sinh viên trước tiên mô tả kết quả đạt được của mình là gì, ví dụ như các sản phẩm được đóng gói là gì, bao gồm những thành phần nào, ý nghĩa, vai trò?
+Bảng \ref{table:4.2} mô tả các gói frontend quan trọng. Thiết kế frontend ưu tiên tách route, component dùng chung và thư viện truy cập API để tránh tạo nhiều client rời rạc.
 
-Sinh viên cần thống kê các thông tin về ứng dụng của mình như: số dòng code, số lớp, số gói, dung lượng toàn bộ mã nguồn, dung lượng của từng sản phẩm đóng gói, v.v. Tương tự như phần liệt kê về công cụ sử dụng, sinh viên cũng nên dùng bảng để mô tả phần thông tin thống kê này.
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\caption{Các gói chính của frontend}
+\label{table:4.2}
+\begin{tabular}{|p{3.2cm}|p{10.8cm}|}
+\hline
+\textbf{Gói} & \textbf{Trách nhiệm} \\ \hline
+\texttt{src/app/(shop)} & Trang khách hàng: trang chủ, shop, chi tiết sản phẩm, giỏ hàng, checkout, hồ sơ, đơn hàng, wishlist, forum và các trang chính sách. \\ \hline
+\texttt{src/app/(auth)} & Đăng nhập, đăng ký, quên mật khẩu, đặt lại mật khẩu và xác minh email. \\ \hline
+\texttt{src/app/admin} & Dashboard quản trị users, products, orders, forum, promotions, banners, knowledge và embeddings. \\ \hline
+\texttt{src/components} & Component giao diện tái sử dụng như Header, Footer, ChatWidget, review, forum, skeleton, UI primitives và các component nghiệp vụ. \\ \hline
+\texttt{src/lib} & Axios instance, Zustand store, shared types, guest cart và utilities. \\ \hline
+\texttt{src/providers} & Query provider và auth initializer ở mức layout. \\ \hline
+\end{tabular}
+\end{table}
+
+\section{Thiết kế chi tiết}
+\label{section:4.2}
+
+\subsection{Thiết kế giao diện}
+\label{subsection:4.2.1}
+
+Giao diện ThePawsome hướng tới người dùng phổ thông tại Việt Nam, ưu tiên thao tác mua hàng rõ ràng, responsive trên mobile/desktop và có đủ trạng thái loading, empty, error. Frontend dùng Tailwind CSS và một số UI primitive trong \texttt{frontend/src/components/ui}. Các trang sản phẩm có skeleton để giảm cảm giác chờ; các thao tác mutation như thêm giỏ, checkout, gửi forum hoặc review dùng thông báo phản hồi; các trang quản trị dùng bảng, form và modal để thao tác dữ liệu.
+
+Các ảnh chụp giao diện nên lấy từ môi trường demo có dữ liệu thật, vì ảnh stock hoặc ảnh tự dựng không phản ánh đúng sản phẩm. Do repository hiện chưa có bộ ảnh chụp màn hình BCDA cho chương 4, báo cáo đặt sẵn các placeholder bằng \texttt{IfFileExists}. Khi cần hoàn thiện bản nộp cuối, chỉ cần chụp đúng màn hình, đặt file vào \texttt{BCDA/Hinhve/} theo tên đã ghi trong Bảng \ref{table:4.3}; LaTeX sẽ tự dùng ảnh thật thay cho khung nhắc.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\caption{Danh sách ảnh giao diện cần bổ sung từ môi trường demo}
+\label{table:4.3}
+\begin{tabular}{|p{4.7cm}|p{5.0cm}|p{4.2cm}|}
+\hline
+\textbf{Tên file cần đặt} & \textbf{Nội dung ảnh} & \textbf{Nguồn phù hợp} \\ \hline
+\texttt{chuong4\_ui\_shop.png} & Trang shop có danh sách sản phẩm, bộ lọc, giá và trạng thái tồn kho. & Cần chụp từ frontend chạy với dữ liệu demo thật. \\ \hline
+\texttt{chuong4\_ui\_product\_detail.png} & Trang chi tiết sản phẩm có ảnh, biến thể, đánh giá và sản phẩm tương tự. & Cần chụp từ frontend chạy với dữ liệu demo thật. \\ \hline
+\texttt{chuong4\_ui\_checkout\_sepay.png} & Màn checkout hoặc thanh toán SePay VietQR. & Cần chụp từ môi trường có cấu hình SePay demo. \\ \hline
+\texttt{chuong4\_ui\_catbot.png} & Widget Catbot trả lời có thẻ sản phẩm thật. & Cần chụp sau khi backend có OpenAI key và dữ liệu sản phẩm. \\ \hline
+\texttt{chuong4\_ui\_admin\_products.png} & Màn quản trị sản phẩm, biến thể và ảnh. & Cần chụp bằng tài khoản admin/demo. \\ \hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\IfFileExists{Hinhve/chuong4_ui_shop.png}{
+    \includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_shop.png}
+}{
+    \fbox{\begin{minipage}{0.88\linewidth}
+        \centering \textbf{Cần bổ sung ảnh:} \texttt{chuong4\_ui\_shop.png}\\
+        Ảnh chụp trang shop với dữ liệu sản phẩm thật.
+    \end{minipage}}
+}
+\caption{Màn hình shop và bộ lọc sản phẩm}
+\label{fig:4.2}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\IfFileExists{Hinhve/chuong4_ui_product_detail.png}{
+    \includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_product_detail.png}
+}{
+    \fbox{\begin{minipage}{0.88\linewidth}
+        \centering \textbf{Cần bổ sung ảnh:} \texttt{chuong4\_ui\_product\_detail.png}\\
+        Ảnh chụp trang chi tiết sản phẩm với biến thể, đánh giá và sản phẩm tương tự.
+    \end{minipage}}
+}
+\caption{Màn hình chi tiết sản phẩm}
+\label{fig:4.product_detail}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\IfFileExists{Hinhve/chuong4_ui_checkout_sepay.png}{
+    \includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_checkout_sepay.png}
+}{
+    \fbox{\begin{minipage}{0.88\linewidth}
+        \centering \textbf{Cần bổ sung ảnh:} \texttt{chuong4\_ui\_checkout\_sepay.png}\\
+        Ảnh chụp màn checkout hoặc thanh toán SePay VietQR trong môi trường demo.
+    \end{minipage}}
+}
+\caption{Màn hình checkout và thanh toán SePay}
+\label{fig:4.checkout_sepay}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\IfFileExists{Hinhve/chuong4_ui_catbot.png}{
+    \includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_catbot.png}
+}{
+    \fbox{\begin{minipage}{0.88\linewidth}
+        \centering \textbf{Cần bổ sung ảnh:} \texttt{chuong4\_ui\_catbot.png}\\
+        Ảnh chụp Catbot trả lời bằng tiếng Việt và render thẻ sản phẩm thật.
+    \end{minipage}}
+}
+\caption{Màn hình Catbot tư vấn sản phẩm}
+\label{fig:4.3}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\IfFileExists{Hinhve/chuong4_ui_admin_products.png}{
+    \includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_admin_products.png}
+}{
+    \fbox{\begin{minipage}{0.88\linewidth}
+        \centering \textbf{Cần bổ sung ảnh:} \texttt{chuong4\_ui\_admin\_products.png}\\
+        Ảnh chụp màn quản trị sản phẩm, biến thể và ảnh bằng tài khoản admin/demo.
+    \end{minipage}}
+}
+\caption{Màn hình quản trị sản phẩm}
+\label{fig:4.admin_products}
+\end{figure}
+
+\subsection{Thiết kế cơ sở dữ liệu}
+\label{subsection:4.2.2}
+
+CSDL nghiệp vụ hiện có 28 bảng SQLAlchemy, chưa tính các bảng nội bộ do LangChain PGVector tạo để lưu collection và embedding. Hình \ref{fig:4.4} trình bày ERD tổng quan theo nhóm bảng. Sơ đồ này không vẽ toàn bộ cột để tránh quá tải, mà nhấn mạnh các miền dữ liệu và quan hệ phụ thuộc chính.
+
+\begin{landscape}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong4_erd_tong_quan.png}
+\caption{ERD tổng quan theo nhóm bảng của ThePawsome}
+\label{fig:4.4}
+\end{figure}
+\end{landscape}
+
+Bảng \ref{table:4.4} tổng hợp các nhóm bảng chính. Nhóm catalog lưu danh mục, sản phẩm, biến thể và ảnh. Nhóm commerce lưu giỏ hàng, đơn hàng, payment, reservation, mã giảm giá và đổi trả. Nhóm forum lưu thread, reply và vote. Nhóm AI/knowledge lưu tài liệu knowledge, chat session, message, log chi phí AI và audit log.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\caption{Tổng hợp nhóm bảng dữ liệu}
+\label{table:4.4}
+\begin{tabular}{|p{2.8cm}|p{1.4cm}|p{9.8cm}|}
+\hline
+\textbf{Nhóm} & \textbf{Số bảng} & \textbf{Các bảng chính} \\ \hline
+User/Pet & 3 & \texttt{users}, \texttt{refresh\_sessions}, \texttt{pets}. \\ \hline
+Catalog & 5 & \texttt{categories}, \texttt{banners}, \texttt{products}, \texttt{product\_variants}, \texttt{product\_images}. \\ \hline
+Commerce & 9 & \texttt{carts}, \texttt{cart\_items}, \texttt{promotions}, \texttt{orders}, \texttt{order\_items}, \texttt{payments}, \texttt{inventory\_reservations}, \texttt{order\_returns}, \texttt{order\_return\_items}. \\ \hline
+Forum & 4 & \texttt{forum\_threads}, \texttt{forum\_replies}, \texttt{forum\_thread\_votes}, \texttt{forum\_reply\_votes}. \\ \hline
+AI/Knowledge/Log & 5 & \texttt{knowledge\_docs}, \texttt{chat\_sessions}, \texttt{chat\_messages}, \texttt{ai\_call\_logs}, \texttt{audit\_logs}. \\ \hline
+Review/Wishlist & 2 & \texttt{reviews}, \texttt{wishlist\_items}. \\ \hline
+\end{tabular}
+\end{table}
+
+Một số ràng buộc dữ liệu quan trọng đã được thể hiện trực tiếp trong model và migration. Giá sản phẩm và biến thể phải dương; giá khuyến mãi nếu có phải nhỏ hơn giá gốc; tồn kho không âm; số lượng trong giỏ và đơn phải lớn hơn 0; mỗi người dùng chỉ review một sản phẩm một lần; mỗi user chỉ vote một thread hoặc reply một trạng thái tại một thời điểm; \texttt{orders} có unique constraint trên cặp \texttt{idempotency\_scope} và \texttt{idempotency\_key}; \texttt{payments} có unique constraint trên \texttt{external\_txn\_id}, \texttt{merchant\_ref} và cặp \texttt{order\_id}/\texttt{idempotency\_key}. Các ràng buộc này là lớp phòng thủ dữ liệu bên cạnh validation ở API.
+
+\subsection{Thiết kế luồng xử lý quan trọng}
+\label{subsection:4.2.3}
+
+Luồng checkout được thiết kế theo hướng ưu tiên toàn vẹn dữ liệu. Backend nhận \texttt{Idempotency-Key}, khóa advisory transaction theo scope người dùng hoặc guest email, sau đó khóa các dòng sản phẩm/biến thể bằng \texttt{with\_for\_update()}. Khi sản phẩm hợp lệ và đủ tồn kho, hệ thống trừ tồn kho ngay trong transaction, tạo order, order items và snapshot giá. Với SePay, hệ thống tạo \texttt{inventory\_reservations} để worker có thể hoàn hàng nếu quá hạn. Với COD, đơn hàng chờ xử lý mà không cần payment online.
+
+Luồng Catbot được thiết kế theo hướng agent có kiểm soát. Trước khi gọi LLM, backend kiểm tra prompt injection và dấu hiệu cấp cứu. Nếu an toàn, LangGraph agent nhận lịch sử hội thoại, pet context và product context, sau đó gọi các tool cần thiết. Câu trả lời được stream bằng SSE và lưu lại trong \texttt{chat\_messages}. Khi người dùng yêu cầu gặp nhân viên hoặc tool xác định cần hỗ trợ người thật, phiên chat chuyển sang \texttt{pending\_human}. Nhân viên admin có thể claim, gửi tin nhắn người thật và đóng phiên để trả lại trạng thái AI.
+
+\section{Xây dựng ứng dụng}
+\label{section:4.3}
+
+\subsection{Thư viện và công cụ sử dụng}
+\label{subsection:4.3.1}
+
+Bảng \ref{table:4.5} liệt kê các công cụ và thư viện chính theo phiên bản đang khóa trong \texttt{backend/uv.lock} và \texttt{frontend/package-lock.json}. Một số biến môi trường như OpenAI, Cohere, Cloudinary, Google OAuth và SePay chỉ hoạt động đầy đủ khi người triển khai cung cấp khóa tương ứng.
+
+\begin{table}[H]
+\centering
+\scriptsize
+\renewcommand{\arraystretch}{1.15}
+\caption{Danh sách công cụ và thư viện sử dụng}
+\label{table:4.5}
+\begin{tabular}{|p{3.3cm}|p{3.8cm}|p{2.0cm}|p{5.0cm}|}
+\hline
+\textbf{Mục đích} & \textbf{Công cụ/thư viện} & \textbf{Phiên bản} & \textbf{Vai trò trong hệ thống} \\ \hline
+Backend API & FastAPI & 0.136.0 & Xây dựng REST API, middleware, OpenAPI docs. \\ \hline
+ORM/database & SQLAlchemy & 2.0.49 & ORM bất đồng bộ và transaction. \\ \hline
+Migration & Alembic & 1.18.4 & Quản lý thay đổi schema CSDL. \\ \hline
+Vector/RAG & langchain-postgres & 0.0.17 & Tích hợp PGVector store. \\ \hline
+Agent & LangGraph & 1.1.6 & Orchestration agent và tool-calling. \\ \hline
+LLM/Embedding & langchain-openai & 1.1.14 & Gọi OpenAI chat model và embedding model. \\ \hline
+Redis client & redis-py & 7.4.0 & Cache, TTL và rate-limit backend. \\ \hline
+Kiểm thử backend & pytest & 9.0.3 & Chạy test API/service. \\ \hline
+Lint backend & Ruff & 0.15.11 & Kiểm tra style và lỗi Python. \\ \hline
+Frontend framework & Next.js & 16.2.4 & App Router và giao diện web. \\ \hline
+UI library & React / React DOM & 18.3.1 & Component UI. \\ \hline
+Server-state & TanStack Query & 5.99.0 & Fetch/cache/mutation phía frontend. \\ \hline
+CSS & Tailwind CSS & 3.4.19 & Thiết kế responsive và utility class. \\ \hline
+Type checking & TypeScript & 5.9.3 & Kiểm tra kiểu frontend. \\ \hline
+Runtime data & PostgreSQL + pgvector image & pg15 & CSDL quan hệ và vector. \\ \hline
+Cache/runtime & Redis Docker image & 7-alpine & Cache và hạ tầng hỗ trợ. \\ \hline
+Hosting server & Amazon EC2 & AWS & Máy chủ ảo chạy Nginx, frontend, backend và worker trong môi trường production \cite{awsEc2Docs}. \\ \hline
+Managed database & Amazon RDS for PostgreSQL & AWS & Dịch vụ CSDL managed để host PostgreSQL production, tách dữ liệu khỏi vòng đời EC2 \cite{awsRdsDocs}. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Kết quả mã nguồn đạt được}
+\label{subsection:4.3.2}
+
+Tính tại thời điểm rà soát mã nguồn, hệ thống có 61 file Python trong \texttt{backend/app} với khoảng 8.681 dòng code không rỗng, 85 file TypeScript/TSX trong \texttt{frontend/src} với khoảng 12.138 dòng code không rỗng, và 22 file test backend với 123 test case. Nếu không tính \texttt{node\_modules}, \texttt{.next}, \texttt{.venv}, cache và thư mục build, kích thước nguồn backend khoảng 1,7 MB, frontend khoảng 2,1 MB và thư mục báo cáo BCDA khoảng 1,9 MB.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\caption{Thống kê mã nguồn chính}
+\label{table:4.6}
+\begin{tabular}{|p{4.2cm}|p{2.2cm}|p{2.5cm}|p{5.0cm}|}
+\hline
+\textbf{Thành phần} & \textbf{Số file} & \textbf{Số dòng code} & \textbf{Ghi chú} \\ \hline
+\texttt{backend/app} & 61 & 8.681 & API, core, models, services, worker. \\ \hline
+\texttt{frontend/src} & 85 & 12.138 & App Router, components, libs, providers. \\ \hline
+\texttt{backend/tests} & 22 & 123 test case & Test auth, products, cart, orders, payments, chat, forum, AI safety, reviews, cache và hardening. \\ \hline
+Model CSDL & 10 file model & 28 bảng & Chưa tính bảng nội bộ của LangChain PGVector. \\ \hline
+\end{tabular}
+\end{table}
 
 \subsection{Minh họa các chức năng chính}
-Sinh viên lựa chọn và đưa ra màn hình cho các chức năng chính, quan trọng, và thú vị nhất. Mỗi giao diện cần phải có lời giải thích ngắn gọn. Khi giải thích, sinh viên có thể kết hợp với các chú thích ở trong hình ảnh giao diện.
+\label{subsection:4.3.3}
+
+Sản phẩm đã hiện thực các nhóm chức năng quan trọng của một petshop e-commerce. Nhóm storefront gồm trang chủ, banner, shop, bộ lọc, chi tiết sản phẩm, biến thể, sản phẩm tương tự, wishlist, giỏ hàng, checkout, đơn hàng, tra cứu đơn guest và trang chính sách. Nhóm tài khoản gồm đăng ký, xác minh email, đăng nhập, refresh token, quên mật khẩu, đổi mật khẩu, Google OAuth và hồ sơ cá nhân. Nhóm quản trị gồm quản lý sản phẩm/biến thể/ảnh, banner, đơn hàng, người dùng, khuyến mãi, knowledge, embedding và forum.
+
+Nhóm cộng đồng và AI là điểm khác biệt của ThePawsome. Forum hỗ trợ danh mục chủ đề, thread, reply lồng nhau, vote, accepted reply, nhãn chuyên gia xác minh và cơ chế đánh giá thread đủ điều kiện đưa vào kho knowledge. Catbot hỗ trợ hội thoại streaming, tìm sản phẩm, tìm knowledge/forum, đọc hồ sơ thú cưng, chèn thẻ sản phẩm hợp lệ và chuyển giao người thật. Dữ liệu AI call được log để theo dõi token, latency và chi phí ước tính.
 
 \section{Kiểm thử}
-Phần này có độ dài từ hai đến ba trang. Sinh viên thiết kế các trường hợp kiểm thử cho hai đến ba chức năng quan trọng nhất. Sinh viên cần chỉ rõ các kỹ thuật kiểm thử đã sử dụng. Chi tiết các trường hợp kiểm thử khác, nếu muốn trình bày, sinh viên đưa vào phần phụ lục.
-Sinh viên sau cùng tổng kết về số lượng các trường hợp kiểm thử và kết quả kiểm thử. Sinh viên cần phân tích lý do nếu kết quả kiểm thử không đạt.
+\label{section:4.4}
+
+Kiểm thử backend được tổ chức trong \texttt{backend/tests}. Bộ test bao phủ các nghiệp vụ trọng tâm: auth và refresh token, bảo mật startup, sản phẩm/danh mục, giỏ hàng, đơn hàng, thanh toán SePay, inventory reservation, forum, HITL chat, AI safety, Cohere rerank fallback, review, cache, validation contract và một số yêu cầu hardening. Việc dùng test API/service với CSDL thật phù hợp với bản chất hệ thống thương mại điện tử, vì nhiều lỗi quan trọng chỉ xuất hiện khi có transaction, constraint và lock thật.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\caption{Nhóm kiểm thử backend}
+\label{table:4.7}
+\begin{tabular}{|p{3.0cm}|p{7.0cm}|p{3.8cm}|}
+\hline
+\textbf{Nhóm test} & \textbf{Mục tiêu kiểm thử} & \textbf{File tiêu biểu} \\ \hline
+Auth/security & Đăng ký, đăng nhập, refresh token, logout, email verify, secret startup. & \texttt{test\_auth.py}, \texttt{test\_security\_startup.py} \\ \hline
+Commerce & Cart, checkout, guest checkout, cancel order, idempotency, reservation và payment. & \texttt{test\_cart.py}, \texttt{test\_orders.py}, \texttt{test\_payments.py} \\ \hline
+Catalog/review & Danh mục, sản phẩm, sản phẩm tương tự, review sau mua. & \texttt{test\_products.py}, \texttt{test\_reviews.py} \\ \hline
+AI/chat/forum & Safety guardrail, streaming chat, HITL, forum Q\&A, rerank fallback. & \texttt{test\_ai\_safety.py}, \texttt{test\_chat.py}, \texttt{test\_forum.py} \\ \hline
+Hardening & Validation contract, cache, proxy-safe IP, phase hardening. & \texttt{test\_validation\_contracts.py}, \texttt{test\_phase0\_hardening.py} \\ \hline
+\end{tabular}
+\end{table}
+
+Frontend hiện có script \texttt{npm run lint} và \texttt{npm run build}. Trong phạm vi code hiện tại chưa có bộ test component/e2e riêng cho frontend, vì vậy đây là một hạn chế cần bổ sung trong giai đoạn phát triển tiếp. Các luồng UI quan trọng như checkout, SePay polling, Catbot streaming và admin product form nên được kiểm thử thêm bằng Playwright hoặc Cypress khi dữ liệu demo ổn định.
+
 \section{Triển khai}
-Sinh viên trình bày mô hình và/hoặc cách thức triển khai thử nghiệm/thực tế. Ứng dụng của sinh viên được triển khai trên server/thiết bị gì, cấu hình như thế nào. Kết quả triển khai thử nghiệm nếu có (số lượng người dùng, số lượng truy cập, thời gian phản hồi, phản hồi người dùng, khả năng chịu tải, các thống kê, v.v.)
+\label{section:4.5}
+
+Môi trường local được triển khai bằng Docker Compose cho PostgreSQL/pgvector và Redis. Backend chạy bằng \texttt{uv run uvicorn app.main:app --reload}; frontend chạy bằng \texttt{npm run dev}. Migration chuẩn là \texttt{uv run alembic upgrade head}; \texttt{AUTO\_CREATE\_TABLES} chỉ là tùy chọn dev đặc biệt, không phải luồng chuẩn. Ứng dụng có health check \texttt{/health}, \texttt{/health/live} và \texttt{/health/ready}; endpoint ready kiểm tra cả database, Redis và trạng thái cấu hình OpenAI.
+
+Môi trường production được triển khai trên AWS theo mô hình tách compute và database. Một Amazon EC2 instance đóng vai trò server host cho các container trong \texttt{docker-compose.prod.yml}, gồm Redis, backend, reservation-worker, frontend và Nginx. EC2 phù hợp với phạm vi đồ án vì cho phép chủ động cấu hình hệ điều hành, Docker, reverse proxy, port public và các biến môi trường của ứng dụng. Nginx nhận lưu lượng HTTP/HTTPS từ Internet rồi chuyển tiếp tới frontend và backend nội bộ; backend và worker dùng cùng image nhưng worker có entrypoint là \texttt{python -m app.workers.reservation\_expiry}. Cách tách worker khỏi web process giúp việc quét reservation quá hạn không phụ thuộc request người dùng.
+
+CSDL production được host bằng Amazon RDS for PostgreSQL thay vì chạy PostgreSQL trực tiếp trong EC2. RDS giúp tách dữ liệu bền vững khỏi vòng đời máy chủ ứng dụng, đồng thời hỗ trợ các tác vụ vận hành như backup, patching và mở rộng cấu hình database ở mức managed service. Backend chỉ cần cấu hình \texttt{DATABASE\_URL} trỏ tới endpoint RDS; migration vẫn chạy bằng \texttt{uv run alembic upgrade head}. Do hệ thống dùng LangChain PGVector, RAG và semantic search, RDS PostgreSQL cần dùng phiên bản hỗ trợ extension \texttt{pgvector} và bật \texttt{CREATE EXTENSION vector} trước khi chạy indexing \cite{awsRdsPgvectorDocs}. Về bảo mật mạng, security group của RDS nên chỉ mở cổng PostgreSQL cho EC2/backend, không mở public database ra Internet.
+
+Các secret như \texttt{SECRET\_KEY}, \texttt{OPENAI\_API\_KEY}, \texttt{SEPAY\_API\_KEY}, Cloudinary, Google OAuth và thông tin kết nối RDS cần được cấp ở runtime, không commit vào mã nguồn. Khi triển khai thực tế, quy trình cập nhật gồm pull/build image trên EC2, chạy migration lên RDS, khởi động lại backend/worker/frontend và kiểm tra \texttt{/health}, \texttt{/health/live}, \texttt{/health/ready}.
+
+Tóm lại, chương này đã trình bày thiết kế và triển khai thực tế của ThePawsome dựa trên code hiện có. Hệ thống đã có cấu trúc module rõ, CSDL quan hệ 28 bảng, luồng checkout có khóa và idempotency, Catbot RAG có guardrail, test backend cho các nghiệp vụ trọng tâm và cấu hình triển khai local/production trên AWS EC2/RDS. Các điểm còn cần hoàn thiện là bổ sung ảnh chụp giao diện từ môi trường demo thật, mở rộng test frontend/e2e và đồng bộ lại các dấu vết frontend cũ liên quan VNPay nếu quyết định triển khai VNPay trong tương lai.
 
 \end{document}

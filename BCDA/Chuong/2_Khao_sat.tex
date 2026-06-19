@@ -83,7 +83,7 @@ Chuyên gia thú y & Tham gia diễn đàn, trả lời câu hỏi với nhãn c
 Nhân viên hỗ trợ & Tiếp nhận phiên chat được Catbot chuyển giao, xử lý tình huống khiếu nại, đổi trả hoặc yêu cầu phức tạp cần người thật. \\ \hline
 Nhân viên quản trị & Quản lý catalog, banner, đơn hàng, khuyến mãi, bài viết diễn đàn, kho kiến thức và các tác vụ reindex embedding theo quyền được cấp. \\ \hline
 Quản trị viên & Quản lý toàn bộ người dùng, phân quyền, cấu hình hệ thống, nhật ký kiểm toán, thống kê và các nghiệp vụ nhạy cảm. \\ \hline
-Dịch vụ ngoài & OpenAI/Cohere cung cấp mô hình AI và embedding/rerank; VNPay và SePay xử lý thanh toán; Cloudinary lưu trữ ảnh; Redis hỗ trợ cache/rate limit; PostgreSQL/pgvector lưu dữ liệu nghiệp vụ và vector. \\ \hline
+Dịch vụ ngoài & OpenAI/Cohere cung cấp mô hình AI và embedding/rerank; SePay xử lý QR chuyển khoản và webhook; Cloudinary lưu trữ ảnh; Redis hỗ trợ cache/rate limit; PostgreSQL/pgvector lưu dữ liệu nghiệp vụ và vector. \\ \hline
 \end{tabular}
 \end{table}
 
@@ -127,7 +127,7 @@ Nhóm mua hàng bao phủ toàn bộ hành trình từ khám phá sản phẩm t
 \label{fig:2.2}
 \end{figure}
 
-Điểm đáng chú ý của nhóm mua hàng là hệ thống phải kiểm soát biến thể sản phẩm và tồn kho theo SKU. Khi khách hàng chọn size, hương vị hoặc thuộc tính khác, giá bán, giá khuyến mãi, tồn kho và ảnh đại diện cần được đồng bộ. Tại bước checkout, hệ thống không chỉ tạo đơn mà còn phải giữ kho tạm thời để tránh bán vượt tồn kho khi nhiều khách đặt cùng một biến thể.
+Điểm đáng chú ý của nhóm mua hàng là hệ thống phải kiểm soát biến thể sản phẩm và tồn kho theo SKU. Khi khách hàng chọn size, hương vị hoặc thuộc tính khác, giá bán, giá khuyến mãi, tồn kho và ảnh đại diện cần được đồng bộ. Tại bước checkout, hệ thống khóa dòng tồn kho trước khi trừ số lượng. Với đơn SePay, hệ thống tạo reservation để giữ hàng trong thời gian thanh toán QR, sau đó worker sẽ giải phóng hàng nếu giao dịch quá hạn.
 
 \subsection{Biểu đồ use case phân rã nhóm hồ sơ thú cưng và Catbot}
 \label{subsection:2.2.4}
@@ -214,7 +214,7 @@ Quy trình mua hàng là nghiệp vụ quan trọng nhất của hệ thống th
 \label{fig:2.6}
 \end{figure}
 
-Quy trình trên cho thấy checkout không chỉ là thao tác ghi đơn hàng. Đây là luồng giao dịch cần đảm bảo tính toàn vẹn dữ liệu, nhất quán giá tại thời điểm mua, chống tạo đơn trùng và chống overselling. Vì vậy, các bước kiểm tra idempotency, khóa tồn kho và xác minh callback thanh toán là bắt buộc.
+Quy trình trên cho thấy checkout không chỉ là thao tác ghi đơn hàng. Đây là luồng giao dịch cần đảm bảo tính toàn vẹn dữ liệu, nhất quán giá tại thời điểm mua, chống tạo đơn trùng và chống overselling. Vì vậy, các bước kiểm tra idempotency, khóa tồn kho và xác minh webhook thanh toán là bắt buộc.
 
 \subsubsection{Quy trình tư vấn bằng Catbot và chuyển giao hỗ trợ}
 \label{subsubsection:2.2.7.2}
@@ -384,28 +384,27 @@ Hậu điều kiện & Đơn hàng được tạo với snapshot giá và thông
 \hline
 \textbf{Mục} & \textbf{Nội dung} \\ \hline
 Tên use case & Thanh toán và xác nhận giao dịch \\ \hline
-Tác nhân chính & Khách hàng, khách vãng lai, cổng thanh toán VNPay, dịch vụ SePay \\ \hline
-Mục tiêu & Cho phép người dùng thanh toán đơn hàng bằng COD, VNPay hoặc chuyển khoản VietQR; đảm bảo callback/webhook được xác minh trước khi cập nhật trạng thái đơn hàng. \\ \hline
+Tác nhân chính & Khách hàng, khách vãng lai, dịch vụ SePay \\ \hline
+Mục tiêu & Cho phép người dùng thanh toán đơn hàng bằng COD hoặc chuyển khoản VietQR qua SePay; đảm bảo webhook được xác minh trước khi cập nhật trạng thái đơn hàng. \\ \hline
 Tiền điều kiện & Đơn hàng đã được tạo, còn trong trạng thái cho phép thanh toán và tổng tiền hợp lệ. \\ \hline
 Luồng sự kiện chính &
 \begin{minipage}[t]{10.1cm}
 \begin{enumerate}[leftmargin=*,topsep=0pt,itemsep=0pt]
     \item Người dùng chọn phương thức thanh toán tại checkout.
     \item Với COD, hệ thống ghi nhận đơn hàng chờ xử lý và không yêu cầu thanh toán trực tuyến.
-    \item Với VNPay, backend tạo URL thanh toán đã ký và chuyển hướng người dùng sang cổng thanh toán.
-    \item Với SePay VietQR, backend tạo mã tham chiếu, số tiền, thông tin tài khoản nhận và dữ liệu hiển thị QR.
+    \item Với SePay VietQR, backend tạo mã tham chiếu theo mã đơn, số tiền, thông tin tài khoản nhận và URL ảnh QR.
     \item Người dùng hoàn tất thanh toán trên kênh tương ứng.
-    \item VNPay gửi callback/IPN hoặc SePay gửi webhook về backend.
-    \item Backend xác minh chữ ký, mã đơn, số tiền, mã giao dịch và trạng thái thanh toán.
+    \item SePay gửi webhook về backend khi phát hiện giao dịch chuyển khoản.
+    \item Backend xác minh API key, hướng giao dịch, mã đơn, số tiền, mã giao dịch và trạng thái thanh toán.
     \item Nếu hợp lệ, backend cập nhật payment và order sang trạng thái đã thanh toán.
 \end{enumerate}
 \end{minipage} \\ \hline
 Luồng phát sinh &
 \begin{minipage}[t]{10.1cm}
 \begin{itemize}[leftmargin=*,topsep=0pt,itemsep=0pt]
-    \item Nếu callback có chữ ký sai, sai số tiền hoặc sai mã đơn, hệ thống từ chối cập nhật trạng thái.
+    \item Nếu webhook thiếu API key hợp lệ, sai số tiền hoặc không tìm được mã đơn, hệ thống từ chối cập nhật trạng thái.
     \item Nếu người dùng hủy thanh toán, đơn hàng giữ trạng thái chờ hoặc thất bại theo chính sách.
-    \item Nếu thanh toán quá hạn 15 phút, hệ thống giải phóng reservation để trả tồn kho về bán lại.
+    \item Nếu thanh toán quá hạn, hệ thống giải phóng reservation để trả tồn kho về bán lại.
     \item Nếu webhook được gửi lại nhiều lần, idempotency và trạng thái payment giúp hệ thống xử lý an toàn.
 \end{itemize}
 \end{minipage} \\ \hline
@@ -599,7 +598,7 @@ NFR-01 & Hiệu năng & Trang danh mục, giỏ hàng và API dữ liệu phổ 
 NFR-02 & Khả năng mở rộng & Hệ thống cần sẵn sàng mở rộng khi tăng sản phẩm, bài forum, tài liệu knowledge và phiên chat. & Kiến trúc frontend/backend tách lớp, Docker, pgvector collection, Redis và khả năng reindex độc lập. \\ \hline
 NFR-03 & Toàn vẹn dữ liệu & Đơn hàng, thanh toán, tồn kho và giá tại thời điểm mua phải nhất quán. & Giao dịch database, snapshot order items, ràng buộc schema, Alembic migration và khóa dòng \texttt{SELECT FOR UPDATE}. \\ \hline
 NFR-04 & Bảo mật xác thực & Tài khoản người dùng và nhân viên phải được bảo vệ khỏi truy cập trái phép. & bcrypt, JWT access token, refresh token HttpOnly Cookie, RBAC và kiểm tra owner ở API. \\ \hline
-NFR-05 & An toàn thanh toán & Callback thanh toán không được cập nhật đơn nếu không xác thực được nguồn và số tiền. & Xác minh chữ ký VNPay, bearer token SePay, kiểm tra amount, merchant reference và idempotency. \\ \hline
+NFR-05 & An toàn thanh toán & Webhook thanh toán không được cập nhật đơn nếu không xác thực được nguồn và số tiền. & Xác minh header \texttt{Apikey} của SePay, kiểm tra amount, merchant reference, duplicate transaction và idempotency. \\ \hline
 NFR-06 & An toàn AI & Catbot không được bịa sản phẩm, không tư vấn vượt quá phạm vi và không bị tài liệu độc hại điều khiển. & Guardrail tiếng Việt, sanitize nội dung retrieval, tool theo quyền người dùng, fallback an toàn và HITL handoff. \\ \hline
 NFR-07 & Khả dụng & Hệ thống cần có khả năng chạy ổn định ở môi trường local và sẵn sàng triển khai production. & Docker Compose, Nginx reverse proxy, health check live/ready, biến môi trường và startup secret check. \\ \hline
 NFR-08 & Dễ dùng & Giao diện cần rõ ràng cho khách mua hàng, responsive và có trạng thái loading, empty, error. & Next.js App Router, Tailwind CSS, UI primitives, toast, skeleton và layout tối ưu cho desktop/mobile. \\ \hline
