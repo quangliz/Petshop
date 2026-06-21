@@ -1,5 +1,5 @@
 """
-Tests for PERF-03: Proxy-safe IP resolution in VNPay payments router.
+Tests for PERF-03: Proxy-safe IP resolution in payments router.
 """
 import os
 from dotenv import load_dotenv

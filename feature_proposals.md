@@ -16,7 +16,7 @@
 | Categories | ✅ (CRUD cơ bản) | ✅ | Đơn giản |
 | Cart | ✅ | ✅ | OK |
 | Order + Checkout | ✅ (atomic stock) | ✅ | Tốt, có restore stock khi cancel |
-| Payment (VNPay sandbox) | ✅ (IPN + callback) | ✅ | Đủ |
+| Payment (SePay VietQR) | ✅ (Webhook đối soát) | ✅ | Tốt |
 | Pet Profile CRUD | ✅ | ✅ | Có đầy đủ trường |
 | AI Chat (SSE streaming) | ✅ (LangGraph) | ✅ (ChatWidget) | **Cơ bản — chưa có RAG** |
 | Admin Dashboard | ✅ (stats, CRUD, orders, users) | ✅ | Khá đầy đủ |

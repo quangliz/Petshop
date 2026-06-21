@@ -111,7 +111,7 @@ export default function OrderDetailPage() {
           <div className="flex flex-col gap-3">
             <div className="flex justify-between text-sm">
               <span className="text-neutral-500">Phương thức</span>
-              <span className="font-semibold">{order.payment_method === 'sepay' ? 'Chuyển khoản VietQR' : order.payment_method === 'vnpay' ? 'VNPay' : 'Thanh toán khi nhận hàng'}</span>
+              <span className="font-semibold">{order.payment_method === 'sepay' ? 'Chuyển khoản VietQR' : 'Thanh toán khi nhận hàng'}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-neutral-500">Trạng thái TT</span>

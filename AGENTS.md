@@ -6,7 +6,7 @@ Hướng dẫn cho coding assistant hoặc dev agent khi làm việc trong repos
 
 ThePawsome là đồ án tốt nghiệp về pet-shop e-commerce tích hợp trợ lý AI. Ngôn ngữ chính của tài liệu/UI là tiếng Việt. Repo là monorepo:
 
-- `backend/`: FastAPI API, PostgreSQL/pgvector, Redis, VNPay, Cloudinary, LangGraph/OpenAI.
+- `backend/`: FastAPI API, PostgreSQL/pgvector, Redis, SePay, Cloudinary, LangGraph/OpenAI.
 - `frontend/`: Next.js 16 App Router, TypeScript, Tailwind, TanStack Query, Zustand.
 - `docs/`: tài liệu phân tích, thiết kế, dữ liệu, API và readiness.
 
@@ -65,7 +65,7 @@ Backend tests dùng Postgres/Redis thật theo `.env` hoặc env CI. Đừng moc
 - `app/services/chat_agent.py`: LangGraph tool-calling chatbot.
 - `app/services/retrieval.py`: hybrid product search + knowledge search.
 - `app/services/indexing.py`: async-safe PGVector reindex helpers.
-- `app/services/vnpay.py`: signing/callback verification.
+- `app/services/sepay.py`: VietQR payment service.
 
 Database schema phải đi qua Alembic:
 

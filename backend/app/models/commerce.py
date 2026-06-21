@@ -16,7 +16,6 @@ class OrderStatusEnum(str, enum.Enum):
 
 class PaymentMethodEnum(str, enum.Enum):
     cod = "cod"
-    vnpay = "vnpay"
     sepay = "sepay"
 
 class PaymentStatusEnum(str, enum.Enum):

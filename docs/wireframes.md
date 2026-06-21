@@ -54,7 +54,6 @@ Giao diện ThePawsome tuân thủ bố cục ba phần tiêu chuẩn của thư
   - Cột tóm tắt đơn hàng (Tạm tính, Giảm giá, Phí ship, Tổng thanh toán).
   - **Bộ chọn Phương thức thanh toán:**
     - COD (Giao hàng thu tiền).
-    - VNPay (Chuyển hướng đến cổng thanh toán VNPay QR).
     - Chuyển khoản ngân hàng VietQR: Hiển thị mã QR ngân hàng tự động sinh bằng SePay (chứa sẵn số tiền và nội dung chuyển khoản là mã đơn hàng) để khách quét nhanh bằng app ngân hàng.
 
 ### D. Diễn đàn Cộng đồng (Forum Page)

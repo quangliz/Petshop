@@ -10,13 +10,13 @@ export default function PrivacyPolicyPage() {
           title: "Dữ liệu và mục đích xử lý",
           paragraphs: [
             "Chúng tôi xử lý thông tin tài khoản, liên hệ, địa chỉ giao hàng, đơn hàng, thanh toán, hồ sơ thú cưng và hội thoại AI để cung cấp dịch vụ, hỗ trợ khách hàng, chống gian lận và cải thiện độ an toàn của hệ thống.",
-            "ThePawsome không lưu thông tin thẻ. VNPay xử lý dữ liệu thanh toán theo hệ thống của họ.",
+            "ThePawsome không lưu thông tin thẻ hay tài khoản ngân hàng.",
           ],
         },
         {
           title: "Nhà cung cấp liên quan",
           paragraphs: [
-            "Dữ liệu cần thiết có thể được truyền tới VNPay, OpenAI, Cloudinary, Google và nhà cung cấp hạ tầng để thực hiện đúng chức năng người dùng yêu cầu. Chúng tôi giới hạn dữ liệu theo mục đích và không bán dữ liệu cá nhân.",
+            "Dữ liệu cần thiết có thể được truyền tới OpenAI, Cloudinary, Google, đối tác cổng thanh toán và nhà cung cấp hạ tầng để thực hiện đúng chức năng người dùng yêu cầu. Chúng tôi giới hạn dữ liệu theo mục đích và không bán dữ liệu cá nhân.",
             "Trợ lý AI có thể xử lý nội dung câu hỏi và hồ sơ thú cưng để cá nhân hóa. AI chỉ cung cấp thông tin tham khảo và không thay thế bác sĩ thú y.",
           ],
         },

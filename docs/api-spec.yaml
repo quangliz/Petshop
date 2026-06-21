@@ -326,7 +326,7 @@ paths:
                   type: string
                 payment_method:
                   type: string
-                  enum: [cod, vnpay, sepay]
+                  enum: [cod, sepay]
                 product_coupon_code:
                   type: string
                 shipping_coupon_code:
@@ -365,7 +365,7 @@ paths:
                   type: string
                 payment_method:
                   type: string
-                  enum: [cod, vnpay, sepay]
+                  enum: [cod, sepay]
                 items:
                   type: array
                   items:

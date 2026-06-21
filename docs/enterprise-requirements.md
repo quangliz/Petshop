@@ -19,7 +19,6 @@ graph TD
     Postgres -->|Streaming Replication| PostgresReplica[(PostgreSQL Read Replica)]
     
     FastAPI -->|RAG Vector Store| PGVector[(PostgreSQL + pgvector)]
-    FastAPI -->|External APIs| VNPay[VNPay Payment Gateway]
     FastAPI -->|Webhook Bank Transfer| SePay[SePay Webhook Linker]
     FastAPI -->|OpenAI API| GPT[OpenAI GPT-4o-mini / Cohere]
     
@@ -60,7 +59,7 @@ Hệ thống ThePawsome đặt mục tiêu đạt chuẩn **RTO (Recovery Time O
    - Docker Compose được cấu hình `restart: always` cho các dịch vụ cốt lõi.
    - FastAPI tích hợp Health Check Ready/Live endpoint (`/health/ready` và `/health/live`) cho phép các bộ cân bằng tải (Load Balancer) tự động ngắt kết nối các node backend lỗi và khởi động lại chúng.
 3. **Quản lý Hạn mức và Lỗi API bên thứ ba:**
-   - Các API ngoài (OpenAI, VNPay, SePay) được bọc trong các khối `try/except` có tích hợp cơ chế tự động thử lại (Retry) và ngắt mạch tự động (Circuit Breaker) để tránh tình trạng treo backend khi dịch vụ bên thứ ba bị sập.
+    - Các API ngoài (OpenAI, SePay) được bọc trong các khối `try/except` có tích hợp cơ chế tự động thử lại (Retry) và ngắt mạch tự động (Circuit Breaker) để tránh tình trạng treo backend khi dịch vụ bên thứ ba bị sập.
 
 ---
 

@@ -18,7 +18,7 @@ Tài liệu này tóm tắt kết quả nghiên cứu, phạm vi đề tài, và
 - **Quản lý Catalog:** Hỗ trợ sản phẩm phân loại theo biến thể đa chiều (`ProductVariant`) gồm các tổ hợp kích thước, hương vị, màu sắc, quản lý giá bán khuyến mãi riêng biệt và tồn kho theo SKU.
 - **Quản lý Giỏ hàng:** Đồng bộ hóa dữ liệu giỏ hàng trên DB cho người dùng đã xác thực, quản lý giỏ hàng tạm thời cho khách vãng lai và đồng bộ dữ liệu khi đăng nhập.
 - **Giữ kho thông minh (Inventory Reservation):** Lock kho tạm thời 15 phút chống overselling khi có tranh chấp mua hàng trong sự kiện khuyến mãi lớn.
-- **Thanh toán tự động:** Tích hợp thành công cổng thanh toán **VNPay** và hệ thống xác thực giao dịch chuyển khoản tự động qua **VietQR (SePay Webhook)**.
+- **Thanh toán tự động:** Tích hợp thành công hệ thống xác thực giao dịch chuyển khoản tự động qua **VietQR (SePay Webhook)**.
 - **Quy trình Đổi trả:** Khách hàng gửi yêu cầu đổi trả một phần đơn hàng trực tuyến; quản trị viên kiểm duyệt, hoàn trả tiền và cập nhật số lượng tồn kho tự động.
 
 ### Phân hệ 2: Trợ lý tư vấn AI Catbot (RAG AI Agent)

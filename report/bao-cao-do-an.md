@@ -224,7 +224,7 @@ ThePawsome tham chiếu các nguyên tắc OWASP API Security Top 10, đồng th
 | User | Khách đã đăng nhập | Quản lý hồ sơ, pet, giỏ hàng, đơn hàng, review, chat AI |
 | Admin | Người quản trị | Quản lý catalog, đơn hàng, user, banner, knowledge, embeddings |
 | OpenAI | Dịch vụ AI | Chat model, embedding model |
-| VNPay | Cổng thanh toán | Tạo/kiểm tra giao dịch online |
+| SePay | Cổng thanh toán | Tạo link VietQR và nhận webhook |
 | Cloudinary | Lưu trữ ảnh | Upload ảnh sản phẩm, banner, pet avatar |
 | Redis | Cache/rate limit | Rate limit, cache embedding query, cache pet profile |
 | PostgreSQL/pgvector | Database | Lưu dữ liệu nghiệp vụ và vector embeddings |
@@ -237,7 +237,7 @@ ThePawsome tham chiếu các nguyên tắc OWASP API Security Top 10, đồng th
 | FR-02 | Profile/Pet | Cập nhật profile, CRUD hồ sơ thú cưng, upload avatar |
 | FR-03 | Catalog | Xem danh mục, banner, danh sách sản phẩm, chi tiết, filter/sort/paging |
 | FR-04 | Commerce | Giỏ hàng, checkout user/guest, lịch sử đơn, tra cứu đơn, hủy đơn pending |
-| FR-05 | Payment | COD, VNPay create URL, IPN/callback/status |
+| FR-05 | Payment | COD, SePay VietQR payment link, webhook/status |
 | FR-06 | Review | Đánh giá sản phẩm đã mua, xem rating summary |
 | FR-07 | AI Chat | Chat streaming, lưu session, dùng pet/product/knowledge context |
 | FR-08 | Recommendation | Gợi ý sản phẩm theo hồ sơ thú cưng/user context |
@@ -324,7 +324,7 @@ flowchart LR
 |---|---|
 | Actor | User |
 | Tiền điều kiện | User đã đăng nhập, giỏ hàng có sản phẩm |
-| Luồng chính | Chọn checkout, nhập địa chỉ, chọn COD/VNPay, backend lock tồn kho, tạo order, tạo order items snapshot, xóa item đã mua |
+| Luồng chính | Chọn checkout, nhập địa chỉ, chọn COD/SePay, backend lock tồn kho, tạo order, tạo order items snapshot, xóa item đã mua |
 | Luồng thay thế | Hết hàng, variant không hợp lệ, payment method sai, idempotency key bị reuse khác request |
 | Hậu điều kiện | Đơn hàng được tạo, tồn kho cập nhật, user xem được chi tiết đơn |
 

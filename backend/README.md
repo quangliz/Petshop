@@ -13,7 +13,7 @@ Backend là FastAPI service cho toàn bộ nghiệp vụ commerce, auth, admin v
 - LangGraph + LangChain + OpenAI cho chatbot và RAG
 - LangChain PGVector collections cho embedding sản phẩm/knowledge
 - Cloudinary upload ảnh
-- VNPay sandbox
+- SePay VietQR
 - pytest + Ruff
 
 ## Cấu trúc
@@ -38,7 +38,7 @@ app/
 │       └── admin/
 ├── core/                   # config, security, email, Redis, limiter
 ├── models/                 # SQLAlchemy models
-└── services/               # AI, retrieval, indexing, VNPay, pet cache
+└── services/               # AI, retrieval, indexing, SePay, pet cache
 ```
 
 ## Cấu hình
@@ -83,7 +83,7 @@ Health checks:
 - `banners`: banner public đang active.
 - `cart`: giỏ hàng user, item add/update/delete.
 - `orders`: idempotent user/guest checkout, order history, protected guest lookup, detail, cancel.
-- `payments`: VNPay payment attempt, status polling và authoritative IPN.
+- `payments`: SePay VietQR payment link, status polling và Webhook đối soát.
 - `pets`: CRUD hồ sơ thú cưng và upload avatar.
 - `chat`: chat sessions, messages, streaming response.
 - `reviews`: tạo/list/xóa review, rating summary, can-review.

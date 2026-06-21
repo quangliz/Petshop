@@ -14,7 +14,7 @@ Tài liệu này cung cấp danh mục kiểm tra (Checklist) và các bước c
 - [ ] **Môi trường sản xuất (Environment Mode):**
   - Thiết lập `ENV=production` và `DEBUG=False`. Việc để chế độ Debug ở Production sẽ làm lộ chi tiết mã nguồn và cấu hình hệ thống khi có lỗi xảy ra.
 - [ ] **Khóa API bên ngoài:**
-  - Cấu hình khóa API thật cho: `OPENAI_API_KEY`, `COHERE_API_KEY`, `CLOUDINARY_URL`, `VNPAY_HASH_SECRET`, và `SEPAY_API_KEY`.
+  - Cấu hình khóa API thật cho: `OPENAI_API_KEY`, `COHERE_API_KEY`, `CLOUDINARY_URL`, và `SEPAY_API_KEY`.
   - Tuyệt đối không lưu các khóa này trong file code hoặc đẩy lên kho lưu trữ git công khai.
 
 ---

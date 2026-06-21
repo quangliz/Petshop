@@ -45,7 +45,7 @@ Backend được phát triển bằng **FastAPI**, tận dụng tối đa cơ ch
   - [**retrieval.py**](file:///home/quang/Documents/DATN/backend/app/services/retrieval.py): Logic tìm kiếm kết hợp Hybrid RRF và Cohere Rerank.
   - [**indexing.py**](file:///home/quang/Documents/DATN/backend/app/services/indexing.py): Helper quản lý xóa/cập nhật và đồng bộ vector vào pgvector một cách phi tuần tự và an toàn (async-safe).
   - [**inventory.py**](file:///home/quang/Documents/DATN/backend/app/services/inventory.py): Quản lý giữ kho và khóa dòng bi quan tránh bán vượt tồn kho.
-  - [**vnpay.py**](file:///home/quang/Documents/DATN/backend/app/services/vnpay.py) & [**sepay.py**](file:///home/quang/Documents/DATN/backend/app/services/sepay.py): Xử lý tích hợp thanh toán.
+  - [**sepay.py**](file:///home/quang/Documents/DATN/backend/app/services/sepay.py): Xử lý tích hợp thanh toán chuyển khoản tự động.
 
 ---
 

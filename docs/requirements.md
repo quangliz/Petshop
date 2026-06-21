@@ -32,7 +32,7 @@ Tài liệu này đặc tả các yêu cầu chức năng (Functional Requiremen
 - **Khuyến mãi:** Hệ thống coupon thông minh áp dụng mã giảm giá sản phẩm hoặc giảm giá phí vận chuyển theo điều kiện đơn hàng tối thiểu.
 - **Idempotency:** Đảm bảo thanh toán và đặt hàng không bao giờ bị nhân đôi khi khách hàng double-click nhờ cơ chế khóa Idempotency Key.
 - **Giữ kho tạm thời:** Yêu cầu giữ kho trong 15 phút khi checkout. Hết 15 phút không thanh toán, hệ thống tự giải phóng tồn kho.
-- **Tích hợp thanh toán:** Thanh toán trực tuyến qua cổng VNPay và thanh toán chuyển khoản ngân hàng bằng dynamic VietQR qua SePay Webhook.
+- **Tích hợp thanh toán:** Thanh toán chuyển khoản ngân hàng bằng dynamic VietQR qua SePay Webhook.
 - **Đổi trả hàng:** Hỗ trợ quy trình gửi yêu cầu đổi trả một phần hoặc toàn bộ đơn hàng của khách và phê duyệt từ quản trị viên.
 
 ### E. Diễn đàn Cộng đồng (Community Forum)
