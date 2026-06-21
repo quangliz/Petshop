@@ -76,7 +76,7 @@ Với đơn SePay, hệ thống tạo \texttt{payments} có \texttt{merchant\_re
 \subsection{Kết quả đạt được}
 \label{subsection:5.3.3}
 
-Luồng checkout hiện tại giải quyết ba rủi ro chính: tạo đơn trùng, overselling và webhook không đáng tin. Các ràng buộc unique trên \texttt{orders} và \texttt{payments} là lớp bảo vệ cuối cùng nếu request song song lọt qua tầng ứng dụng. Worker \texttt{reservation\_expiry} giúp giải phóng hàng quá hạn mà không phụ thuộc vào request tiếp theo của người dùng. Hạn chế còn lại là VNPay mới tồn tại ở mức enum/service cũ và một số text frontend, chưa có router backend end-to-end; nếu muốn hỗ trợ VNPay thật, cần bổ sung settings, endpoint tạo URL, callback/IPN và test tương ứng.
+Luồng checkout hiện tại giải quyết ba rủi ro chính: tạo đơn trùng, overselling và webhook không đáng tin. Các ràng buộc unique trên \texttt{orders} và \texttt{payments} là lớp bảo vệ cuối cùng nếu request song song lọt qua tầng ứng dụng. Worker \texttt{reservation\_expiry} giúp giải phóng hàng quá hạn mà không phụ thuộc vào request tiếp theo của người dùng.
 
 \section{Human-in-the-loop cho tình huống vượt phạm vi AI}
 \label{section:5.4}

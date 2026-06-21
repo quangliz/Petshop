@@ -46,7 +46,7 @@ Bảng \ref{table:4.1} mô tả các gói backend quan trọng và trách nhiệ
 \texttt{api/routers} & Định nghĩa endpoint public và admin cho auth, products, cart, orders, payments, pets, chat, forum, reviews, banners, promotions, returns, audit logs và observability. \\ \hline
 \texttt{api/deps.py} & Cung cấp dependency dùng chung: phiên \texttt{AsyncSession}, người dùng hiện tại, optional user, admin user và các role như catalog manager, order operator, support, content manager. \\ \hline
 \texttt{models} & Định nghĩa 28 bảng nghiệp vụ bằng SQLAlchemy ORM, bao phủ user, catalog, commerce, forum, chat, knowledge, audit và AI observability. \\ \hline
-\texttt{services} & Chứa logic nghiệp vụ dùng lại: RAG retrieval, embedding/indexing, safety, inventory reservation, SePay service, VNPay helper chưa expose end-to-end, forum knowledge scoring, pet profile cache và audit. \\ \hline
+\texttt{services} & Chứa logic nghiệp vụ dùng lại: RAG retrieval, embedding/indexing, safety, inventory reservation, SePay service, forum knowledge scoring, pet profile cache và audit. \\ \hline
 \texttt{core} & Chứa cấu hình, security, email, Redis client, limiter và logging. \\ \hline
 \texttt{workers} & Chạy tác vụ nền, hiện tại có worker giải phóng reservation tồn kho quá hạn. \\ \hline
 \end{tabular}
@@ -313,6 +313,6 @@ CSDL production được host bằng Amazon RDS for PostgreSQL thay vì chạy P
 
 Các secret như \texttt{SECRET\_KEY}, \texttt{OPENAI\_API\_KEY}, \texttt{SEPAY\_API\_KEY}, Cloudinary, Google OAuth và thông tin kết nối RDS cần được cấp ở runtime, không commit vào mã nguồn. Khi triển khai thực tế, quy trình cập nhật gồm pull/build image trên EC2, chạy migration lên RDS, khởi động lại backend/worker/frontend và kiểm tra \texttt{/health}, \texttt{/health/live}, \texttt{/health/ready}.
 
-Tóm lại, chương này đã trình bày thiết kế và triển khai thực tế của ThePawsome dựa trên code hiện có. Hệ thống đã có cấu trúc module rõ, CSDL quan hệ 28 bảng, luồng checkout có khóa và idempotency, Catbot RAG có guardrail, test backend cho các nghiệp vụ trọng tâm và cấu hình triển khai local/production trên AWS EC2/RDS. Các điểm còn cần hoàn thiện là bổ sung ảnh chụp giao diện từ môi trường demo thật, mở rộng test frontend/e2e và đồng bộ lại các dấu vết frontend cũ liên quan VNPay nếu quyết định triển khai VNPay trong tương lai.
+Tóm lại, chương này đã trình bày thiết kế và triển khai thực tế của ThePawsome dựa trên code hiện có. Hệ thống đã có cấu trúc module rõ, CSDL quan hệ 28 bảng, luồng checkout có khóa và idempotency, Catbot RAG có guardrail, test backend cho các nghiệp vụ trọng tâm và cấu hình triển khai local/production trên AWS EC2/RDS. Các điểm còn cần hoàn thiện là bổ sung ảnh chụp giao diện từ môi trường demo thật và mở rộng test frontend/e2e.
 
 \end{document}
