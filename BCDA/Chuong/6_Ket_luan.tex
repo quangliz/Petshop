@@ -9,14 +9,14 @@ Về mặt kỹ thuật, backend đã được tổ chức theo các tầng rõ 
 
 Các đóng góp nổi bật của đồ án gồm: (i) Catbot RAG có khả năng truy xuất sản phẩm thật, kho tri thức, forum đủ điều kiện và hồ sơ thú cưng; (ii) tìm kiếm lai kết hợp keyword, semantic search, RRF và rerank tùy chọn; (iii) governance cho dữ liệu forum trước khi đưa vào RAG; (iv) checkout có idempotency, khóa dòng và reservation; (v) thanh toán SePay VietQR với webhook xác thực; và (vi) cơ chế HITL để chuyển phiên chat sang nhân viên hỗ trợ khi AI không nên tự xử lý.
 
-Bên cạnh kết quả đạt được, hệ thống vẫn còn một số hạn chế. Thứ nhất, chất lượng tư vấn AI phụ thuộc vào độ đầy đủ của dữ liệu sản phẩm, tài liệu knowledge, forum và cấu hình API key. Thứ hai, frontend chưa có bộ kiểm thử component hoặc e2e, nên các luồng UI như checkout, SePay polling, Catbot streaming và admin form cần được kiểm thử tự động thêm. Thứ ba, báo cáo vẫn cần ảnh chụp giao diện từ môi trường demo thật để thay thế các placeholder ở Chương \ref{chapter:Experiment}. Cuối cùng, hệ thống mới ở mức đồ án/demo, chưa có dữ liệu vận hành lớn để đánh giá tải, độ chính xác tư vấn và chi phí AI trong thời gian dài.
+Bên cạnh kết quả đạt được, hệ thống vẫn còn một số hạn chế. Thứ nhất, chất lượng tư vấn AI phụ thuộc vào độ đầy đủ của dữ liệu sản phẩm, tài liệu knowledge, forum và cấu hình API key. Thứ hai, frontend chưa có bộ kiểm thử component hoặc e2e, nên các luồng UI như checkout, SePay polling, Catbot streaming và admin form cần được kiểm thử tự động thêm. Thứ ba, hệ thống mới được đánh giá ở quy mô đồ án, chưa có dữ liệu vận hành lớn để đánh giá tải, độ chính xác tư vấn và chi phí AI trong thời gian dài.
 
 \section{Hướng phát triển}
 \label{section:6.2}
 
 Hướng phát triển gần nhất là hoàn thiện và tối ưu hóa hệ thống thanh toán tự động, tích hợp sâu hơn các cơ chế đối soát VietQR cho nhiều tài khoản và ngân hàng khác nhau để mở rộng quy mô.
 
-Hướng thứ hai là nâng cấp kiểm thử và dữ liệu demo. Frontend nên bổ sung Playwright hoặc Cypress cho các luồng khách hàng quan trọng, đặc biệt là đăng nhập, thêm giỏ, checkout, thanh toán QR, tra cứu đơn guest, gửi review, đặt câu hỏi Catbot và thao tác admin. Đồng thời cần chuẩn bị bộ seed dữ liệu sản phẩm, biến thể, ảnh, knowledge và forum có chất lượng để vừa phục vụ demo, vừa tạo ảnh chụp giao diện cho báo cáo.
+Hướng thứ hai là nâng cấp kiểm thử và dữ liệu mẫu. Frontend nên bổ sung Playwright hoặc Cypress cho các luồng khách hàng quan trọng, đặc biệt là đăng nhập, thêm giỏ, checkout, thanh toán QR, tra cứu đơn guest, gửi review, đặt câu hỏi Catbot và thao tác admin. Đồng thời cần chuẩn bị bộ seed dữ liệu sản phẩm, biến thể, ảnh, knowledge và forum có chất lượng để phục vụ kiểm thử, đánh giá và tái lập các kịch bản nghiệp vụ.
 
 Hướng thứ ba là cải thiện chất lượng AI. Có thể bổ sung đánh giá tự động câu trả lời Catbot theo tiêu chí groundedness, đúng slug sản phẩm, mức độ phù hợp với pet profile và khả năng từ chối câu hỏi y tế nguy hiểm. Kho knowledge nên có workflow review rõ hơn, ghi phiên bản tài liệu, người duyệt và ngày tái kiểm tra. Với forum, có thể tách các câu trả lời chuyên gia thành chunk riêng thay vì chỉ index thread, giúp retrieval chọn được đoạn trả lời chính xác hơn.
 

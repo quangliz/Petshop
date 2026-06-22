@@ -75,10 +75,11 @@ Bảng \ref{table:3.1} tổng hợp các lựa chọn công nghệ chính, vấn
 \begin{table}[H]
 \centering
 \small
+\setlength{\tabcolsep}{2pt}
 \renewcommand{\arraystretch}{1.25}
 \caption{Tổng hợp lựa chọn công nghệ trong ThePawsome}
 \label{table:3.1}
-\begin{tabular}{|p{2.7cm}|p{3.7cm}|p{3.5cm}|p{4.0cm}|}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{2.4cm}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}p{3.0cm}|>{\raggedright\arraybackslash}X|}
 \hline
 \textbf{Công nghệ} & \textbf{Vấn đề giải quyết} & \textbf{Lựa chọn thay thế} & \textbf{Lý do lựa chọn trong đồ án} \\ \hline
 FastAPI & API bất đồng bộ, validate dữ liệu, OpenAPI, middleware bảo mật và rate limit. & Django REST Framework, Flask, NestJS. & Phù hợp Python AI stack, nhẹ, type hint rõ và dễ chia router theo module. \\ \hline
@@ -87,9 +88,9 @@ PostgreSQL + SQLAlchemy async & Dữ liệu quan hệ, transaction, khóa dòng 
 pgvector & Lưu và tìm kiếm embedding sản phẩm/knowledge. & Pinecone, Milvus, Weaviate, Elasticsearch vector. & Giảm độ phức tạp triển khai, tận dụng cùng PostgreSQL. \\ \hline
 Redis & Cache embedding, pet profile, rate limit và dữ liệu TTL. & In-memory process cache, Memcached. & Có TTL chuẩn, dùng chung được cho nhiều instance backend. \\ \hline
 LangGraph & Orchestration agent có trạng thái và tool-calling. & Chain tuyến tính, function-calling tự quản lý. & Phù hợp luồng agent cần gọi nhiều tool và chuyển giao người thật. \\ \hline
-SePay VietQR & Thanh toán chuyển khoản QR và webhook. & MoMo, Stripe. & Phù hợp bối cảnh Việt Nam, dễ tích hợp QR chuyển khoản và đối soát webhook trong demo. \\ \hline
-Cloudinary & Lưu ảnh sản phẩm, banner và avatar thú cưng. & Lưu file local, S3-compatible storage. & Có SDK/API upload và URL ảnh ổn định cho frontend \cite{cloudinaryUploadDocs}. \\ \hline
-\end{tabular}
+SePay VietQR & Thanh toán chuyển khoản QR và webhook. & MoMo, Stripe. & Phù hợp bối cảnh Việt Nam, dễ tích hợp QR chuyển khoản và đối soát webhook trong phạm vi đồ án. \\ \hline
+Cloudinary & Lưu ảnh sản phẩm, banner và avatar thú cưng. & Lưu file local, S3. & Có API upload và URL ảnh ổn định cho frontend \cite{cloudinaryUploadDocs}. \\ \hline
+\end{tabularx}
 \end{table}
 
 Tóm lại, các công nghệ trong chương này được lựa chọn để phục vụ trực tiếp các yêu cầu của Chương \ref{chapter:Related_works}: FastAPI và Next.js giải quyết kiến trúc web; PostgreSQL, pgvector và Redis giải quyết dữ liệu nghiệp vụ và retrieval; LangGraph, OpenAI và Cohere giải quyết Catbot/RAG; SePay và cơ chế locking/idempotency giải quyết an toàn giao dịch. Các chương tiếp theo sẽ trình bày cách các công nghệ này được đưa vào thiết kế, triển khai và đánh giá hệ thống.

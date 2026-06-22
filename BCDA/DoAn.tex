@@ -22,6 +22,7 @@
 \usepackage{amssymb} % Bổ sung thêm kí hiệu về toán học
 \usepackage{amsbsy} % Hỗ trợ các kí hiệu in đậm
 \usepackage{array} % Tạo bảng array
+\usepackage{tabularx} % Tạo bảng tự chia đều bề rộng theo dòng
 \usepackage{longtable} % Cho phép bảng dài tự ngắt qua trang
 \usepackage{enumitem} % Cho phép thay đổi kí hiệu của list
 \usepackage{subfiles} % Chèn các file nhỏ, giúp chia các chapter ra nhiều file hơn
@@ -46,7 +47,9 @@
 \usepackage{listings}
 \usepackage{float}
 \usepackage{subcaption}
+\usepackage[htt]{hyphenat}
 \usepackage{xurl}
+\setlength{\emergencystretch}{3em}
 
 \usepackage[nonumberlist, nopostdot, nogroupskip, acronym]{glossaries}
 \usepackage{glossary-superragged}
@@ -107,7 +110,7 @@
 \setlength{\headheight}{14pt}
 
 \def \TITLE{ĐỒ ÁN TỐT NGHIỆP}
-\def \AUTHOR{[HỌ VÀ TÊN SINH VIÊN]}
+\def \AUTHOR{NGUYỄN VĂN QUANG}
 
 % ===================================================
 \titleformat{\chapter}[hang]{\centering\bfseries}{CHƯƠNG \thechapter.\ }{0pt}{}[]
@@ -198,7 +201,6 @@
 \begin{document}
 % \newgeometry{top=2cm, bottom=2cm, left=2cm, right=2cm}
 \subfile{Bia} % Phần bìa
-\subfile{Bia_lot} % Phần bìa
 % \restoregeometry
 
 % ===================================================

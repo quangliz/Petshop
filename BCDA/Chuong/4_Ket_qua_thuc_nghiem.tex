@@ -78,93 +78,39 @@ Bảng \ref{table:4.2} mô tả các gói frontend quan trọng. Thiết kế fr
 \subsection{Thiết kế giao diện}
 \label{subsection:4.2.1}
 
-Giao diện ThePawsome hướng tới người dùng phổ thông tại Việt Nam, ưu tiên thao tác mua hàng rõ ràng, responsive trên mobile/desktop và có đủ trạng thái loading, empty, error. Frontend dùng Tailwind CSS và một số UI primitive trong \texttt{frontend/src/components/ui}. Các trang sản phẩm có skeleton để giảm cảm giác chờ; các thao tác mutation như thêm giỏ, checkout, gửi forum hoặc review dùng thông báo phản hồi; các trang quản trị dùng bảng, form và modal để thao tác dữ liệu.
-
-Các ảnh chụp giao diện nên lấy từ môi trường demo có dữ liệu thật, vì ảnh stock hoặc ảnh tự dựng không phản ánh đúng sản phẩm. Do repository hiện chưa có bộ ảnh chụp màn hình BCDA cho chương 4, báo cáo đặt sẵn các placeholder bằng \texttt{IfFileExists}. Khi cần hoàn thiện bản nộp cuối, chỉ cần chụp đúng màn hình, đặt file vào \texttt{BCDA/Hinhve/} theo tên đã ghi trong Bảng \ref{table:4.3}; LaTeX sẽ tự dùng ảnh thật thay cho khung nhắc.
-
-\begin{table}[H]
-\centering
-\small
-\renewcommand{\arraystretch}{1.25}
-\caption{Danh sách ảnh giao diện cần bổ sung từ môi trường demo}
-\label{table:4.3}
-\begin{tabular}{|p{4.7cm}|p{5.0cm}|p{4.2cm}|}
-\hline
-\textbf{Tên file cần đặt} & \textbf{Nội dung ảnh} & \textbf{Nguồn phù hợp} \\ \hline
-\texttt{chuong4\_ui\_shop.png} & Trang shop có danh sách sản phẩm, bộ lọc, giá và trạng thái tồn kho. & Cần chụp từ frontend chạy với dữ liệu demo thật. \\ \hline
-\texttt{chuong4\_ui\_product\_detail.png} & Trang chi tiết sản phẩm có ảnh, biến thể, đánh giá và sản phẩm tương tự. & Cần chụp từ frontend chạy với dữ liệu demo thật. \\ \hline
-\texttt{chuong4\_ui\_checkout\_sepay.png} & Màn checkout hoặc thanh toán SePay VietQR. & Cần chụp từ môi trường có cấu hình SePay demo. \\ \hline
-\texttt{chuong4\_ui\_catbot.png} & Widget Catbot trả lời có thẻ sản phẩm thật. & Cần chụp sau khi backend có OpenAI key và dữ liệu sản phẩm. \\ \hline
-\texttt{chuong4\_ui\_admin\_products.png} & Màn quản trị sản phẩm, biến thể và ảnh. & Cần chụp bằng tài khoản admin/demo. \\ \hline
-\end{tabular}
-\end{table}
+Giao diện ThePawsome hướng tới người dùng phổ thông tại Việt Nam, ưu tiên thao tác mua hàng rõ ràng, responsive trên mobile/desktop và có đủ trạng thái loading, empty, error. Frontend dùng Tailwind CSS và các UI primitive dùng chung để giữ giao diện nhất quán. Các trang sản phẩm có skeleton để giảm cảm giác chờ; các thao tác mutation như thêm giỏ, checkout, gửi forum hoặc review dùng thông báo phản hồi; các trang quản trị dùng bảng, form và modal để thao tác dữ liệu. Các hình dưới đây minh họa những màn hình đại diện của hệ thống, gồm luồng mua hàng, thanh toán, tư vấn bằng Catbot và quản trị sản phẩm.
 
 \begin{figure}[H]
 \centering
-\IfFileExists{Hinhve/chuong4_ui_shop.png}{
-    \includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_shop.png}
-}{
-    \fbox{\begin{minipage}{0.88\linewidth}
-        \centering \textbf{Cần bổ sung ảnh:} \texttt{chuong4\_ui\_shop.png}\\
-        Ảnh chụp trang shop với dữ liệu sản phẩm thật.
-    \end{minipage}}
-}
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_shop.png}
 \caption{Màn hình shop và bộ lọc sản phẩm}
 \label{fig:4.2}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\IfFileExists{Hinhve/chuong4_ui_product_detail.png}{
-    \includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_product_detail.png}
-}{
-    \fbox{\begin{minipage}{0.88\linewidth}
-        \centering \textbf{Cần bổ sung ảnh:} \texttt{chuong4\_ui\_product\_detail.png}\\
-        Ảnh chụp trang chi tiết sản phẩm với biến thể, đánh giá và sản phẩm tương tự.
-    \end{minipage}}
-}
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_product_detail.png}
 \caption{Màn hình chi tiết sản phẩm}
 \label{fig:4.product_detail}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\IfFileExists{Hinhve/chuong4_ui_checkout_sepay.png}{
-    \includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_checkout_sepay.png}
-}{
-    \fbox{\begin{minipage}{0.88\linewidth}
-        \centering \textbf{Cần bổ sung ảnh:} \texttt{chuong4\_ui\_checkout\_sepay.png}\\
-        Ảnh chụp màn checkout hoặc thanh toán SePay VietQR trong môi trường demo.
-    \end{minipage}}
-}
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_checkout_sepay.png}
 \caption{Màn hình checkout và thanh toán SePay}
 \label{fig:4.checkout_sepay}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\IfFileExists{Hinhve/chuong4_ui_catbot.png}{
-    \includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_catbot.png}
-}{
-    \fbox{\begin{minipage}{0.88\linewidth}
-        \centering \textbf{Cần bổ sung ảnh:} \texttt{chuong4\_ui\_catbot.png}\\
-        Ảnh chụp Catbot trả lời bằng tiếng Việt và render thẻ sản phẩm thật.
-    \end{minipage}}
-}
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_catbot.png}
 \caption{Màn hình Catbot tư vấn sản phẩm}
 \label{fig:4.3}
 \end{figure}
 
 \begin{figure}[H]
 \centering
-\IfFileExists{Hinhve/chuong4_ui_admin_products.png}{
-    \includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_admin_products.png}
-}{
-    \fbox{\begin{minipage}{0.88\linewidth}
-        \centering \textbf{Cần bổ sung ảnh:} \texttt{chuong4\_ui\_admin\_products.png}\\
-        Ảnh chụp màn quản trị sản phẩm, biến thể và ảnh bằng tài khoản admin/demo.
-    \end{minipage}}
-}
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_admin_products.png}
 \caption{Màn hình quản trị sản phẩm}
 \label{fig:4.admin_products}
 \end{figure}
@@ -186,17 +132,18 @@ Bảng \ref{table:4.4} tổng hợp các nhóm bảng chính. Nhóm catalog lưu
 \begin{table}[H]
 \centering
 \small
+\setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.2}
 \caption{Tổng hợp nhóm bảng dữ liệu}
 \label{table:4.4}
-\begin{tabular}{|p{2.8cm}|p{1.4cm}|p{9.8cm}|}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.1cm}|>{\raggedright\arraybackslash}p{1.4cm}|>{\raggedright\arraybackslash}p{9.1cm}|}
 \hline
 \textbf{Nhóm} & \textbf{Số bảng} & \textbf{Các bảng chính} \\ \hline
 User/Pet & 3 & \texttt{users}, \texttt{refresh\_sessions}, \texttt{pets}. \\ \hline
 Catalog & 5 & \texttt{categories}, \texttt{banners}, \texttt{products}, \texttt{product\_variants}, \texttt{product\_images}. \\ \hline
 Commerce & 9 & \texttt{carts}, \texttt{cart\_items}, \texttt{promotions}, \texttt{orders}, \texttt{order\_items}, \texttt{payments}, \texttt{inventory\_reservations}, \texttt{order\_returns}, \texttt{order\_return\_items}. \\ \hline
 Forum & 4 & \texttt{forum\_threads}, \texttt{forum\_replies}, \texttt{forum\_thread\_votes}, \texttt{forum\_reply\_votes}. \\ \hline
-AI/Knowledge/Log & 5 & \texttt{knowledge\_docs}, \texttt{chat\_sessions}, \texttt{chat\_messages}, \texttt{ai\_call\_logs}, \texttt{audit\_logs}. \\ \hline
+AI/Knowledge/\allowbreak Log & 5 & \texttt{knowledge\_docs}, \texttt{chat\_sessions}, \texttt{chat\_messages}, \texttt{ai\_call\_logs}, \texttt{audit\_logs}. \\ \hline
 Review/Wishlist & 2 & \texttt{reviews}, \texttt{wishlist\_items}. \\ \hline
 \end{tabular}
 \end{table}
@@ -217,14 +164,12 @@ Các hình tiếp theo trình bày ERD chi tiết cho từng nhóm bảng. Trong
 \label{fig:4.erd_catalog}
 \end{figure}
 
-\begin{landscape}
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_commerce.png}
+\includegraphics[width=1.0\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_commerce.png}
 \caption{ERD nhóm Commerce}
 \label{fig:4.erd_commerce}
 \end{figure}
-\end{landscape}
 
 \begin{figure}[H]
 \centering
@@ -266,11 +211,12 @@ Bảng \ref{table:4.5} liệt kê các công cụ và thư viện chính theo ph
 
 \begin{table}[H]
 \centering
-\scriptsize
-\renewcommand{\arraystretch}{1.15}
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.18}
 \caption{Danh sách công cụ và thư viện sử dụng}
 \label{table:4.5}
-\begin{tabular}{|p{3.3cm}|p{3.8cm}|p{2.0cm}|p{5.0cm}|}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.15cm}|>{\raggedright\arraybackslash}p{3.45cm}|>{\raggedright\arraybackslash}p{1.8cm}|>{\raggedright\arraybackslash}p{5.15cm}|}
 \hline
 \textbf{Mục đích} & \textbf{Công cụ/thư viện} & \textbf{Phiên bản} & \textbf{Vai trò trong hệ thống} \\ \hline
 Backend API & FastAPI & 0.136.0 & Xây dựng REST API, middleware, OpenAPI docs. \\ \hline
@@ -302,10 +248,11 @@ Tính tại thời điểm rà soát mã nguồn, hệ thống có 61 file Pytho
 \begin{table}[H]
 \centering
 \small
+\setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.2}
 \caption{Thống kê mã nguồn chính}
 \label{table:4.6}
-\begin{tabular}{|p{4.2cm}|p{2.2cm}|p{2.5cm}|p{5.0cm}|}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.7cm}|>{\raggedright\arraybackslash}p{2.0cm}|>{\raggedright\arraybackslash}p{2.2cm}|>{\raggedright\arraybackslash}p{5.7cm}|}
 \hline
 \textbf{Thành phần} & \textbf{Số file} & \textbf{Số dòng code} & \textbf{Ghi chú} \\ \hline
 \texttt{backend/app} & 61 & 8.681 & API, core, models, services, worker. \\ \hline
@@ -330,10 +277,11 @@ Kiểm thử backend được tổ chức trong \texttt{backend/tests}. Bộ tes
 \begin{table}[H]
 \centering
 \small
+\setlength{\tabcolsep}{3pt}
 \renewcommand{\arraystretch}{1.2}
 \caption{Nhóm kiểm thử backend}
 \label{table:4.7}
-\begin{tabular}{|p{3.0cm}|p{7.0cm}|p{3.8cm}|}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{2.8cm}|>{\raggedright\arraybackslash}p{6.6cm}|>{\raggedright\arraybackslash}p{4.2cm}|}
 \hline
 \textbf{Nhóm test} & \textbf{Mục tiêu kiểm thử} & \textbf{File tiêu biểu} \\ \hline
 Auth/security & Đăng ký, đăng nhập, refresh token, logout, email verify, secret startup. & \texttt{test\_auth.py}, \texttt{test\_security\_startup.py} \\ \hline
@@ -344,7 +292,7 @@ Hardening & Validation contract, cache, proxy-safe IP, phase hardening. & \textt
 \end{tabular}
 \end{table}
 
-Frontend hiện có script \texttt{npm run lint} và \texttt{npm run build}. Trong phạm vi code hiện tại chưa có bộ test component/e2e riêng cho frontend, vì vậy đây là một hạn chế cần bổ sung trong giai đoạn phát triển tiếp. Các luồng UI quan trọng như checkout, SePay polling, Catbot streaming và admin product form nên được kiểm thử thêm bằng Playwright hoặc Cypress khi dữ liệu demo ổn định.
+Frontend hiện có script \texttt{npm run lint} và \texttt{npm run build}. Trong phạm vi code hiện tại chưa có bộ test component/e2e riêng cho frontend, vì vậy đây là một hạn chế cần bổ sung trong giai đoạn phát triển tiếp. Các luồng UI quan trọng như checkout, SePay polling, Catbot streaming và admin product form nên được kiểm thử thêm bằng Playwright hoặc Cypress khi dữ liệu mẫu ổn định.
 
 \section{Triển khai}
 \label{section:4.5}
@@ -357,6 +305,6 @@ CSDL production được host bằng Amazon RDS for PostgreSQL thay vì chạy P
 
 Các secret như \texttt{SECRET\_KEY}, \texttt{OPENAI\_API\_KEY}, \texttt{SEPAY\_API\_KEY}, Cloudinary, Google OAuth và thông tin kết nối RDS cần được cấp ở runtime, không commit vào mã nguồn. Khi triển khai thực tế, quy trình cập nhật gồm pull/build image trên EC2, chạy migration lên RDS, khởi động lại backend/worker/frontend và kiểm tra \texttt{/health}, \texttt{/health/live}, \texttt{/health/ready}.
 
-Tóm lại, chương này đã trình bày thiết kế và triển khai thực tế của ThePawsome dựa trên code hiện có. Hệ thống đã có cấu trúc module rõ, CSDL quan hệ 28 bảng, luồng checkout có khóa và idempotency, Catbot RAG có guardrail, test backend cho các nghiệp vụ trọng tâm và cấu hình triển khai local/production trên AWS EC2/RDS. Các điểm còn cần hoàn thiện là bổ sung ảnh chụp giao diện từ môi trường demo thật và mở rộng test frontend/e2e.
+Tóm lại, chương này đã trình bày thiết kế và triển khai thực tế của ThePawsome dựa trên code hiện có. Hệ thống đã có cấu trúc module rõ, CSDL quan hệ 28 bảng, luồng checkout có khóa và idempotency, Catbot RAG có guardrail, test backend cho các nghiệp vụ trọng tâm và cấu hình triển khai local/production trên AWS EC2/RDS. Điểm còn cần hoàn thiện chính là mở rộng kiểm thử frontend/e2e cho các luồng giao diện quan trọng.
 
 \end{document}

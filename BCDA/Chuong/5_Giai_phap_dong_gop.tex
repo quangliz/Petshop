@@ -111,7 +111,7 @@ Một hệ thống tích hợp thương mại điện tử và AI cần được
 
 Backend thêm middleware request context để sinh hoặc nhận \texttt{X-Request-ID}, log route, method, status, latency và user id nếu có access token hợp lệ. Các header bảo mật như \texttt{X-Content-Type-Options}, \texttt{X-Frame-Options}, \texttt{Referrer-Policy} và \texttt{Permissions-Policy} được gắn ở middleware. Startup chặn \texttt{SECRET\_KEY} rỗng hoặc thuộc danh sách yếu; production yêu cầu secret đủ dài.
 
-Với AI, router chat ghi \texttt{AICallLog} gồm user id, session id, model, prompt tokens, completion tokens, latency và chi phí ước tính. Khi tổng chi phí trong ngày vượt ngưỡng cảnh báo, service alert có thể gửi cảnh báo. Hệ thống cũng có endpoint observability cho web vitals, funnel event và SLO metrics ở mức demo.
+Với AI, router chat ghi \texttt{AICallLog} gồm user id, session id, model, prompt tokens, completion tokens, latency và chi phí ước tính. Khi tổng chi phí trong ngày vượt ngưỡng cảnh báo, service alert có thể gửi cảnh báo. Hệ thống cũng có endpoint observability cho web vitals, funnel event và SLO metrics ở mức triển khai thử nghiệm.
 
 \subsection{Kết quả đạt được}
 \label{subsection:5.5.3}
