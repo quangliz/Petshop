@@ -42,7 +42,7 @@ CATEGORY_LABELS = {
     ForumCategoryEnum.event: "Sự kiện",
     ForumCategoryEnum.general: "Chung",
 }
-MODERATOR_ROLES = {RoleEnum.admin, RoleEnum.support, RoleEnum.content_manager}
+MODERATOR_ROLES = {RoleEnum.admin, RoleEnum.support}
 
 
 class ForumThreadCreate(BaseModel):

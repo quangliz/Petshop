@@ -8,14 +8,14 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const menuItems = [
   { href: "/admin", label: "Tổng quan", icon: LayoutDashboard, roles: ["admin"] },
-  { href: "/admin/products", label: "Sản phẩm", icon: Package, roles: ["admin", "catalog_manager", "support"] },
-  { href: "/admin/orders", label: "Đơn hàng", icon: ShoppingCart, roles: ["admin", "order_operator", "support"] },
-  { href: "/admin/promotions", label: "Khuyến mãi", icon: Ticket, roles: ["admin", "catalog_manager"] },
+  { href: "/admin/products", label: "Sản phẩm", icon: Package, roles: ["admin", "support"] },
+  { href: "/admin/orders", label: "Đơn hàng", icon: ShoppingCart, roles: ["admin", "support"] },
+  { href: "/admin/promotions", label: "Khuyến mãi", icon: Ticket, roles: ["admin", "support"] },
   { href: "/admin/users", label: "Người dùng", icon: Users, roles: ["admin"] },
   { href: "/admin/banners", label: "Banner", icon: Image, roles: ["admin"] },
-  { href: "/admin/knowledge", label: "Tri thức", icon: BookOpen, roles: ["admin", "content_manager"] },
-  { href: "/admin/embeddings", label: "Embeddings", icon: Database, roles: ["admin", "content_manager"] },
-  { href: "/admin/forum", label: "Forum", icon: MessageSquare, roles: ["admin", "support", "content_manager"] },
+  { href: "/admin/knowledge", label: "Tri thức", icon: BookOpen, roles: ["admin", "support"] },
+  { href: "/admin/embeddings", label: "Embeddings", icon: Database, roles: ["admin", "support"] },
+  { href: "/admin/forum", label: "Forum", icon: MessageSquare, roles: ["admin", "support"] },
 ];
 
 const SidebarContent = ({ pathname, userRole }: { pathname: string; userRole: string }) => {
@@ -64,7 +64,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!isLoading) {
       if (!user) {
         router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
-      } else if (!["admin", "catalog_manager", "order_operator", "support", "content_manager"].includes(user.role)) {
+      } else if (!["admin", "support"].includes(user.role)) {
         router.replace("/");
       }
     }
@@ -94,7 +94,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (!user || !["admin", "catalog_manager", "order_operator", "support", "content_manager"].includes(user.role)) {
+  if (!user || !["admin", "support"].includes(user.role)) {
     return null;
   }
 

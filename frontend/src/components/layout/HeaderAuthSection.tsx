@@ -6,7 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { User } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const ADMIN_ROLES = ["admin", "catalog_manager", "order_operator", "support", "content_manager"];
+const ADMIN_ROLES = ["admin", "support"];
 
 export default function HeaderAuthSection() {
   const { user, isLoading, logout } = useAuthStore();

@@ -10,10 +10,7 @@ from app.database import Base
 class RoleEnum(str, enum.Enum):
     user = "user"
     admin = "admin"
-    catalog_manager = "catalog_manager"
-    order_operator = "order_operator"
     support = "support"
-    content_manager = "content_manager"
     expert = "expert"
 
 class SpeciesEnum(str, enum.Enum):

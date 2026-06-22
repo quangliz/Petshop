@@ -13,10 +13,7 @@ type AdminUser = User & { is_active: boolean; created_at: string };
 const ROLE_LABELS: Record<string, string> = {
   user: "User",
   admin: "Admin",
-  catalog_manager: "Catalog",
-  order_operator: "Order",
   support: "Support",
-  content_manager: "Content",
   expert: "Expert",
 };
 

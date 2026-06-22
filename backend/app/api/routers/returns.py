@@ -258,7 +258,7 @@ async def get_order_returns(
 @router.get("/admin/returns", response_model=List[ReturnResponse])
 async def list_returns_admin(
     db: SessionDep,
-    _auth: Any = Depends(require_roles(RoleEnum.order_operator))
+    _auth: Any = Depends(require_roles(RoleEnum.support))
 ) -> Any:
     """List all return requests (Admin/Order Operator)."""
     result = await db.execute(
@@ -303,7 +303,7 @@ async def approve_return_request(
     return_id: uuid.UUID,
     body: ReturnStatusUpdate,
     db: SessionDep,
-    _auth: Any = Depends(require_roles(RoleEnum.order_operator))
+    _auth: Any = Depends(require_roles(RoleEnum.support))
 ) -> Any:
     """Approve a return request. Status changes to approved (waiting for items)."""
     result = await db.execute(
@@ -377,7 +377,7 @@ async def complete_return_request(
     return_id: uuid.UUID,
     body: ReturnStatusUpdate,
     db: SessionDep,
-    _auth: Any = Depends(require_roles(RoleEnum.order_operator))
+    _auth: Any = Depends(require_roles(RoleEnum.support))
 ) -> Any:
     """Mark return request as completed. Restocks items and simulates refund transaction."""
     result = await db.execute(
@@ -478,7 +478,7 @@ async def reject_return_request(
     return_id: uuid.UUID,
     body: ReturnStatusUpdate,
     db: SessionDep,
-    _auth: Any = Depends(require_roles(RoleEnum.order_operator))
+    _auth: Any = Depends(require_roles(RoleEnum.support))
 ) -> Any:
     """Reject a return request."""
     result = await db.execute(

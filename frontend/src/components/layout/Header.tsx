@@ -20,7 +20,7 @@ const HeaderAuthSection = dynamic(() => import("./HeaderAuthSection"), {
 });
 
 const Logo = () => <BrandLogo size={42} />;
-const ADMIN_ROLES = ["admin", "catalog_manager", "order_operator", "support", "content_manager"];
+const ADMIN_ROLES = ["admin", "support"];
 
 const SearchSuggestionSkeletons = () => (
   <div className="flex flex-col">

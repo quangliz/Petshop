@@ -187,7 +187,7 @@ export default function ForumThreadPage() {
   if (isLoading) return <div className="py-16 text-center text-neutral-400">Đang tải chủ đề...</div>;
   if (error || !data) return <div className="py-16 text-center text-red-500">Không tìm thấy chủ đề forum</div>;
 
-  const canAccept = !!user && (data.author.id === user.id || ["admin", "support", "content_manager"].includes(user.role));
+  const canAccept = !!user && (data.author.id === user.id || ["admin", "support"].includes(user.role));
   const replyTree = buildReplyTree(data.replies);
   const startReplyTo = (reply: ForumReply) => {
     setReplyTarget(reply);

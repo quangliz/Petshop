@@ -42,43 +42,31 @@ def get_role_headers(email: str, role: RoleEnum) -> dict:
         db.close()
 
 @pytest.fixture
-def catalog_manager_headers():
-    return get_role_headers("catalog_mgr@petshop.dev", RoleEnum.catalog_manager)
-
-@pytest.fixture
-def order_operator_headers():
-    return get_role_headers("order_op@petshop.dev", RoleEnum.order_operator)
-
-@pytest.fixture
-def content_manager_headers():
-    return get_role_headers("content_mgr@petshop.dev", RoleEnum.content_manager)
+def support_headers():
+    return get_role_headers("support@petshop.dev", RoleEnum.support)
 
 # 1. Test RBAC granular access
-def test_rbac_access_control(client: TestClient, catalog_manager_headers, order_operator_headers, content_manager_headers, admin_headers):
-    # catalog manager accesses catalog admin -> OK
-    res = client.get("/api/v1/promotions", headers=catalog_manager_headers)
+def test_rbac_access_control(client: TestClient, support_headers, admin_headers):
+    # Support staff can access operational catalog/promotion APIs.
+    res = client.get("/api/v1/promotions", headers=support_headers)
     assert res.status_code == 200
 
-    # catalog manager accesses order operator admin -> 403 Forbidden
-    res = client.get("/api/v1/admin/returns", headers=catalog_manager_headers)
-    assert res.status_code == 403
-
-    # order operator accesses order returns admin -> OK
-    res = client.get("/api/v1/admin/returns", headers=order_operator_headers)
+    # Support staff can also access order/return operations after role collapse.
+    res = client.get("/api/v1/admin/returns", headers=support_headers)
     assert res.status_code == 200
 
-    # content manager accesses knowledge docs -> OK (or gets empty list)
-    res = client.get("/api/v1/audit-logs", headers=content_manager_headers)
+    # Audit logs remain admin-only.
+    res = client.get("/api/v1/audit-logs", headers=support_headers)
     assert res.status_code == 403  # Audit logs only for Admin
 
     res = client.get("/api/v1/audit-logs", headers=admin_headers)
     assert res.status_code == 200  # Admin can access audit logs
 
 # 2. Test Promotions / Coupon validation & stacking
-def test_coupon_validation_and_stacking(client: TestClient, catalog_manager_headers):
+def test_coupon_validation_and_stacking(client: TestClient, support_headers):
     # Create a product discount promotion
     prod_code = f"PROD{uuid.uuid4().hex[:6].upper()}"
-    res = client.post("/api/v1/promotions", headers=catalog_manager_headers, json={
+    res = client.post("/api/v1/promotions", headers=support_headers, json={
         "code": prod_code,
         "description": "Product promo",
         "promo_type": "product",
@@ -94,7 +82,7 @@ def test_coupon_validation_and_stacking(client: TestClient, catalog_manager_head
 
     # Create a shipping discount promotion
     ship_code = f"SHIP{uuid.uuid4().hex[:6].upper()}"
-    res = client.post("/api/v1/promotions", headers=catalog_manager_headers, json={
+    res = client.post("/api/v1/promotions", headers=support_headers, json={
         "code": ship_code,
         "description": "Shipping promo",
         "promo_type": "shipping",
@@ -132,7 +120,7 @@ def test_coupon_validation_and_stacking(client: TestClient, catalog_manager_head
 
     # Create another product discount promotion
     prod_code_2 = f"PROD2{uuid.uuid4().hex[:6].upper()}"
-    res = client.post("/api/v1/promotions", headers=catalog_manager_headers, json={
+    res = client.post("/api/v1/promotions", headers=support_headers, json={
         "code": prod_code_2,
         "description": "Product promo 2",
         "promo_type": "product",
@@ -156,7 +144,7 @@ def test_coupon_validation_and_stacking(client: TestClient, catalog_manager_head
     assert "tối đa 1 mã" in res.json()["detail"]
 
 # 3. Test Order Return Request Flow
-def test_order_return_workflow(client: TestClient, auth_headers, admin_headers, order_operator_headers):
+def test_order_return_workflow(client: TestClient, auth_headers, admin_headers, support_headers):
     # Let's check out a product using user auth
     item = get_purchasable_line(client)
     res = client.post("/api/v1/cart/items", headers=auth_headers, json=item)
@@ -186,10 +174,10 @@ def test_order_return_workflow(client: TestClient, auth_headers, admin_headers, 
     assert res.status_code == 400
     assert "chỉ có thể yêu cầu đổi trả cho đơn hàng đã hoàn thành" in res.json()["detail"].lower()
 
-    # Move order to completed through the order-operator API; this should also audit the status change.
+    # Move order to completed through the support API; this should also audit the status change.
     res = client.put(
         f"/api/v1/admin/orders/{order_id}/status",
-        headers=order_operator_headers,
+        headers=support_headers,
         json={"status": "completed"},
     )
     assert res.status_code == 200
@@ -225,15 +213,15 @@ def test_order_return_workflow(client: TestClient, auth_headers, admin_headers, 
     assert ret_data["status"] == "pending"
     return_id = ret_data["id"]
 
-    # Order operator approves the return
-    res = client.post(f"/api/v1/admin/returns/{return_id}/approve", headers=order_operator_headers, json={
+    # Support staff approves the return.
+    res = client.post(f"/api/v1/admin/returns/{return_id}/approve", headers=support_headers, json={
         "admin_notes": "Chấp thuận cho gửi trả hàng"
     })
     assert res.status_code == 200
     assert res.json()["status"] == "approved"
 
-    # Order operator completes the return (triggers restock + mock refund)
-    res = client.post(f"/api/v1/admin/returns/{return_id}/complete", headers=order_operator_headers, json={
+    # Support staff completes the return (triggers restock + mock refund).
+    res = client.post(f"/api/v1/admin/returns/{return_id}/complete", headers=support_headers, json={
         "admin_notes": "Đã nhận được hàng quay về kho, hoàn tiền COD"
     })
     assert res.status_code == 200
@@ -300,10 +288,10 @@ def test_audit_log_persistence(client: TestClient, admin_headers):
     assert items[0]["new_values"] == {"status": "confirmed"}
 
 
-def test_promotions_active_and_update(client: TestClient, catalog_manager_headers):
+def test_promotions_active_and_update(client: TestClient, support_headers):
     # 1. Create a promotion code
     promo_code = f"TEST{uuid.uuid4().hex[:6].upper()}"
-    res = client.post("/api/v1/promotions", headers=catalog_manager_headers, json={
+    res = client.post("/api/v1/promotions", headers=support_headers, json={
         "code": promo_code,
         "description": "Test active and update",
         "promo_type": "product",
@@ -328,7 +316,7 @@ def test_promotions_active_and_update(client: TestClient, catalog_manager_header
     # 3. Test update promotion (PUT /promotions/{id})
     res_update = client.put(
         f"/api/v1/promotions/{promo_id}",
-        headers=catalog_manager_headers,
+        headers=support_headers,
         json={
             "description": "Updated description",
             "discount_value": 25000.0,
@@ -347,4 +335,3 @@ def test_promotions_active_and_update(client: TestClient, catalog_manager_header
     active_promos_2 = res_active_2.json()
     codes_2 = [p["code"] for p in active_promos_2]
     assert promo_code not in codes_2
-

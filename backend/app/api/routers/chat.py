@@ -11,7 +11,7 @@ from sqlalchemy import select
 
 from sse_starlette.sse import EventSourceResponse
 
-from app.api.deps import SessionDep, CurrentUser, OptionalUser, AdminUser
+from app.api.deps import SessionDep, CurrentUser, OptionalUser, SupportOperator
 from app.models.chat import ChatSession, ChatMessage, ChatRoleEnum, ChatRoutingStatusEnum
 from app.models.user import Pet
 from app.models.catalog import Product
@@ -516,7 +516,7 @@ class AdminMessageRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
 
 @router.get("/admin/sessions/pending")
-async def list_pending_sessions(db: SessionDep, current_user: AdminUser):
+async def list_pending_sessions(db: SessionDep, current_user: SupportOperator):
     """Lấy danh sách các phiên chat đang chờ nhân viên hoặc đang được nhân viên hỗ trợ."""
     result = await db.execute(
         select(ChatSession)
@@ -537,8 +537,8 @@ async def list_pending_sessions(db: SessionDep, current_user: AdminUser):
     ]
 
 @router.post("/admin/sessions/{session_id}/claim")
-async def claim_session(session_id: str, db: SessionDep, current_user: AdminUser):
-    """Admin tiếp nhận hỗ trợ phiên chat (chuyển trạng thái sang 'human')."""
+async def claim_session(session_id: str, db: SessionDep, current_user: SupportOperator):
+    """Nhân viên hỗ trợ tiếp nhận phiên chat và chuyển trạng thái sang 'human'."""
     result = await db.execute(
         select(ChatSession).where(ChatSession.id == uuid.UUID(session_id))
     )
@@ -551,8 +551,8 @@ async def claim_session(session_id: str, db: SessionDep, current_user: AdminUser
     return {"status": "claimed", "session_id": str(session.id)}
 
 @router.post("/admin/sessions/{session_id}/messages")
-async def send_human_message(session_id: str, req: AdminMessageRequest, db: SessionDep, current_user: AdminUser):
-    """Admin gửi tin nhắn (người thật) vào phiên chat."""
+async def send_human_message(session_id: str, req: AdminMessageRequest, db: SessionDep, current_user: SupportOperator):
+    """Nhân viên hỗ trợ gửi tin nhắn người thật vào phiên chat."""
     result = await db.execute(
         select(ChatSession).where(ChatSession.id == uuid.UUID(session_id))
     )
@@ -578,8 +578,8 @@ async def send_human_message(session_id: str, req: AdminMessageRequest, db: Sess
     }
 
 @router.post("/admin/sessions/{session_id}/close")
-async def close_human_session(session_id: str, db: SessionDep, current_user: AdminUser):
-    """Kết thúc phiên hỗ trợ của admin và trả quyền xử lý lại cho AI ('ai')."""
+async def close_human_session(session_id: str, db: SessionDep, current_user: SupportOperator):
+    """Kết thúc phiên hỗ trợ và trả quyền xử lý lại cho AI ('ai')."""
     result = await db.execute(
         select(ChatSession).where(ChatSession.id == uuid.UUID(session_id))
     )

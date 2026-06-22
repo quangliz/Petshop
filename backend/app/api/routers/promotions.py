@@ -217,7 +217,7 @@ class PromotionUpdate(BaseModel):
 async def create_promotion(
     body: PromotionCreate,
     db: SessionDep,
-    _auth: Any = Depends(require_roles(RoleEnum.catalog_manager))
+    _auth: Any = Depends(require_roles(RoleEnum.support))
 ) -> Any:
     """Create a new promotion code (Catalog Manager / Admin)."""
     # Check duplicate code
@@ -271,7 +271,7 @@ async def create_promotion(
 @router.get("/", response_model=List[PromotionResponse])
 async def list_promotions(
     db: SessionDep,
-    _auth: Any = Depends(require_roles(RoleEnum.catalog_manager))
+    _auth: Any = Depends(require_roles(RoleEnum.support))
 ) -> Any:
     """List all promotions (Catalog Manager / Admin)."""
     result = await db.execute(select(Promotion).order_by(Promotion.created_at.desc()))
@@ -282,7 +282,7 @@ async def list_promotions(
 async def delete_promotion(
     promo_id: uuid.UUID,
     db: SessionDep,
-    _auth: Any = Depends(require_roles(RoleEnum.catalog_manager))
+    _auth: Any = Depends(require_roles(RoleEnum.support))
 ) -> Any:
     """Deactivate or delete a promotion (Catalog Manager / Admin)."""
     result = await db.execute(select(Promotion).where(Promotion.id == promo_id))
@@ -323,7 +323,7 @@ async def update_promotion(
     promo_id: uuid.UUID,
     body: PromotionUpdate,
     db: SessionDep,
-    _auth: Any = Depends(require_roles(RoleEnum.catalog_manager))
+    _auth: Any = Depends(require_roles(RoleEnum.support))
 ) -> Any:
     """Update a promotion code (Catalog Manager / Admin)."""
     result = await db.execute(select(Promotion).where(Promotion.id == promo_id))
@@ -374,4 +374,3 @@ async def update_promotion(
     await db.commit()
     await db.refresh(promo)
     return promo
-

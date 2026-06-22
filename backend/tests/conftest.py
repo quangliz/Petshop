@@ -71,6 +71,19 @@ def _ensure_test_schema() -> sessionmaker_cls:
             conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
             conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         Base.metadata.create_all(bind=_sync_engine)
+        with _sync_engine.begin() as conn:
+            conn.execute(
+                text(
+                    "UPDATE users SET role = 'support' "
+                    "WHERE role::text IN ('catalog_manager', 'order_operator', 'content_manager')"
+                )
+            )
+            conn.execute(
+                text(
+                    "UPDATE knowledge_docs SET category = 'health' "
+                    "WHERE category::text NOT IN ('nutrition', 'health', 'training', 'grooming', 'breed')"
+                )
+            )
     assert _SyncSession is not None
     return _SyncSession
 
@@ -170,5 +183,4 @@ def admin_token(client: TestClient) -> str:
 @pytest.fixture(scope="session")
 def admin_headers(admin_token: str) -> dict:
     return {"Authorization": f"Bearer {admin_token}"}
-
 
