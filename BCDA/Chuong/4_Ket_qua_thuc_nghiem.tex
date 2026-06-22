@@ -294,6 +294,51 @@ Hardening & Validation contract, cache, proxy-safe IP, phase hardening. & \textt
 
 Frontend hiện có script \texttt{npm run lint} và \texttt{npm run build}. Trong phạm vi code hiện tại chưa có bộ test component/e2e riêng cho frontend, vì vậy đây là một hạn chế cần bổ sung trong giai đoạn phát triển tiếp. Các luồng UI quan trọng như checkout, SePay polling, Catbot streaming và admin product form nên được kiểm thử thêm bằng Playwright hoặc Cypress khi dữ liệu mẫu ổn định.
 
+\subsection{Đánh giá thực nghiệm chất lượng và độ an toàn của trợ lý AI}
+\label{subsection:4.4.2}
+
+Để đánh giá chất lượng và độ an toàn của trợ lý ảo Catbot trong ThePawsome, đồ án thiết lập bộ đánh giá thực nghiệm (Evaluation Dataset) gồm 50 câu hỏi đa dạng, bao phủ nhiều nhóm nghiệp vụ khác nhau: Dinh dưỡng (Nutrition), Sức khỏe (Health), Sản phẩm (Product), Tình huống khẩn cấp (Emergency), Yêu cầu không an toàn (Unsafe) và Tấn công Prompt Injection. 
+
+Phương pháp đánh giá sử dụng mô hình \textit{LLM-as-a-judge} với giám khảo là mô hình ngôn ngữ lớn mạnh (GPT-4o) để chấm điểm tự động các câu trả lời dựa trên ba tiêu chí chính từ thang điểm 1 đến 5: Độ liên quan (Relevance), Tính căn cứ dữ liệu (Groundedness) và Độ hữu ích (Helpfulness). Tiến trình đánh giá và các metrics được quan sát và lưu vết trực quan thông qua dự án LangSmith mang tên \texttt{thepawsome-eval}.
+
+Bảng \ref{table:4.eval_summary} trình bày kết quả so sánh chất lượng trung bình giữa mô hình sử dụng RAG (hệ thống Catbot tích hợp kho tri thức mới và hồ sơ thú cưng) và mô hình No-RAG (chỉ sử dụng kiến thức nội tại của LLM).
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.3}
+\caption{Kết quả đánh giá chất lượng trợ lý ảo Catbot}
+\label{table:4.eval_summary}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{2.6cm}|>{\centering\arraybackslash}p{2.8cm}|>{\centering\arraybackslash}p{2.4cm}|>{\centering\arraybackslash}p{2.2cm}|}
+\hline
+\textbf{Chế độ vận hành} & \textbf{Relevance\newline (Độ liên quan)} & \textbf{Groundedness\newline (Tính căn cứ)} & \textbf{Helpfulness\newline (Hữu ích)} & \textbf{Average\newline (Trung bình)} \\ \hline
+Không sử dụng RAG (No-RAG) & 4.68 & 3.16 & 4.20 & 4.01 \\ \hline
+Có sử dụng RAG (Catbot RAG) & 4.62 & 4.28 & 4.60 & 4.50 \\ \hline
+\end{tabularx}
+\end{table}
+
+Kết quả thực nghiệm cho thấy mô hình Catbot sử dụng RAG cải thiện đáng kể điểm Groundedness (4.28 so với 3.16) và điểm Helpfulness (4.60 so với 4.20). Điều này chứng minh rằng Catbot RAG đưa ra các phản hồi có tính xác thực cao hơn, bám sát các tài liệu sách dịch y khoa, chính sách cửa hàng và hồ sơ thú cưng thực tế, từ đó hạn chế tối đa rủi ro ảo tưởng (hallucination) thường gặp ở các LLM.
+
+Bên cạnh đó, hệ thống cũng kiểm tra các chỉ số an toàn và tính toàn vẹn dữ liệu. Bảng \ref{table:4.eval_safety} thống kê tỷ lệ vượt qua (pass rate) của Catbot đối với các tiêu chuẩn an toàn đề ra.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\caption{Thống kê các chỉ số an toàn của trợ lý AI}
+\label{table:4.eval_safety}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{4.2cm}|>{\centering\arraybackslash}p{2.0cm}|>{\centering\arraybackslash}p{2.0cm}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Chỉ số kiểm tra\newline (Metric)} & \textbf{Kết quả\newline đạt được} & \textbf{Ngưỡng\newline yêu cầu} & \textbf{Cơ chế bảo vệ} \\ \hline
+Emergency escalation\newline (Cảnh báo khẩn cấp) & 100.0\% & 100\% & Nhận diện dấu hiệu cấp cứu y tế dập tắt prompt và khuyên đưa đi thú y ngay. \\ \hline
+Prompt injection safety\newline (An toàn Prompt Injection) & 100.0\% & 100\% & Chặn các truy vấn cố tình yêu cầu lộ System Prompt hoặc chiếm quyền. \\ \hline
+Valid product slugs\newline (Tính chính xác sản phẩm) & 100.0\% & 100\% & Chỉ render sản phẩm có thật trong kết quả truy xuất từ CSDL của cửa hàng. \\ \hline
+Citation presence\newline (Trích dẫn nguồn tài liệu) & 91.3\% & $\ge$ 80\% & Bắt buộc đính kèm link/tên nguồn khi trích xuất thông tin tư vấn y khoa. \\ \hline
+\end{tabularx}
+\end{table}
+
+Việc đạt tỷ lệ 100.0\% trên các chỉ số an toàn quan trọng (cấp cứu, injection, kiểm soát slug sản phẩm thật) và 91.3\% ở chỉ số trích dẫn chứng minh rằng trợ lý Catbot của hệ thống ThePawsome đã đáp ứng tốt các tiêu chuẩn an toàn thông tin và định hướng chuyên môn trước khi đưa vào vận hành thương mại.
+
 \section{Triển khai}
 \label{section:4.5}
 

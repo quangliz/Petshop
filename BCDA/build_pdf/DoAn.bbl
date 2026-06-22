@@ -47,60 +47,60 @@
       \verb https://www.petmart.vn/
       \endverb
     \endentry
-    \entry{petcityShopee2026}{misc}{}
+    \entry{chumsaupetShopee2026}{misc}{}
       \name{author}{1}{}{%
-        {{hash=5573f3f0a97cdb4298d01b33443adc6f}{%
-           family={{PetCity}},
-           familyi={P\bibinitperiod}}}%
+        {{hash=822582b25b1b255f89ce0b1c28dd795d}{%
+           family={{Chum Sâu Pet}},
+           familyi={C\bibinitperiod}}}%
       }
-      \strng{namehash}{5573f3f0a97cdb4298d01b33443adc6f}
-      \strng{fullhash}{5573f3f0a97cdb4298d01b33443adc6f}
-      \strng{bibnamehash}{5573f3f0a97cdb4298d01b33443adc6f}
-      \strng{authorbibnamehash}{5573f3f0a97cdb4298d01b33443adc6f}
-      \strng{authornamehash}{5573f3f0a97cdb4298d01b33443adc6f}
-      \strng{authorfullhash}{5573f3f0a97cdb4298d01b33443adc6f}
+      \strng{namehash}{822582b25b1b255f89ce0b1c28dd795d}
+      \strng{fullhash}{822582b25b1b255f89ce0b1c28dd795d}
+      \strng{bibnamehash}{822582b25b1b255f89ce0b1c28dd795d}
+      \strng{authorbibnamehash}{822582b25b1b255f89ce0b1c28dd795d}
+      \strng{authornamehash}{822582b25b1b255f89ce0b1c28dd795d}
+      \strng{authorfullhash}{822582b25b1b255f89ce0b1c28dd795d}
       \field{sortinit}{2}
       \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{title}{PetCity - thành phố thú cưng, cửa hàng trực tuyến trên Shopee Việt Nam}
+      \field{title}{Chum Sâu Pet - Phụ kiện thú cưng, cửa hàng trực tuyến trên Shopee Việt Nam}
       \field{urlday}{18}
       \field{urlmonth}{6}
       \field{urlyear}{2026}
       \field{urldateera}{ce}
       \verb{urlraw}
-      \verb https://shopee.vn/trungduc2t
+      \verb https://shopee.vn/chumsaupet
       \endverb
       \verb{url}
-      \verb https://shopee.vn/trungduc2t
+      \verb https://shopee.vn/chumsaupet
       \endverb
     \endentry
-    \entry{shopeePetShop2026}{misc}{}
+    \entry{marspetcareShopee2026}{misc}{}
       \name{author}{1}{}{%
-        {{hash=d0e91b13a8b9d027590ae7c52d9f0a0a}{%
-           family={{Shopee Việt Nam}},
-           familyi={S\bibinitperiod}}}%
+        {{hash=03ad43080ca3fe56fec5500ecc862c9f}{%
+           family={{Mars Petcare}},
+           familyi={M\bibinitperiod}}}%
       }
-      \strng{namehash}{d0e91b13a8b9d027590ae7c52d9f0a0a}
-      \strng{fullhash}{d0e91b13a8b9d027590ae7c52d9f0a0a}
-      \strng{bibnamehash}{d0e91b13a8b9d027590ae7c52d9f0a0a}
-      \strng{authorbibnamehash}{d0e91b13a8b9d027590ae7c52d9f0a0a}
-      \strng{authornamehash}{d0e91b13a8b9d027590ae7c52d9f0a0a}
-      \strng{authorfullhash}{d0e91b13a8b9d027590ae7c52d9f0a0a}
+      \strng{namehash}{03ad43080ca3fe56fec5500ecc862c9f}
+      \strng{fullhash}{03ad43080ca3fe56fec5500ecc862c9f}
+      \strng{bibnamehash}{03ad43080ca3fe56fec5500ecc862c9f}
+      \strng{authorbibnamehash}{03ad43080ca3fe56fec5500ecc862c9f}
+      \strng{authornamehash}{03ad43080ca3fe56fec5500ecc862c9f}
+      \strng{authorfullhash}{03ad43080ca3fe56fec5500ecc862c9f}
       \field{sortinit}{2}
       \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
       \field{labelnamesource}{author}
       \field{labeltitlesource}{title}
-      \field{title}{Danh mục và gian hàng sản phẩm thú cưng trên Shopee Việt Nam}
+      \field{title}{Mars Petcare Official Store, gian hàng chính hãng trên Shopee Việt Nam}
       \field{urlday}{18}
       \field{urlmonth}{6}
       \field{urlyear}{2026}
       \field{urldateera}{ce}
       \verb{urlraw}
-      \verb https://shopee.vn/thucungsaigon
+      \verb https://shopee.vn/marspetcare
       \endverb
       \verb{url}
-      \verb https://shopee.vn/thucungsaigon
+      \verb https://shopee.vn/marspetcare
       \endverb
     \endentry
     \entry{fastapiDocs}{misc}{}

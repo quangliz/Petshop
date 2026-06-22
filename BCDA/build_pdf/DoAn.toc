@@ -57,45 +57,46 @@
 \contentsline {subsection}{\numberline {4.3.2}Kết quả mã nguồn đạt được}{50}{subsection.4.3.2}%
 \contentsline {subsection}{\numberline {4.3.3}Minh họa các chức năng chính}{51}{subsection.4.3.3}%
 \contentsline {section}{\numberline {4.4}Kiểm thử}{51}{section.4.4}%
-\contentsline {section}{\numberline {4.5}Triển khai}{52}{section.4.5}%
-\contentsline {chapter}{\numberline {5}CÁC GIẢI PHÁP VÀ ĐÓNG GÓP NỔI BẬT}{54}{chapter.5}%
-\contentsline {section}{\numberline {5.1}Catbot RAG có ngữ cảnh hồ sơ thú cưng}{54}{section.5.1}%
-\contentsline {subsection}{\numberline {5.1.1}Bài toán}{54}{subsection.5.1.1}%
-\contentsline {subsection}{\numberline {5.1.2}Giải pháp}{54}{subsection.5.1.2}%
-\contentsline {subsection}{\numberline {5.1.3}Kết quả đạt được}{55}{subsection.5.1.3}%
-\contentsline {section}{\numberline {5.2}Tìm kiếm lai và quản trị tri thức forum}{55}{section.5.2}%
-\contentsline {subsection}{\numberline {5.2.1}Bài toán}{55}{subsection.5.2.1}%
-\contentsline {subsection}{\numberline {5.2.2}Giải pháp}{55}{subsection.5.2.2}%
-\contentsline {subsection}{\numberline {5.2.3}Kết quả đạt được}{56}{subsection.5.2.3}%
-\contentsline {section}{\numberline {5.3}Checkout an toàn với idempotency, khóa dòng và SePay}{56}{section.5.3}%
-\contentsline {subsection}{\numberline {5.3.1}Bài toán}{56}{subsection.5.3.1}%
-\contentsline {subsection}{\numberline {5.3.2}Giải pháp}{56}{subsection.5.3.2}%
-\contentsline {subsection}{\numberline {5.3.3}Kết quả đạt được}{58}{subsection.5.3.3}%
-\contentsline {section}{\numberline {5.4}Human-in-the-loop cho tình huống vượt phạm vi AI}{58}{section.5.4}%
-\contentsline {subsection}{\numberline {5.4.1}Bài toán}{58}{subsection.5.4.1}%
-\contentsline {subsection}{\numberline {5.4.2}Giải pháp}{58}{subsection.5.4.2}%
-\contentsline {subsection}{\numberline {5.4.3}Kết quả đạt được}{58}{subsection.5.4.3}%
-\contentsline {section}{\numberline {5.5}Quan sát hệ thống và hardening}{58}{section.5.5}%
-\contentsline {subsection}{\numberline {5.5.1}Bài toán}{58}{subsection.5.5.1}%
-\contentsline {subsection}{\numberline {5.5.2}Giải pháp}{59}{subsection.5.5.2}%
-\contentsline {subsection}{\numberline {5.5.3}Kết quả đạt được}{59}{subsection.5.5.3}%
-\contentsline {chapter}{\numberline {6}KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}{60}{chapter.6}%
-\contentsline {section}{\numberline {6.1}Kết luận}{60}{section.6.1}%
-\contentsline {section}{\numberline {6.2}Hướng phát triển}{60}{section.6.2}%
-\contentsline {chapter}{TÀI LIỆU THAM KHẢO}{64}{section*.39}%
-\contentsline {chapter}{PHỤ LỤC}{66}{section*.40}%
+\contentsline {subsection}{\numberline {4.4.1}Đánh giá thực nghiệm chất lượng và độ an toàn của trợ lý AI}{52}{subsection.4.4.1}%
+\contentsline {section}{\numberline {4.5}Triển khai}{54}{section.4.5}%
+\contentsline {chapter}{\numberline {5}CÁC GIẢI PHÁP VÀ ĐÓNG GÓP NỔI BẬT}{56}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Catbot RAG có ngữ cảnh hồ sơ thú cưng}{56}{section.5.1}%
+\contentsline {subsection}{\numberline {5.1.1}Bài toán}{56}{subsection.5.1.1}%
+\contentsline {subsection}{\numberline {5.1.2}Giải pháp}{56}{subsection.5.1.2}%
+\contentsline {subsection}{\numberline {5.1.3}Kết quả đạt được}{57}{subsection.5.1.3}%
+\contentsline {section}{\numberline {5.2}Tìm kiếm lai và quản trị tri thức forum}{57}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}Bài toán}{57}{subsection.5.2.1}%
+\contentsline {subsection}{\numberline {5.2.2}Giải pháp}{57}{subsection.5.2.2}%
+\contentsline {subsection}{\numberline {5.2.3}Kết quả đạt được}{58}{subsection.5.2.3}%
+\contentsline {section}{\numberline {5.3}Checkout an toàn với idempotency, khóa dòng và SePay}{58}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}Bài toán}{58}{subsection.5.3.1}%
+\contentsline {subsection}{\numberline {5.3.2}Giải pháp}{58}{subsection.5.3.2}%
+\contentsline {subsection}{\numberline {5.3.3}Kết quả đạt được}{60}{subsection.5.3.3}%
+\contentsline {section}{\numberline {5.4}Human-in-the-loop cho tình huống vượt phạm vi AI}{60}{section.5.4}%
+\contentsline {subsection}{\numberline {5.4.1}Bài toán}{60}{subsection.5.4.1}%
+\contentsline {subsection}{\numberline {5.4.2}Giải pháp}{60}{subsection.5.4.2}%
+\contentsline {subsection}{\numberline {5.4.3}Kết quả đạt được}{60}{subsection.5.4.3}%
+\contentsline {section}{\numberline {5.5}Quan sát hệ thống và hardening}{60}{section.5.5}%
+\contentsline {subsection}{\numberline {5.5.1}Bài toán}{60}{subsection.5.5.1}%
+\contentsline {subsection}{\numberline {5.5.2}Giải pháp}{61}{subsection.5.5.2}%
+\contentsline {subsection}{\numberline {5.5.3}Kết quả đạt được}{61}{subsection.5.5.3}%
+\contentsline {chapter}{\numberline {6}KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}{62}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Kết luận}{62}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Hướng phát triển}{62}{section.6.2}%
+\contentsline {chapter}{TÀI LIỆU THAM KHẢO}{66}{section*.41}%
+\contentsline {chapter}{PHỤ LỤC}{68}{section*.42}%
 \ttl@change@i {\@ne }{chapter}{0.0cm}{\bfseries \vspace {0.3cm}}{{\bfseries {\scshape } \thecontentslabel .\ }}{}{\titlerule *[0.3pc]{.}\contentspage }\relax 
 \ttl@change@v {chapter}{}{}{}\relax 
-\contentsline {chapter}{\numberline {A}HƯỚNG DẪN CÀI ĐẶT, TRIỂN KHAI VÀ KIỂM THỬ}{66}{appendix.a.A}%
-\contentsline {section}{\numberline {A.1}Chuẩn bị môi trường}{66}{section.a.A.1}%
-\contentsline {section}{\numberline {A.2}Khởi động dịch vụ phụ thuộc}{66}{section.a.A.2}%
-\contentsline {section}{\numberline {A.3}Chạy backend}{66}{section.a.A.3}%
-\contentsline {section}{\numberline {A.4}Chạy frontend}{66}{section.a.A.4}%
-\contentsline {section}{\numberline {A.5}Kiểm thử và kiểm tra build}{67}{section.a.A.5}%
-\contentsline {section}{\numberline {A.6}Triển khai production bằng Docker Compose}{67}{section.a.A.6}%
-\contentsline {chapter}{\numberline {B}ĐẶC TẢ USE CASE BỔ SUNG}{68}{appendix.a.B}%
-\contentsline {section}{\numberline {B.1}Đặc tả use case Quản lý wishlist}{68}{section.a.B.1}%
-\contentsline {section}{\numberline {B.2}Đặc tả use case Đánh giá sản phẩm sau mua}{68}{section.a.B.2}%
-\contentsline {section}{\numberline {B.3}Đặc tả use case Yêu cầu đổi trả}{69}{section.a.B.3}%
-\contentsline {section}{\numberline {B.4}Đặc tả use case Quản lý embedding}{70}{section.a.B.4}%
+\contentsline {chapter}{\numberline {A}HƯỚNG DẪN CÀI ĐẶT, TRIỂN KHAI VÀ KIỂM THỬ}{68}{appendix.a.A}%
+\contentsline {section}{\numberline {A.1}Chuẩn bị môi trường}{68}{section.a.A.1}%
+\contentsline {section}{\numberline {A.2}Khởi động dịch vụ phụ thuộc}{68}{section.a.A.2}%
+\contentsline {section}{\numberline {A.3}Chạy backend}{68}{section.a.A.3}%
+\contentsline {section}{\numberline {A.4}Chạy frontend}{68}{section.a.A.4}%
+\contentsline {section}{\numberline {A.5}Kiểm thử và kiểm tra build}{69}{section.a.A.5}%
+\contentsline {section}{\numberline {A.6}Triển khai production bằng Docker Compose}{69}{section.a.A.6}%
+\contentsline {chapter}{\numberline {B}ĐẶC TẢ USE CASE BỔ SUNG}{70}{appendix.a.B}%
+\contentsline {section}{\numberline {B.1}Đặc tả use case Quản lý wishlist}{70}{section.a.B.1}%
+\contentsline {section}{\numberline {B.2}Đặc tả use case Đánh giá sản phẩm sau mua}{70}{section.a.B.2}%
+\contentsline {section}{\numberline {B.3}Đặc tả use case Yêu cầu đổi trả}{71}{section.a.B.3}%
+\contentsline {section}{\numberline {B.4}Đặc tả use case Quản lý embedding}{72}{section.a.B.4}%
 \contentsfinish 
