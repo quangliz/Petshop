@@ -16,22 +16,33 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def _recreate_role_enum(values: tuple[str, ...], *, old_name: str) -> None:
+def _recreate_role_enum(
+    values: tuple[str, ...],
+    *,
+    old_name: str,
+    role_expression: str = "role::text",
+) -> None:
     quoted_values = ", ".join(f"'{value}'" for value in values)
     op.execute(f"ALTER TYPE roleenum RENAME TO {old_name}")
     op.execute(f"CREATE TYPE roleenum AS ENUM ({quoted_values})")
-    op.execute("ALTER TABLE users ALTER COLUMN role TYPE roleenum USING role::text::roleenum")
+    op.execute(
+        "ALTER TABLE users ALTER COLUMN role TYPE roleenum "
+        f"USING ({role_expression})::roleenum"
+    )
     op.execute(f"DROP TYPE {old_name}")
 
 
 def upgrade() -> None:
-    op.execute(
-        "UPDATE users SET role = 'support' "
-        "WHERE role::text IN ('catalog_manager', 'order_operator', 'content_manager')"
-    )
     _recreate_role_enum(
         ("user", "admin", "support", "expert"),
         old_name="roleenum_with_granular_staff",
+        role_expression=(
+            "CASE "
+            "WHEN role::text IN ('catalog_manager', 'order_operator', 'content_manager') "
+            "THEN 'support' "
+            "ELSE role::text "
+            "END"
+        ),
     )
 
 
