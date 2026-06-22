@@ -1,7 +1,7 @@
 """collapse staff roles
 
 Revision ID: b71e2d3c4f5a
-Revises: 8f18f15aecc0
+Revises: 2f6a8b9c0d1e
 Create Date: 2026-06-22 00:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 
 
 revision: str = "b71e2d3c4f5a"
-down_revision: Union[str, Sequence[str], None] = "8f18f15aecc0"
+down_revision: Union[str, Sequence[str], None] = "2f6a8b9c0d1e"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
