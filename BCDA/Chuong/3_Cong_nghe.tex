@@ -1,7 +1,7 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
 
-Chương này trình bày các nền tảng lý thuyết và công nghệ được sử dụng để hiện thực các yêu cầu đã xác định ở Chương \ref{chapter:Related_works}. Nội dung không liệt kê công nghệ theo kiểu rời rạc, mà tập trung giải thích mỗi lựa chọn giải quyết vấn đề nào trong hệ thống ThePawsome, vì sao phù hợp hơn các lựa chọn thay thế trong phạm vi đồ án, và phần nào trong mã nguồn đang hiện thực lựa chọn đó.
+Chương này trình bày các nền tảng lý thuyết và công nghệ được sử dụng để hiện thực các yêu cầu đã xác định ở Chương \ref{chapter:Requirements}. Nội dung không liệt kê công nghệ theo kiểu rời rạc, mà tập trung giải thích mỗi lựa chọn giải quyết vấn đề nào trong hệ thống ThePawsome, vì sao phù hợp hơn các lựa chọn thay thế trong phạm vi đồ án, và phần nào trong mã nguồn đang hiện thực lựa chọn đó.
 
 \section{Kiến trúc ứng dụng web tách frontend và backend}
 \label{section:3.1}
@@ -93,6 +93,6 @@ Cloudinary & Lưu ảnh sản phẩm, banner và avatar thú cưng. & Lưu file 
 \end{tabularx}
 \end{table}
 
-Tóm lại, các công nghệ trong chương này được lựa chọn để phục vụ trực tiếp các yêu cầu của Chương \ref{chapter:Related_works}: FastAPI và Next.js giải quyết kiến trúc web; PostgreSQL, pgvector và Redis giải quyết dữ liệu nghiệp vụ và retrieval; LangGraph, OpenAI và Cohere giải quyết Catbot/RAG; SePay và cơ chế locking/idempotency giải quyết an toàn giao dịch. Các chương tiếp theo sẽ trình bày cách các công nghệ này được đưa vào thiết kế, triển khai và đánh giá hệ thống.
+Tóm lại, các công nghệ trong chương này được lựa chọn để phục vụ trực tiếp các yêu cầu của Chương \ref{chapter:Requirements}: FastAPI và Next.js giải quyết kiến trúc web; PostgreSQL, pgvector và Redis giải quyết dữ liệu nghiệp vụ và retrieval; LangGraph, OpenAI và Cohere giải quyết Catbot/RAG; SePay và cơ chế locking/idempotency giải quyết an toàn giao dịch. Các chương tiếp theo sẽ trình bày cách các công nghệ này được đưa vào thiết kế, triển khai và đánh giá hệ thống.
 
 \end{document}

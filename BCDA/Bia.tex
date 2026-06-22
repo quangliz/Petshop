@@ -1,48 +1,45 @@
 \documentclass[DoAn.tex]{subfiles}
-\newcommand{\underwrite}[3][]{% \underwrite[<thickness>]{<numerator>}{<denominator>}
-  \genfrac{}{}{#1}{}{\textstyle #2}{\scriptstyle #3}
-}
 \begin{document}
 \begin{titlepage}
 \thispagestyle{empty}
-% \thisfancypage{
-% \setlength{\fboxsep}{3pt}
-% \fbox}{} 
-\begin{center}
+\newgeometry{top=1.5cm,bottom=1.5cm,left=1.5cm,right=1.5cm}
+\begingroup
+\newlength{\coverrule}
+\setlength{\coverrule}{1.2pt}
+\setlength{\fboxsep}{3pt}
+\setlength{\fboxrule}{\coverrule}
+\noindent\makebox[\textwidth][c]{%
+\fbox{%
+  \setlength{\fboxrule}{0.7pt}%
+  \fbox{%
+    \begin{minipage}[t][0.90\textheight][t]{0.92\textwidth}
+      \centering
+      \vspace*{0.8cm}
 
-{\textbf{\large{TRƯỜNG ĐẠI HỌC XÂY DỰNG HÀ NỘI}}}\\
-{\large{KHOA CÔNG NGHỆ THÔNG TIN}}\\[1.0cm]
-\includegraphics[width=3.0cm]{Hinhve/logodhxd.png}\\[2.0cm]
+      {\bfseries\Large TRƯỜNG ĐẠI HỌC XÂY DỰNG HÀ NỘI}\\[0.15cm]
+      {\Large KHOA CÔNG NGHỆ THÔNG TIN}\\[1.0cm]
 
+      \includegraphics[width=3.4cm]{Hinhve/logodhxd.png}\\[1.75cm]
 
-{\textbf{\huge{ĐỒ ÁN TỐT NGHIỆP}}}\\[1cm]
-{\textbf{\Large{Xây dựng hệ thống thương mại điện tử ThePawsome tích hợp trợ lý AI}}}\\[1cm]
+      {\bfseries\Huge ĐỒ ÁN TỐT NGHIỆP}\\[1.2cm]
 
-{\textbf{\large{NGUYỄN VĂN QUANG}}}\\
-{\large{0317367@st.huce.edu.vn}}\\[0.5cm]
+      {\bfseries\Large XÂY DỰNG HỆ THỐNG THƯƠNG MẠI ĐIỆN TỬ THEPAWSOME}\\[0.2cm]
+      {\bfseries\Large TÍCH HỢP TRỢ LÝ AI}\\[1.8cm]
 
-\vspace{3cm}
-% Please add the following required packages to your document preamble:
-% \usepackage{graphicx}
-\begin{table}[H]
-\centering
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{ll}
- \multicolumn{1}{c}{\textbf{Giảng viên hướng dẫn:}} & PHẠM HỒNG PHONG \hspace{0.5cm} 
-  \\[0.5cm]
- \multicolumn{1}{l}{\textbf{Khoa:}} & Công nghệ thông tin \hspace{0.5cm} \\ [0.5cm]
-% \underline{\hspace{3cm}}  \\[0.5cm]
-%   & \multicolumn{1}{r}{Chữ kí GVHD}     \\[0.5cm]
-% \textbf{Khoa:} & Kỹ thuật máy tính                 \\[0.5cm]
-% \textbf{Trường:} & Công nghệ Thông tin và Truyền thông \\[5cm]
-\multicolumn{2}{c}{\textbf{HÀ NỘI, 06/2026}}                                            
-\end{tabular}%
+      \begin{tabular}{rl}
+        Sinh viên thực hiện: & \textbf{NGUYỄN VĂN QUANG} \\[0.25cm]
+                             & 0317367 \\[0.35cm]
+        Giảng viên hướng dẫn: & \textbf{PHẠM HỒNG PHONG}
+      \end{tabular}
+
+      \vfill
+      Hà Nội, 06/2026
+      \vspace*{0.6cm}
+    \end{minipage}%
+  }%
 }
-\end{table}
-\end{center}
-
-
-
+}
+\endgroup
+\restoregeometry
 \end{titlepage}
-
 \end{document}

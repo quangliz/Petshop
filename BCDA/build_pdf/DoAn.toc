@@ -82,8 +82,8 @@
 \contentsline {chapter}{\numberline {6}KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}{60}{chapter.6}%
 \contentsline {section}{\numberline {6.1}Kết luận}{60}{section.6.1}%
 \contentsline {section}{\numberline {6.2}Hướng phát triển}{60}{section.6.2}%
-\contentsline {chapter}{TÀI LIỆU THAM KHẢO}{64}{section*.40}%
-\contentsline {chapter}{PHỤ LỤC}{66}{section*.41}%
+\contentsline {chapter}{TÀI LIỆU THAM KHẢO}{64}{section*.39}%
+\contentsline {chapter}{PHỤ LỤC}{66}{section*.40}%
 \ttl@change@i {\@ne }{chapter}{0.0cm}{\bfseries \vspace {0.3cm}}{{\bfseries {\scshape } \thecontentslabel .\ }}{}{\titlerule *[0.3pc]{.}\contentspage }\relax 
 \ttl@change@v {chapter}{}{}{}\relax 
 \contentsline {chapter}{\numberline {A}HƯỚNG DẪN CÀI ĐẶT, TRIỂN KHAI VÀ KIỂM THỬ}{66}{appendix.a.A}%

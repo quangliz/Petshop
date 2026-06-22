@@ -1,7 +1,7 @@
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {2.1}{\ignorespaces So sánh hiện trạng một số nhóm hệ thống petshop trực tuyến\relax }}{6}{table.caption.7}%
-\contentsline {table}{\numberline {2.2}{\ignorespaces Danh sách tác nhân của hệ thống\relax }}{8}{table.caption.8}%
+\contentsline {table}{\numberline {2.1}{\ignorespaces So sánh hiện trạng một số nhóm hệ thống petshop trực tuyến\relax }}{6}{table.caption.6}%
+\contentsline {table}{\numberline {2.2}{\ignorespaces Danh sách tác nhân của hệ thống\relax }}{8}{table.caption.7}%
 \contentsline {table}{\numberline {2.3}{\ignorespaces Đặc tả use case Đăng ký, đăng nhập và quản lý phiên\relax }}{16}{table.2.3}%
 \contentsline {table}{\numberline {2.4}{\ignorespaces Đặc tả use case Tìm kiếm, xem sản phẩm và chọn biến thể\relax }}{17}{table.2.4}%
 \contentsline {table}{\numberline {2.5}{\ignorespaces Đặc tả use case Quản lý giỏ hàng và đặt hàng\relax }}{18}{table.2.5}%
@@ -12,14 +12,14 @@
 \contentsline {table}{\numberline {2.10}{\ignorespaces Đặc tả use case Quản trị catalog, đơn hàng và tri thức\relax }}{24}{table.2.10}%
 \contentsline {table}{\numberline {2.11}{\ignorespaces Yêu cầu phi chức năng của hệ thống\relax }}{26}{table.2.11}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {3.1}{\ignorespaces Tổng hợp lựa chọn công nghệ trong ThePawsome\relax }}{34}{table.caption.17}%
+\contentsline {table}{\numberline {3.1}{\ignorespaces Tổng hợp lựa chọn công nghệ trong ThePawsome\relax }}{34}{table.caption.16}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {4.1}{\ignorespaces Các gói chính của backend\relax }}{37}{table.caption.19}%
-\contentsline {table}{\numberline {4.2}{\ignorespaces Các gói chính của frontend\relax }}{37}{table.caption.20}%
-\contentsline {table}{\numberline {4.3}{\ignorespaces Tổng hợp nhóm bảng dữ liệu\relax }}{42}{table.caption.27}%
-\contentsline {table}{\numberline {4.4}{\ignorespaces Danh sách công cụ và thư viện sử dụng\relax }}{50}{table.caption.34}%
-\contentsline {table}{\numberline {4.5}{\ignorespaces Thống kê mã nguồn chính\relax }}{51}{table.caption.35}%
-\contentsline {table}{\numberline {4.6}{\ignorespaces Nhóm kiểm thử backend\relax }}{52}{table.caption.36}%
+\contentsline {table}{\numberline {4.1}{\ignorespaces Các gói chính của backend\relax }}{37}{table.caption.18}%
+\contentsline {table}{\numberline {4.2}{\ignorespaces Các gói chính của frontend\relax }}{37}{table.caption.19}%
+\contentsline {table}{\numberline {4.3}{\ignorespaces Tổng hợp nhóm bảng dữ liệu\relax }}{42}{table.caption.26}%
+\contentsline {table}{\numberline {4.4}{\ignorespaces Danh sách công cụ và thư viện sử dụng\relax }}{50}{table.caption.33}%
+\contentsline {table}{\numberline {4.5}{\ignorespaces Thống kê mã nguồn chính\relax }}{51}{table.caption.34}%
+\contentsline {table}{\numberline {4.6}{\ignorespaces Nhóm kiểm thử backend\relax }}{52}{table.caption.35}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
