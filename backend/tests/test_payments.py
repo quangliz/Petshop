@@ -40,3 +40,48 @@ def test_sepay_webhook_order_not_found(client: TestClient):
         res = client.post("/api/v1/payments/sepay/webhook", json=payload, headers={"Authorization": "Apikey test_key"})
         assert res.status_code == 200
         assert res.json() == {"success": True, "message": "Order not found"}
+
+def test_sepay_webhook_accepts_secret_key_header(client: TestClient):
+    payload = {
+        "id": 12345,
+        "gateway": "MBBank",
+        "transactionDate": "2026-06-16 12:00:00",
+        "accountNumber": "99999",
+        "content": "ORD-1234567890AB chuyen tien",
+        "transferType": "in",
+        "transferAmount": 10000,
+        "accumulated": 10000
+    }
+    with (
+        patch("app.api.routers.payments.settings.SEPAY_API_KEY", ""),
+        patch("app.api.routers.payments.settings.SEPAY_WEBHOOK_SECRET_KEY", "secret_key"),
+    ):
+        res = client.post(
+            "/api/v1/payments/sepay/webhook",
+            json=payload,
+            headers={"X-Secret-Key": "secret_key"},
+        )
+        assert res.status_code == 200
+        assert res.json() == {"success": True, "message": "Order not found"}
+
+def test_sepay_webhook_rejects_wrong_secret_key_header(client: TestClient):
+    payload = {
+        "id": 12345,
+        "gateway": "MBBank",
+        "transactionDate": "2026-06-16 12:00:00",
+        "accountNumber": "99999",
+        "content": "ORD-1234567890AB chuyen tien",
+        "transferType": "in",
+        "transferAmount": 10000,
+        "accumulated": 10000
+    }
+    with (
+        patch("app.api.routers.payments.settings.SEPAY_API_KEY", ""),
+        patch("app.api.routers.payments.settings.SEPAY_WEBHOOK_SECRET_KEY", "secret_key"),
+    ):
+        res = client.post(
+            "/api/v1/payments/sepay/webhook",
+            json=payload,
+            headers={"X-Secret-Key": "wrong_secret"},
+        )
+        assert res.status_code == 401

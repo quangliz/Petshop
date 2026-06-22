@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     
     # SePay Configuration
     SEPAY_API_KEY: str = "your_sepay_api_key_or_token"
+    SEPAY_WEBHOOK_SECRET_KEY: str = ""
     SEPAY_ACCOUNT_NUMBER: str = "123456789"
     SEPAY_ACCOUNT_NAME: str = "NGUYEN VAN A"
     SEPAY_BANK: str = "Bank"

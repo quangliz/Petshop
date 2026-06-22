@@ -19,7 +19,7 @@ type KnowledgeDoc = {
   created_at: string | null;
 };
 
-const CATEGORIES = ["nutrition", "health", "training", "grooming", "breed"] as const;
+const CATEGORIES = ["nutrition", "health", "training", "grooming", "breed", "policy", "faq"] as const;
 
 export default function AdminKnowledgePage() {
   const qc = useQueryClient();

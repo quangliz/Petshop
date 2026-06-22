@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta, timezone
+import hmac
+import re
 from typing import Any
 import uuid
 
@@ -32,6 +34,8 @@ from app.services.sepay import SePay
 
 router = APIRouter()
 sepay_service = SePay()
+
+_SEPAY_API_KEY_PLACEHOLDERS = {"", "your_sepay_api_key_or_token"}
 
 
 def _resolve_client_ip(request: Request) -> str:
@@ -103,6 +107,41 @@ def _public_payment_status(payment: Payment, order: Order) -> str:
     if payment.status == TxnStatusEnum.failed or order.payment_status == PaymentStatusEnum.failed:
         return "failed"
     return "processing"
+
+
+def _constant_time_equals(received: str | None, expected: str | None) -> bool:
+    if not received or not expected:
+        return False
+    return hmac.compare_digest(received.strip(), expected.strip())
+
+
+def _is_configured_secret(value: str | None) -> bool:
+    return bool(value and value.strip() not in _SEPAY_API_KEY_PLACEHOLDERS)
+
+
+def _verify_sepay_webhook_auth(request: Request) -> None:
+    api_key = settings.SEPAY_API_KEY
+    webhook_secret = settings.SEPAY_WEBHOOK_SECRET_KEY
+    auth_header = request.headers.get("authorization")
+    x_secret_key = request.headers.get("x-secret-key")
+
+    api_key_ok = False
+    if _is_configured_secret(api_key):
+        scheme, _, credential = (auth_header or "").partition(" ")
+        api_key_ok = (
+            scheme.lower() == "apikey"
+            and _constant_time_equals(credential, api_key)
+        )
+
+    secret_key_ok = (
+        _is_configured_secret(webhook_secret)
+        and _constant_time_equals(x_secret_key, webhook_secret)
+    )
+
+    if _is_configured_secret(api_key) or _is_configured_secret(webhook_secret):
+        if api_key_ok or secret_key_ok:
+            return
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 @router.post("/sepay/create/{order_id}", response_model=PaymentUrlResponse)
@@ -220,11 +259,7 @@ async def sepay_webhook(
     payload: SePayWebhookPayload,
     db: SessionDep,
 ) -> Any:
-    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
-    expected_key = settings.SEPAY_API_KEY
-    if expected_key:
-        if not auth_header or not auth_header.startswith("Apikey ") or auth_header[7:].strip() != expected_key:
-            raise HTTPException(status_code=401, detail="Unauthorized")
+    _verify_sepay_webhook_auth(request)
 
     if payload.transferType.lower() != "in":
         return {"success": True, "message": "Ignored outbound transfer"}
@@ -240,7 +275,6 @@ async def sepay_webhook(
     if payload.code:
         order_code = payload.code.strip().upper()
     
-    import re
     if not order_code or not re.match(r"^ORD-[A-F0-9]{12}$", order_code):
         match = re.search(r"ORD-[A-F0-9]{12}", payload.content, re.IGNORECASE)
         if match:

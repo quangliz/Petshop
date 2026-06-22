@@ -126,6 +126,32 @@ def test_admin_list_orders(client: TestClient, admin_headers: dict):
     assert "items" in data
 
 
+def test_admin_knowledge_accepts_service_categories(client: TestClient, admin_headers: dict):
+    import uuid
+
+    uid = uuid.uuid4().hex[:8]
+    payload = {
+        "title": f"FAQ service category test {uid}",
+        "category": "faq",
+        "source_url": "/faq",
+        "content": "Câu hỏi thường gặp về đặt hàng, thanh toán và hỗ trợ khách hàng.",
+    }
+    res = client.post("/api/v1/admin/knowledge", json=payload, headers=admin_headers)
+    assert res.status_code == 200
+    doc = res.json()
+    try:
+        assert doc["category"] == "faq"
+        update = client.put(
+            f"/api/v1/admin/knowledge/{doc['id']}",
+            json={"category": "policy", "source_url": "/chinh-sach-giao-hang"},
+            headers=admin_headers,
+        )
+        assert update.status_code == 200
+        assert update.json()["category"] == "policy"
+    finally:
+        client.delete(f"/api/v1/admin/knowledge/{doc['id']}", headers=admin_headers)
+
+
 
 def test_product_create_suggestion():
     """AI-07: POST /admin/products returns ai_suggestion JSON in response body."""

@@ -34,7 +34,7 @@ export default function Footer() {
           <div>
             <h4 className="text-white text-[13px] font-bold mb-3.5">Hỗ trợ</h4>
             <div className="flex flex-col gap-2.5">
-              <span className="text-[13px]">FAQ</span>
+              <Link href="/faq" className="text-[13px] text-inherit no-underline hover:text-white transition-colors">FAQ</Link>
               <Link href="/chinh-sach-bao-mat" className="text-[13px] text-inherit no-underline hover:text-white transition-colors">Bảo mật</Link>
               <Link href="/dieu-khoan-mua-ban" className="text-[13px] text-inherit no-underline hover:text-white transition-colors">Điều khoản mua bán</Link>
               <Link href="/chinh-sach-giao-hang" className="text-[13px] text-inherit no-underline hover:text-white transition-colors">Giao hàng</Link>

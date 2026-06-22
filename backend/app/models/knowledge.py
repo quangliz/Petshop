@@ -14,6 +14,8 @@ class DocCategoryEnum(str, enum.Enum):
     training = "training"
     grooming = "grooming"
     breed = "breed"
+    policy = "policy"
+    faq = "faq"
 
 
 class KnowledgeDoc(Base):

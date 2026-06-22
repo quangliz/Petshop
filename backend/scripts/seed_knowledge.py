@@ -39,6 +39,8 @@ SOURCE_URLS_BY_CATEGORY = {
         "https://www.merckvetmanual.com/multimedia/table/"
         "congenital-and-inherited-disorders-of-the-digestive-system-in-dogs"
     ),
+    DocCategoryEnum.policy: "/dieu-khoan-mua-ban",
+    DocCategoryEnum.faq: "/faq",
 }
 
 
@@ -346,28 +348,153 @@ ARTICLES = [
 ]
 
 
+FOOTER_SERVICE_ARTICLES = [
+    {
+        "title": "FAQ ThePawsome: đặt hàng, tài khoản và trợ lý AI",
+        "category": DocCategoryEnum.faq,
+        "source_url": "/faq",
+        "content": (
+            "ThePawsome hỗ trợ khách hàng tìm sản phẩm cho chó mèo, quản lý giỏ hàng, đặt hàng "
+            "và theo dõi đơn trong tài khoản. Người dùng chưa đăng nhập vẫn có thể xem sản phẩm; "
+            "một số tính năng như lịch sử đơn hàng, hồ sơ thú cưng và cá nhân hóa AI cần đăng nhập.\n\n"
+            "Câu hỏi thường gặp về đặt hàng: sau khi checkout thành công, hệ thống cấp mã đơn. "
+            "Khách hàng có thể xem đơn trong mục Đơn hàng hoặc tra cứu bằng email và mã đơn nếu "
+            "đặt hàng với tư cách khách. Nếu nhập sai địa chỉ hoặc số điện thoại, hãy liên hệ "
+            "support@thepawsome.store càng sớm càng tốt trước khi đơn chuyển sang trạng thái đang giao.\n\n"
+            "Câu hỏi thường gặp về Catbot: Catbot có thể tư vấn thông tin chăm sóc thú cưng, tìm "
+            "sản phẩm trong cửa hàng và tham khảo hồ sơ thú cưng do người dùng tạo. Catbot không "
+            "chẩn đoán bệnh, kê thuốc, xem dữ liệu của người khác hoặc tự thêm sản phẩm vào giỏ hàng. "
+            "Khi có dấu hiệu nguy hiểm như khó thở, co giật, ngộ độc, bí tiểu hoặc nôn liên tục, "
+            "khách hàng cần liên hệ bác sĩ thú y ngay.\n\n"
+            "Câu hỏi thường gặp về hỗ trợ: kênh hỗ trợ chính là support@thepawsome.store và số "
+            "+84888987400. Khi cần hỗ trợ đơn hàng, khách hàng nên cung cấp mã đơn, email đặt hàng, "
+            "số điện thoại nhận hàng và hình ảnh liên quan nếu có lỗi sản phẩm hoặc giao nhận."
+        ),
+    },
+    {
+        "title": "Chính sách giao hàng ThePawsome",
+        "category": DocCategoryEnum.policy,
+        "source_url": "/chinh-sach-giao-hang",
+        "content": (
+            "ThePawsome áp dụng phí giao hàng minh họa 30.000đ cho mỗi đơn trong bản public demo. "
+            "Khi vận hành thương mại chính thức, phạm vi giao hàng, thời gian dự kiến và biểu phí "
+            "có thể thay đổi theo địa chỉ nhận hàng, đối tác vận chuyển, khối lượng kiện hàng và "
+            "điều kiện khuyến mãi đang áp dụng.\n\n"
+            "Quy trình xử lý đơn gồm các trạng thái chính: chờ xử lý, đã xác nhận, đang giao, hoàn "
+            "thành hoặc hủy. Đơn có thể cần xác minh thêm nếu thông tin nhận hàng thiếu, số điện thoại "
+            "không liên hệ được, sản phẩm hết tồn kho hoặc giao dịch thanh toán cần đối soát.\n\n"
+            "Khách hàng có thể theo dõi trạng thái trong tài khoản hoặc tra cứu bằng email và mã đơn. "
+            "Nếu kiện hàng hư hỏng, móp méo, thiếu sản phẩm hoặc giao sai mặt hàng, khách hàng nên "
+            "chụp ảnh kiện hàng, tem vận chuyển, sản phẩm nhận được và liên hệ support@thepawsome.store "
+            "trong thời gian sớm nhất để được kiểm tra."
+        ),
+    },
+    {
+        "title": "Chính sách thanh toán ThePawsome",
+        "category": DocCategoryEnum.policy,
+        "source_url": "/chinh-sach-thanh-toan",
+        "content": (
+            "ThePawsome hỗ trợ thanh toán khi nhận hàng (COD) và chuyển khoản VietQR qua SePay. "
+            "Giá hiển thị bằng VND. Tổng tiền tại checkout gồm tạm tính sản phẩm, phí giao hàng "
+            "và giảm giá nếu có mã khuyến mãi hợp lệ.\n\n"
+            "Với COD, khách hàng thanh toán cho đơn vị giao hàng khi nhận hàng. Đơn chỉ được ghi "
+            "nhận hoàn tất sau khi quy trình vận hành xác nhận giao hàng và thanh toán phù hợp.\n\n"
+            "Với VietQR SePay, hệ thống hiển thị mã QR để khách hàng chuyển khoản và tự động cập nhật "
+            "trạng thái sau khi nhận webhook đối soát. Nếu đã chuyển khoản nhưng trạng thái chưa cập "
+            "nhật, khách hàng không nên thanh toán lại. Hãy liên hệ hỗ trợ kèm mã đơn, thời gian "
+            "chuyển khoản, số tiền và ảnh biên lai để đối soát.\n\n"
+            "ThePawsome không lưu thông tin thẻ, mật khẩu ngân hàng hoặc thông tin đăng nhập tài khoản "
+            "ngân hàng của khách hàng. Các giao dịch bất thường, quá hạn giữ hàng hoặc lệch số tiền "
+            "có thể được đánh dấu cần xử lý thủ công."
+        ),
+    },
+    {
+        "title": "Chính sách đổi trả ThePawsome",
+        "category": DocCategoryEnum.policy,
+        "source_url": "/chinh-sach-doi-tra",
+        "content": (
+            "ThePawsome tiếp nhận yêu cầu đổi trả khi sản phẩm giao sai, thiếu hàng, hư hỏng do vận "
+            "chuyển hoặc có lỗi từ nhà bán/nhà sản xuất. Khách hàng nên gửi yêu cầu sớm sau khi nhận "
+            "hàng và giữ lại bao bì, tem nhãn, phụ kiện, hóa đơn hoặc mã đơn để phục vụ xác minh.\n\n"
+            "Một số nhóm hàng có thể không đủ điều kiện đổi trả vì lý do an toàn vệ sinh và sức khỏe "
+            "thú cưng, gồm thức ăn đã mở bao bì, pate/snack đã dùng, sản phẩm vệ sinh đã qua sử dụng, "
+            "thuốc hoặc sản phẩm chăm sóc sức khỏe nhạy cảm, trừ khi lỗi được xác định thuộc về nhà bán "
+            "hoặc nhà sản xuất.\n\n"
+            "Để yêu cầu đổi trả, khách hàng gửi email tới support@thepawsome.store với mã đơn, lý do, "
+            "sản phẩm cần đổi trả, số lượng và hình ảnh/video mô tả vấn đề. Nhân viên sẽ xác minh trước "
+            "khi hướng dẫn gửi hàng, đổi sản phẩm, hoàn tiền hoặc từ chối nếu không đáp ứng điều kiện.\n\n"
+            "Hoàn tiền, nếu được chấp thuận, sẽ ưu tiên về phương thức thanh toán ban đầu hoặc phương thức "
+            "được hai bên xác nhận. Thời gian xử lý phụ thuộc vào kết quả kiểm tra hàng hoàn và đối soát "
+            "thanh toán."
+        ),
+    },
+    {
+        "title": "Chính sách bảo mật ThePawsome",
+        "category": DocCategoryEnum.policy,
+        "source_url": "/chinh-sach-bao-mat",
+        "content": (
+            "ThePawsome xử lý thông tin tài khoản, liên hệ, địa chỉ giao hàng, đơn hàng, thanh toán, "
+            "hồ sơ thú cưng và hội thoại AI để cung cấp dịch vụ, hỗ trợ khách hàng, chống gian lận, "
+            "bảo vệ hệ thống và cải thiện chất lượng trải nghiệm.\n\n"
+            "Dữ liệu cần thiết có thể được chuyển tới các nhà cung cấp phục vụ chức năng người dùng yêu "
+            "cầu như OpenAI cho trợ lý AI, Cloudinary cho hình ảnh, Google cho đăng nhập, đối tác thanh "
+            "toán, email và hạ tầng vận hành. ThePawsome giới hạn dữ liệu theo mục đích xử lý và không "
+            "bán dữ liệu cá nhân.\n\n"
+            "ThePawsome không lưu thông tin thẻ hoặc thông tin đăng nhập ngân hàng. Hệ thống áp dụng "
+            "kiểm soát truy cập, mã hóa khi truyền, nhật ký vận hành và che giấu dữ liệu nhạy cảm trong "
+            "log khi phù hợp.\n\n"
+            "Người dùng có thể yêu cầu xem, sửa, rút lại đồng ý, hạn chế xử lý hoặc xóa dữ liệu theo "
+            "pháp luật áp dụng bằng cách liên hệ support@thepawsome.store. Một số dữ liệu giao dịch "
+            "có thể cần được lưu trong thời gian cần thiết để xử lý đơn hàng, tranh chấp, bảo mật hoặc "
+            "nghĩa vụ pháp lý."
+        ),
+    },
+    {
+        "title": "Điều khoản mua bán ThePawsome",
+        "category": DocCategoryEnum.policy,
+        "source_url": "/dieu-khoan-mua-ban",
+        "content": (
+            "Đơn hàng trên ThePawsome được ghi nhận khi hệ thống cấp mã đơn. Việc ghi nhận đơn chưa "
+            "đồng nghĩa đơn đã được xác nhận giao thành công; ThePawsome có thể liên hệ để xác minh "
+            "thông tin nhận hàng, tồn kho, giá hoặc thanh toán trước khi xử lý tiếp.\n\n"
+            "Giá sản phẩm hiển thị bằng VND và có thể thay đổi trước thời điểm đặt hàng. Nếu phát hiện "
+            "lỗi dữ liệu rõ ràng như sai giá, sai tồn kho, sai mô tả hoặc hình ảnh, ThePawsome sẽ thông "
+            "báo cho khách hàng và cho phép xác nhận lại, thay thế sản phẩm hoặc hủy đơn.\n\n"
+            "Người dùng có trách nhiệm cung cấp thông tin nhận hàng chính xác, bảo vệ tài khoản, không "
+            "lạm dụng mã giảm giá, API, tính năng thanh toán hoặc trợ lý AI. Nội dung đánh giá, forum "
+            "và hội thoại không được dùng để phát tán spam, thông tin gây hại hoặc yêu cầu vượt quyền.\n\n"
+            "Catbot là trợ lý AI cung cấp thông tin tham khảo về chăm sóc thú cưng và sản phẩm. Catbot "
+            "không thay thế bác sĩ thú y, không chẩn đoán, không kê thuốc và không được xem là cam kết "
+            "y tế hoặc pháp lý. Khi cần quyết định y tế cho thú cưng, khách hàng nên liên hệ bác sĩ thú y."
+        ),
+    },
+]
+
+
 async def main():
     async with AsyncSessionLocal() as db:
-        titles = [article["title"] for article in ARTICLES]
+        all_articles = [*ARTICLES, *FOOTER_SERVICE_ARTICLES]
+        titles = [article["title"] for article in all_articles]
         result = await db.execute(
             select(KnowledgeDoc).where(KnowledgeDoc.title.in_(titles))
         )
         existing_by_title = {doc.title: doc for doc in result.scalars().all()}
-        for art in ARTICLES:
+        for art in all_articles:
             existing = existing_by_title.get(art["title"])
+            source_url = art.get("source_url", SOURCE_URLS_BY_CATEGORY[art["category"]])
             if existing:
                 existing.category = art["category"]
                 existing.content = art["content"]
-                existing.source_url = SOURCE_URLS_BY_CATEGORY[art["category"]]
+                existing.source_url = source_url
             else:
                 db.add(KnowledgeDoc(
                     title=art["title"],
                     category=art["category"],
                     content=art["content"],
-                    source_url=SOURCE_URLS_BY_CATEGORY[art["category"]],
+                    source_url=source_url,
                 ))
         await db.commit()
-        print(f"Seeded {len(ARTICLES)} knowledge articles.")
+        print(f"Seeded {len(all_articles)} knowledge articles.")
     await engine.dispose()
 
 
