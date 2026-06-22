@@ -195,10 +195,12 @@ Phân hệ quản trị cần áp dụng phân quyền chi tiết để giảm r
 \subsection{Quy trình nghiệp vụ}
 \label{subsection:2.2.7}
 
+Các biểu đồ use case ở các mục trước cho biết hệ thống cung cấp những chức năng nào. Mục này bổ sung góc nhìn theo thời gian, mô tả cách các chức năng phối hợp trong hai luồng nghiệp vụ có ảnh hưởng lớn nhất tới hệ thống: mua hàng--thanh toán và tư vấn bằng Catbot. Các biểu đồ ở đây được trình bày ở mức nghiệp vụ, không đi sâu vào từng API hoặc từng bảng dữ liệu; các chi tiết kỹ thuật như khóa giao dịch, idempotency, xử lý webhook và truy xuất vector sẽ được làm rõ hơn ở chương thiết kế.
+
 \subsubsection{Quy trình mua hàng và thanh toán}
 \label{subsubsection:2.2.7.1}
 
-Quy trình mua hàng là nghiệp vụ quan trọng nhất của hệ thống thương mại điện tử. Hình \ref{fig:2.6} mô tả luồng nghiệp vụ ở mức tổng hợp, kết hợp nhiều use case từ duyệt sản phẩm, quản lý giỏ hàng, checkout, giữ kho tới thanh toán.
+Quy trình mua hàng là nghiệp vụ trung tâm của ThePawsome vì nó liên kết nhiều phân hệ: catalog sản phẩm, giỏ hàng, khuyến mãi, tồn kho, đơn hàng và thanh toán. Hình \ref{fig:2.6} mô tả luồng tổng quát từ khi khách hàng kiểm tra giỏ hàng tới khi đơn được xác nhận hoặc bị hủy do lỗi thanh toán.
 
 \begin{figure}[H]
 \centering
@@ -214,12 +216,23 @@ Quy trình mua hàng là nghiệp vụ quan trọng nhất của hệ thống th
 \label{fig:2.6}
 \end{figure}
 
-Quy trình trên cho thấy checkout không chỉ là thao tác ghi đơn hàng. Đây là luồng giao dịch cần đảm bảo tính toàn vẹn dữ liệu, nhất quán giá tại thời điểm mua, chống tạo đơn trùng và chống overselling. Vì vậy, các bước kiểm tra idempotency, khóa tồn kho và xác minh webhook thanh toán là bắt buộc.
+Luồng chính của quy trình gồm các bước sau:
+
+\begin{enumerate}[leftmargin=*]
+    \item Khách hàng chọn sản phẩm, quản lý giỏ hàng và nhập thông tin giao hàng tại màn hình checkout.
+    \item Hệ thống kiểm tra tính hợp lệ của sản phẩm, biến thể, số lượng, mã khuyến mãi và thông tin nhận hàng.
+    \item Nếu dữ liệu hợp lệ, hệ thống tạo đơn hàng với snapshot giá tại thời điểm mua và cập nhật hoặc giữ tồn kho tương ứng.
+    \item Với phương thức COD, đơn hàng được ghi nhận để nhân viên tiếp tục xử lý giao nhận.
+    \item Với phương thức SePay, hệ thống tạo yêu cầu thanh toán VietQR; khách hàng chuyển khoản theo mã đơn và số tiền hiển thị.
+    \item Khi SePay gửi webhook hợp lệ, hệ thống xác nhận thanh toán, cập nhật trạng thái đơn hàng và hoàn tất giữ kho.
+\end{enumerate}
+
+Các luồng ngoại lệ quan trọng là: giỏ hàng trống hoặc sản phẩm không còn bán thì không cho tạo đơn; số lượng vượt tồn kho thì yêu cầu khách điều chỉnh; yêu cầu checkout bị gửi lặp không được tạo đơn trùng; webhook thanh toán sai mã đơn, sai số tiền hoặc không xác thực được nguồn thì không được cập nhật trạng thái thanh toán. Với đơn SePay quá hạn, hệ thống giải phóng lượng hàng đã giữ để tránh treo tồn kho.
 
 \subsubsection{Quy trình tư vấn bằng Catbot và chuyển giao hỗ trợ}
 \label{subsubsection:2.2.7.2}
 
-Quy trình tư vấn bằng Catbot kết hợp dữ liệu hồ sơ thú cưng, sản phẩm và kho kiến thức. Luồng nghiệp vụ được mô tả như sau:
+Quy trình tư vấn bằng Catbot phục vụ các câu hỏi trước và trong quá trình mua hàng, đặc biệt là các câu hỏi cần cá nhân hóa theo hồ sơ thú cưng. Khác với chatbot kịch bản cố định, Catbot có thể kết hợp câu hỏi hiện tại, sản phẩm khách đang xem, hồ sơ thú cưng và kho kiến thức đã kiểm soát để tạo câu trả lời. Khi câu hỏi vượt phạm vi tư vấn an toàn hoặc khách hàng yêu cầu người thật, phiên chat được chuyển sang nhân viên hỗ trợ.
 
 \begin{figure}[H]
 \centering
@@ -235,7 +248,17 @@ Quy trình tư vấn bằng Catbot kết hợp dữ liệu hồ sơ thú cưng, 
 \label{fig:2.7}
 \end{figure}
 
-Quy trình này giúp giảm tải cho nhân viên trong các câu hỏi phổ biến nhưng vẫn giữ nguyên tắc an toàn. Catbot không thay thế bác sĩ thú y và không tự ý thực hiện giao dịch thay khách hàng; các thao tác mua hàng vẫn do khách xác nhận trên giao diện.
+Luồng chính của quy trình gồm các bước sau:
+
+\begin{enumerate}[leftmargin=*]
+    \item Khách hàng gửi câu hỏi từ widget Catbot, có thể kèm ngữ cảnh sản phẩm đang xem hoặc hồ sơ thú cưng đã chọn.
+    \item Hệ thống kiểm tra phạm vi an toàn của câu hỏi và khởi tạo hoặc tiếp tục phiên chat.
+    \item Catbot tra cứu dữ liệu phù hợp: sản phẩm trong cửa hàng, hồ sơ thú cưng của người dùng và kho kiến thức chăm sóc thú cưng.
+    \item Catbot trả lời bằng tiếng Việt, có thể hiển thị thẻ sản phẩm nếu kết quả tư vấn liên quan tới catalog.
+    \item Nếu cần người thật, phiên chat được đưa vào hàng chờ để nhân viên hỗ trợ tiếp nhận và phản hồi.
+\end{enumerate}
+
+Quy trình này giúp giảm tải cho nhân viên trong các câu hỏi phổ biến nhưng vẫn giữ nguyên tắc an toàn. Catbot không thay thế bác sĩ thú y, không chẩn đoán bệnh, không tự ý thêm hàng hoặc thanh toán thay khách hàng. Các quyết định mua hàng và thao tác giao dịch vẫn do khách xác nhận trên giao diện.
 
 \section{Đặc tả chức năng}
 \label{section:2.3}

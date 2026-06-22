@@ -1,0 +1,53 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "DejaVu Sans, Arial", "primaryColor": "#ecfdf5", "primaryTextColor": "#111827", "lineColor": "#475569"}}}%%
+erDiagram
+    CATEGORIES ||--o{ PRODUCTS : contains
+    PRODUCTS ||--o{ PRODUCT_VARIANTS : has
+    PRODUCTS ||--o{ PRODUCT_IMAGES : has
+    PRODUCT_VARIANTS ||--o{ PRODUCT_IMAGES : may_have
+
+    CATEGORIES {
+        int id PK
+        int parent_id FK
+        string name
+        string slug UK
+        string image_url
+    }
+
+    BANNERS {
+        int id PK
+        string title
+        string image_url
+        string link_url
+        int sort_order
+        boolean is_active
+    }
+
+    PRODUCTS {
+        uuid id PK
+        int category_id FK
+        string name
+        string slug UK
+        decimal price
+        decimal sale_price
+        int stock_qty
+        boolean is_active
+    }
+
+    PRODUCT_VARIANTS {
+        uuid id PK
+        uuid product_id FK
+        string sku UK
+        decimal price
+        decimal sale_price
+        int stock_qty
+        jsonb attributes
+    }
+
+    PRODUCT_IMAGES {
+        uuid id PK
+        uuid product_id FK
+        uuid variant_id FK
+        string url
+        boolean is_main
+        int sort_order
+    }

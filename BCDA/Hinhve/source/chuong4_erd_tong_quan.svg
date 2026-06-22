@@ -1,0 +1,249 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1050" viewBox="0 0 1800 1050">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#475569" />
+    </marker>
+    <style>
+      .title { font: 700 32px "DejaVu Sans", Arial, sans-serif; fill: #111827; }
+      .subtitle { font: 14px "DejaVu Sans", Arial, sans-serif; fill: #475569; }
+      .group-title { font: 700 18px "DejaVu Sans", Arial, sans-serif; fill: #0f172a; }
+      .table-name { font: 700 15px "DejaVu Sans", Arial, sans-serif; fill: #111827; }
+      .field { font: 12px "DejaVu Sans", Arial, sans-serif; fill: #334155; }
+      .small { font: 12px "DejaVu Sans", Arial, sans-serif; fill: #475569; }
+      .note-title { font: 700 14px "DejaVu Sans", Arial, sans-serif; fill: #111827; }
+      .note-text { font: 12px "DejaVu Sans", Arial, sans-serif; fill: #334155; }
+      .group { stroke: #cbd5e1; stroke-width: 1.4; }
+      .user-group { fill: #eff6ff; }
+      .catalog-group { fill: #ecfdf5; }
+      .commerce-group { fill: #fff7ed; }
+      .ai-group { fill: #fdf2f8; }
+      .note { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.2; stroke-dasharray: 6 5; }
+      .table { fill: #ffffff; stroke: #64748b; stroke-width: 1.25; }
+      .head-user { fill: #dbeafe; }
+      .head-catalog { fill: #dcfce7; }
+      .head-commerce { fill: #ffedd5; }
+      .head-ai { fill: #fce7f3; }
+      .rel { fill: none; stroke: #475569; stroke-width: 1.8; marker-end: url(#arrow); }
+      .concept { fill: none; stroke: #7c3aed; stroke-width: 1.8; stroke-dasharray: 8 7; marker-end: url(#arrow); }
+      .label-bg { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1; }
+      .label { font: 12px "DejaVu Sans", Arial, sans-serif; fill: #334155; }
+    </style>
+  </defs>
+
+  <rect width="1800" height="1050" fill="#ffffff" />
+  <text x="900" y="42" text-anchor="middle" class="title">ERD rút gọn các bảng lõi của ThePawsome</text>
+  <text x="900" y="68" text-anchor="middle" class="subtitle">Hình chỉ giữ các bảng chính để mô tả luồng dữ liệu; danh sách đầy đủ 28 bảng được trình bày trong bảng tổng hợp của báo cáo</text>
+
+  <rect x="40" y="110" width="340" height="275" rx="12" class="group user-group" />
+  <text x="64" y="144" class="group-title">User / Pet</text>
+
+  <rect x="420" y="110" width="430" height="420" rx="12" class="group catalog-group" />
+  <text x="444" y="144" class="group-title">Catalog và đánh giá</text>
+
+  <rect x="890" y="110" width="530" height="480" rx="12" class="group commerce-group" />
+  <text x="914" y="144" class="group-title">Đơn hàng và thanh toán</text>
+
+  <rect x="40" y="625" width="1380" height="330" rx="12" class="group ai-group" />
+  <text x="64" y="659" class="group-title">Forum, tri thức và Catbot</text>
+
+  <rect x="1460" y="110" width="290" height="845" rx="12" class="note" />
+  <text x="1486" y="148" class="note-title">Các bảng được lược khỏi hình</text>
+  <text x="1486" y="180" class="note-text">Giữ trong Bảng 4.4:</text>
+  <text x="1486" y="210" class="note-text">refresh_sessions</text>
+  <text x="1486" y="230" class="note-text">banners, product_images</text>
+  <text x="1486" y="250" class="note-text">carts, cart_items</text>
+  <text x="1486" y="270" class="note-text">promotions</text>
+  <text x="1486" y="290" class="note-text">order_returns</text>
+  <text x="1486" y="310" class="note-text">order_return_items</text>
+  <text x="1486" y="330" class="note-text">wishlist_items</text>
+  <text x="1486" y="350" class="note-text">forum_thread_votes</text>
+  <text x="1486" y="370" class="note-text">forum_reply_votes</text>
+  <text x="1486" y="390" class="note-text">ai_call_logs, audit_logs</text>
+
+  <text x="1486" y="445" class="note-title">Lý do rút gọn</text>
+  <text x="1486" y="475" class="note-text">Hình trong báo cáo cần cho</text>
+  <text x="1486" y="495" class="note-text">người đọc thấy luồng chính:</text>
+  <text x="1486" y="525" class="note-text">1. User tạo đơn hàng</text>
+  <text x="1486" y="545" class="note-text">2. Product tạo order item</text>
+  <text x="1486" y="565" class="note-text">3. Payment/Reservation</text>
+  <text x="1486" y="585" class="note-text">4. Forum/Knowledge cấp</text>
+  <text x="1486" y="605" class="note-text">   ngữ cảnh cho Catbot</text>
+
+  <text x="1486" y="665" class="note-title">Tổng quan schema</text>
+  <text x="1486" y="695" class="note-text">Hình: 15 bảng lõi</text>
+  <text x="1486" y="715" class="note-text">Bảng 4.4: đủ 28 bảng</text>
+  <text x="1486" y="735" class="note-text">Không tính bảng nội bộ</text>
+  <text x="1486" y="755" class="note-text">của LangChain PGVector.</text>
+
+  <text x="1486" y="825" class="note-title">Ký hiệu</text>
+  <path d="M1486 852 L1540 852" class="rel" />
+  <text x="1554" y="856" class="note-text">Khóa ngoại chính</text>
+  <path d="M1486 884 L1540 884" class="concept" />
+  <text x="1554" y="888" class="note-text">Luồng tri thức cho AI</text>
+
+  <!-- User / Pet tables -->
+  <g transform="translate(70 165)">
+    <rect width="280" height="86" rx="8" class="table" />
+    <rect width="280" height="27" rx="8" class="head-user" />
+    <text x="14" y="19" class="table-name">users</text>
+    <text x="14" y="46" class="field">PK id, email, role</text>
+    <text x="14" y="64" class="field">is_active, expert flags</text>
+  </g>
+
+  <g transform="translate(70 290)">
+    <rect width="280" height="74" rx="8" class="table" />
+    <rect width="280" height="27" rx="8" class="head-user" />
+    <text x="14" y="19" class="table-name">pets</text>
+    <text x="14" y="46" class="field">FK user_id, species, breed</text>
+    <text x="14" y="64" class="field">allergies, health_conditions</text>
+  </g>
+
+  <!-- Catalog tables -->
+  <g transform="translate(450 165)">
+    <rect width="175" height="76" rx="8" class="table" />
+    <rect width="175" height="27" rx="8" class="head-catalog" />
+    <text x="12" y="19" class="table-name">categories</text>
+    <text x="12" y="46" class="field">PK id, slug</text>
+    <text x="12" y="64" class="field">FK parent_id</text>
+  </g>
+
+  <g transform="translate(655 150)">
+    <rect width="170" height="98" rx="8" class="table" />
+    <rect width="170" height="27" rx="8" class="head-catalog" />
+    <text x="12" y="19" class="table-name">products</text>
+    <text x="12" y="46" class="field">FK category_id</text>
+    <text x="12" y="64" class="field">slug, price</text>
+    <text x="12" y="82" class="field">sale_price, stock</text>
+  </g>
+
+  <g transform="translate(655 295)">
+    <rect width="170" height="92" rx="8" class="table" />
+    <rect width="170" height="27" rx="8" class="head-catalog" />
+    <text x="12" y="19" class="table-name">product_variants</text>
+    <text x="12" y="46" class="field">FK product_id</text>
+    <text x="12" y="64" class="field">sku, price_delta</text>
+    <text x="12" y="82" class="field">stock, attributes</text>
+  </g>
+
+  <g transform="translate(450 405)">
+    <rect width="175" height="74" rx="8" class="table" />
+    <rect width="175" height="27" rx="8" class="head-catalog" />
+    <text x="12" y="19" class="table-name">reviews</text>
+    <text x="12" y="46" class="field">FK user_id, product_id</text>
+    <text x="12" y="64" class="field">rating, comment</text>
+  </g>
+
+  <!-- Commerce tables -->
+  <g transform="translate(930 165)">
+    <rect width="210" height="90" rx="8" class="table" />
+    <rect width="210" height="27" rx="8" class="head-commerce" />
+    <text x="12" y="19" class="table-name">orders</text>
+    <text x="12" y="46" class="field">FK user_id, order_code</text>
+    <text x="12" y="64" class="field">status, total_amount</text>
+    <text x="12" y="82" class="field">idempotency fields</text>
+  </g>
+
+  <g transform="translate(1180 165)">
+    <rect width="210" height="90" rx="8" class="table" />
+    <rect width="210" height="27" rx="8" class="head-commerce" />
+    <text x="12" y="19" class="table-name">order_items</text>
+    <text x="12" y="46" class="field">FK order_id</text>
+    <text x="12" y="64" class="field">FK product/variant</text>
+    <text x="12" y="82" class="field">quantity, unit_price</text>
+  </g>
+
+  <g transform="translate(1180 305)">
+    <rect width="210" height="74" rx="8" class="table" />
+    <rect width="210" height="27" rx="8" class="head-commerce" />
+    <text x="12" y="19" class="table-name">payments</text>
+    <text x="12" y="46" class="field">FK order_id, provider</text>
+    <text x="12" y="64" class="field">merchant_ref, txn_id</text>
+  </g>
+
+  <g transform="translate(930 430)">
+    <rect width="460" height="86" rx="8" class="table" />
+    <rect width="460" height="27" rx="8" class="head-commerce" />
+    <text x="12" y="19" class="table-name">inventory_reservations</text>
+    <text x="12" y="46" class="field">FK order_id, order_item_id, product_id, variant_id</text>
+    <text x="12" y="64" class="field">quantity, status, expires_at</text>
+  </g>
+
+  <!-- Forum / AI tables -->
+  <g transform="translate(70 685)">
+    <rect width="230" height="92" rx="8" class="table" />
+    <rect width="230" height="27" rx="8" class="head-ai" />
+    <text x="12" y="19" class="table-name">forum_threads</text>
+    <text x="12" y="46" class="field">FK author_id</text>
+    <text x="12" y="64" class="field">category, title</text>
+    <text x="12" y="82" class="field">knowledge_status</text>
+  </g>
+
+  <g transform="translate(340 685)">
+    <rect width="230" height="92" rx="8" class="table" />
+    <rect width="230" height="27" rx="8" class="head-ai" />
+    <text x="12" y="19" class="table-name">forum_replies</text>
+    <text x="12" y="46" class="field">FK thread_id, author_id</text>
+    <text x="12" y="64" class="field">FK parent_reply_id</text>
+    <text x="12" y="82" class="field">expert/accepted flags</text>
+  </g>
+
+  <g transform="translate(640 685)">
+    <rect width="230" height="92" rx="8" class="table" />
+    <rect width="230" height="27" rx="8" class="head-ai" />
+    <text x="12" y="19" class="table-name">knowledge_docs</text>
+    <text x="12" y="46" class="field">FK owner_id</text>
+    <text x="12" y="64" class="field">category, review_status</text>
+    <text x="12" y="82" class="field">version, content</text>
+  </g>
+
+  <g transform="translate(940 685)">
+    <rect width="220" height="82" rx="8" class="table" />
+    <rect width="220" height="27" rx="8" class="head-ai" />
+    <text x="12" y="19" class="table-name">chat_sessions</text>
+    <text x="12" y="46" class="field">FK user_id, pet_id</text>
+    <text x="12" y="64" class="field">title, routing_status</text>
+  </g>
+
+  <g transform="translate(1190 685)">
+    <rect width="200" height="82" rx="8" class="table" />
+    <rect width="200" height="27" rx="8" class="head-ai" />
+    <text x="12" y="19" class="table-name">chat_messages</text>
+    <text x="12" y="46" class="field">FK session_id, role</text>
+    <text x="12" y="64" class="field">content, token_usage</text>
+  </g>
+
+  <g transform="translate(70 830)">
+    <rect width="1320" height="72" rx="8" fill="#ffffff" stroke="#db2777" stroke-width="1.2" />
+    <text x="18" y="29" class="note-title">Cách đọc sơ đồ</text>
+    <text x="18" y="52" class="note-text">Catalog tạo order item; payment và reservation bám theo order. Forum có câu trả lời chuyên gia/đã duyệt là nguồn để seed hoặc index thành knowledge cho Catbot.</text>
+  </g>
+
+  <!-- Relationships -->
+  <path d="M210 251 L210 290" class="rel" />
+  <path d="M350 210 C560 210 720 115 930 190" class="rel" />
+  <path d="M350 210 C420 300 420 420 450 440" class="rel" />
+  <path d="M350 210 C500 565 690 625 985 685" class="rel" />
+  <path d="M210 364 C420 565 720 610 985 715" class="rel" />
+
+  <path d="M625 203 L655 203" class="rel" />
+  <path d="M740 248 L740 295" class="rel" />
+  <path d="M825 199 C965 170 1040 160 1180 190" class="rel" />
+  <path d="M825 341 C980 285 1045 225 1180 215" class="rel" />
+  <path d="M625 440 C755 380 1080 290 1180 220" class="rel" />
+
+  <path d="M1140 210 L1180 210" class="rel" />
+  <path d="M1285 255 L1285 305" class="rel" />
+  <path d="M1285 255 C1270 330 1160 390 1160 430" class="rel" />
+  <path d="M1285 255 C1285 340 1285 360 1285 430" class="rel" />
+
+  <path d="M300 731 L340 731" class="rel" />
+  <path d="M455 777 C490 805 535 805 545 777" class="rel" />
+  <path d="M570 725 C610 710 615 725 640 725" class="concept" />
+  <path d="M870 725 C900 725 910 725 940 725" class="concept" />
+  <path d="M1160 725 L1190 725" class="rel" />
+
+  <rect x="596" y="696" width="88" height="22" rx="5" class="label-bg" />
+  <text x="640" y="711" text-anchor="middle" class="label">đã duyệt</text>
+  <rect x="886" y="696" width="92" height="22" rx="5" class="label-bg" />
+  <text x="932" y="711" text-anchor="middle" class="label">RAG context</text>
+</svg>

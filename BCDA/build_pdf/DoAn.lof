@@ -1,0 +1,32 @@
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {2.1}{\ignorespaces Biểu đồ use case tổng quát dạng nhóm tác nhân\relax }}{8}{figure.caption.10}%
+\contentsline {figure}{\numberline {2.2}{\ignorespaces Use case phân rã nhóm mua hàng\relax }}{9}{figure.caption.11}%
+\contentsline {figure}{\numberline {2.3}{\ignorespaces Use case phân rã nhóm hồ sơ thú cưng và Catbot\relax }}{10}{figure.caption.12}%
+\contentsline {figure}{\numberline {2.4}{\ignorespaces Use case phân rã nhóm diễn đàn cộng đồng\relax }}{10}{figure.caption.13}%
+\contentsline {figure}{\numberline {2.5}{\ignorespaces Use case phân rã nhóm quản trị\relax }}{11}{figure.caption.14}%
+\contentsline {figure}{\numberline {2.6}{\ignorespaces Quy trình nghiệp vụ mua hàng và thanh toán\relax }}{13}{figure.caption.15}%
+\contentsline {figure}{\numberline {2.7}{\ignorespaces Quy trình nghiệp vụ tư vấn bằng Catbot và chuyển giao hỗ trợ\relax }}{15}{figure.caption.16}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1}{\ignorespaces Luồng RAG và tool-calling của Catbot\relax }}{31}{figure.caption.17}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {4.1}{\ignorespaces Kiến trúc tổng quan hệ thống ThePawsome\relax }}{35}{figure.caption.19}%
+\contentsline {figure}{\numberline {4.2}{\ignorespaces Màn hình shop và bộ lọc sản phẩm\relax }}{37}{figure.caption.23}%
+\contentsline {figure}{\numberline {4.3}{\ignorespaces Màn hình chi tiết sản phẩm\relax }}{38}{figure.caption.24}%
+\contentsline {figure}{\numberline {4.4}{\ignorespaces Màn hình checkout và thanh toán SePay\relax }}{38}{figure.caption.25}%
+\contentsline {figure}{\numberline {4.5}{\ignorespaces Màn hình Catbot tư vấn sản phẩm\relax }}{39}{figure.caption.26}%
+\contentsline {figure}{\numberline {4.6}{\ignorespaces Màn hình quản trị sản phẩm\relax }}{40}{figure.caption.27}%
+\contentsline {figure}{\numberline {4.7}{\ignorespaces Liên kết tổng quan giữa các nhóm bảng dữ liệu\relax }}{40}{figure.caption.28}%
+\contentsline {figure}{\numberline {4.8}{\ignorespaces ERD nhóm User/Pet\relax }}{42}{figure.caption.30}%
+\contentsline {figure}{\numberline {4.9}{\ignorespaces ERD nhóm Catalog\relax }}{43}{figure.caption.31}%
+\contentsline {figure}{\numberline {4.10}{\ignorespaces ERD nhóm Commerce\relax }}{44}{figure.caption.32}%
+\contentsline {figure}{\numberline {4.11}{\ignorespaces ERD nhóm Forum\relax }}{45}{figure.caption.33}%
+\contentsline {figure}{\numberline {4.12}{\ignorespaces ERD nhóm AI/Knowledge/Log\relax }}{46}{figure.caption.34}%
+\contentsline {figure}{\numberline {4.13}{\ignorespaces ERD nhóm Review/Wishlist\relax }}{47}{figure.caption.35}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {5.1}{\ignorespaces Luồng checkout an toàn với SePay và reservation\relax }}{55}{figure.caption.39}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsfinish 
+\contentsfinish 

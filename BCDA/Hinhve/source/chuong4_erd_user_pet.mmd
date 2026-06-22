@@ -1,0 +1,33 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "DejaVu Sans, Arial", "primaryColor": "#eff6ff", "primaryTextColor": "#111827", "lineColor": "#475569"}}}%%
+erDiagram
+    USERS ||--o{ REFRESH_SESSIONS : has
+    USERS ||--o{ PETS : owns
+
+    USERS {
+        uuid id PK
+        string email UK
+        string hashed_password
+        string full_name
+        string phone
+        string role
+        boolean is_active
+        boolean is_expert_verified
+    }
+
+    REFRESH_SESSIONS {
+        uuid id PK
+        uuid user_id FK
+        string jti UK
+        datetime expires_at
+        datetime revoked_at
+    }
+
+    PETS {
+        uuid id PK
+        uuid user_id FK
+        string name
+        string species
+        string breed
+        string health_notes
+        string allergies
+    }

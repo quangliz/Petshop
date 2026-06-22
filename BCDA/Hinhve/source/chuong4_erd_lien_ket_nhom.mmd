@@ -1,0 +1,29 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "DejaVu Sans, Arial", "primaryColor": "#ffffff", "primaryTextColor": "#111827", "lineColor": "#475569"}}}%%
+flowchart LR
+    U["User/Pet<br/>users, refresh_sessions, pets"]
+    C["Catalog<br/>categories, banners, products,<br/>product_variants, product_images"]
+    M["Commerce<br/>carts, cart_items, promotions,<br/>orders, order_items, payments,<br/>reservations, returns"]
+    F["Forum<br/>threads, replies, votes"]
+    A["AI/Knowledge/Log<br/>knowledge_docs, chat_sessions,<br/>chat_messages, ai_call_logs, audit_logs"]
+    R["Review/Wishlist<br/>reviews, wishlist_items"]
+
+    U -->|"user_id"| M
+    C -->|"product_id / variant_id"| M
+    U -->|"author / voter"| F
+    F -. "eligible expert content" .-> A
+    U -->|"user_id / owner_id"| A
+    U -->|"user_id"| R
+    C -->|"product_id"| R
+
+    classDef user fill:#eff6ff,stroke:#64748b,color:#111827;
+    classDef catalog fill:#ecfdf5,stroke:#64748b,color:#111827;
+    classDef commerce fill:#fff7ed,stroke:#64748b,color:#111827;
+    classDef forum fill:#f5f3ff,stroke:#64748b,color:#111827;
+    classDef ai fill:#fdf2f8,stroke:#64748b,color:#111827;
+    classDef review fill:#f0fdfa,stroke:#64748b,color:#111827;
+    class U user;
+    class C catalog;
+    class M commerce;
+    class F forum;
+    class A ai;
+    class R review;

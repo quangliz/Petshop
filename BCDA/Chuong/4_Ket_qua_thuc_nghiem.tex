@@ -172,16 +172,14 @@ Các ảnh chụp giao diện nên lấy từ môi trường demo có dữ liệ
 \subsection{Thiết kế cơ sở dữ liệu}
 \label{subsection:4.2.2}
 
-CSDL nghiệp vụ hiện có 28 bảng SQLAlchemy, chưa tính các bảng nội bộ do LangChain PGVector tạo để lưu collection và embedding. Hình \ref{fig:4.4} trình bày ERD tổng quan theo nhóm bảng. Sơ đồ này không vẽ toàn bộ cột để tránh quá tải, mà nhấn mạnh các miền dữ liệu và quan hệ phụ thuộc chính.
+CSDL nghiệp vụ hiện có 28 bảng SQLAlchemy, chưa tính các bảng nội bộ do LangChain PGVector tạo để lưu collection và embedding. Để tránh quá tải trong một sơ đồ duy nhất, ERD được chia thành sơ đồ liên kết nhóm và các sơ đồ chi tiết theo từng miền dữ liệu. Hình \ref{fig:4.erd_groups} trình bày quan hệ phụ thuộc chính giữa các nhóm bảng; Bảng \ref{table:4.4} tổng hợp đầy đủ 28 bảng nghiệp vụ.
 
-\begin{landscape}
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.95\linewidth]{Hinhve/chuong4_erd_tong_quan.png}
-\caption{ERD tổng quan theo nhóm bảng của ThePawsome}
-\label{fig:4.4}
+\includegraphics[width=0.95\linewidth,height=0.78\textheight,keepaspectratio]{Hinhve/chuong4_erd_lien_ket_nhom.png}
+\caption{Liên kết tổng quan giữa các nhóm bảng dữ liệu}
+\label{fig:4.erd_groups}
 \end{figure}
-\end{landscape}
 
 Bảng \ref{table:4.4} tổng hợp các nhóm bảng chính. Nhóm catalog lưu danh mục, sản phẩm, biến thể và ảnh. Nhóm commerce lưu giỏ hàng, đơn hàng, payment, reservation, mã giảm giá và đổi trả. Nhóm forum lưu thread, reply và vote. Nhóm AI/knowledge lưu tài liệu knowledge, chat session, message, log chi phí AI và audit log.
 
@@ -202,6 +200,52 @@ AI/Knowledge/Log & 5 & \texttt{knowledge\_docs}, \texttt{chat\_sessions}, \textt
 Review/Wishlist & 2 & \texttt{reviews}, \texttt{wishlist\_items}. \\ \hline
 \end{tabular}
 \end{table}
+
+Các hình tiếp theo trình bày ERD chi tiết cho từng nhóm bảng. Trong các sơ đồ này, một số bảng ngoài nhóm như \texttt{users}, \texttt{products} hoặc \texttt{pets} được lặp lại như bảng tham chiếu để làm rõ khóa ngoại liên miền.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_user_pet.png}
+\caption{ERD nhóm User/Pet}
+\label{fig:4.erd_user_pet}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_catalog.png}
+\caption{ERD nhóm Catalog}
+\label{fig:4.erd_catalog}
+\end{figure}
+
+\begin{landscape}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_commerce.png}
+\caption{ERD nhóm Commerce}
+\label{fig:4.erd_commerce}
+\end{figure}
+\end{landscape}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_forum.png}
+\caption{ERD nhóm Forum}
+\label{fig:4.erd_forum}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_ai_knowledge_log.png}
+\caption{ERD nhóm AI/Knowledge/Log}
+\label{fig:4.erd_ai_knowledge_log}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_review_wishlist.png}
+\caption{ERD nhóm Review/Wishlist}
+\label{fig:4.erd_review_wishlist}
+\end{figure}
 
 Một số ràng buộc dữ liệu quan trọng đã được thể hiện trực tiếp trong model và migration. Giá sản phẩm và biến thể phải dương; giá khuyến mãi nếu có phải nhỏ hơn giá gốc; tồn kho không âm; số lượng trong giỏ và đơn phải lớn hơn 0; mỗi người dùng chỉ review một sản phẩm một lần; mỗi user chỉ vote một thread hoặc reply một trạng thái tại một thời điểm; \texttt{orders} có unique constraint trên cặp \texttt{idempotency\_scope} và \texttt{idempotency\_key}; \texttt{payments} có unique constraint trên \texttt{external\_txn\_id}, \texttt{merchant\_ref} và cặp \texttt{order\_id}/\texttt{idempotency\_key}. Các ràng buộc này là lớp phòng thủ dữ liệu bên cạnh validation ở API.
 

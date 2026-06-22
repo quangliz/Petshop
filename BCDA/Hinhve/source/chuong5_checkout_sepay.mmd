@@ -1,0 +1,35 @@
+sequenceDiagram
+    actor KH as Khách hàng
+    participant UI as Frontend
+    participant BE as Backend API
+    participant DB as PostgreSQL
+    participant SP as SePay
+    participant W as Worker
+
+    KH->>UI: Xác nhận checkout SePay
+    UI->>BE: POST /orders/checkout<br/>Idempotency-Key
+    BE->>DB: Advisory lock + kiểm tra key
+    Note over BE,DB: Key trùng payload -> trả order cũ<br/>Key trùng payload khác -> 409 Conflict
+
+    BE->>DB: Khóa tồn kho FOR UPDATE
+    BE->>DB: Tạo order, order_items,<br/>reservation held và trừ tồn kho
+    DB-->>BE: COMMIT
+    BE-->>UI: order_code, unpaid
+
+    UI->>BE: POST /payments/sepay/create<br/>Payment Idempotency-Key
+    BE->>DB: Khóa order, kiểm tra reservation,<br/>reuse/create payment pending
+    BE-->>UI: VietQR URL<br/>des=order_code, amount=total
+    UI-->>KH: Hiển thị QR thanh toán
+
+    KH->>SP: Chuyển khoản đúng mã ORD-...
+    SP-->>BE: Webhook SePay
+    Note over BE: Verify auth, txn_id, order_code và amount
+    BE->>DB: Lock payment + order + reservation
+    BE->>DB: Commit reservation<br/>hoặc reacquire nếu đã release
+    Note over BE,DB: Không reacquire được -> payment success<br/>nhưng requires_review=true
+
+    UI->>BE: Poll payment status
+    BE-->>UI: paid / review / failed
+    UI-->>KH: Cập nhật kết quả
+
+    W->>DB: Sweep reservation quá hạn<br/>release stock, cancel unpaid order

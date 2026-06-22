@@ -1,0 +1,30 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "DejaVu Sans, Arial", "primaryColor": "#f0fdfa", "primaryTextColor": "#111827", "lineColor": "#475569"}}}%%
+erDiagram
+    USERS ||--o{ REVIEWS : writes
+    PRODUCTS ||--o{ REVIEWS : receives
+    USERS ||--o{ WISHLIST_ITEMS : saves
+    PRODUCTS ||--o{ WISHLIST_ITEMS : saved_as
+
+    USERS {
+        uuid id PK
+    }
+
+    PRODUCTS {
+        uuid id PK
+    }
+
+    REVIEWS {
+        uuid id PK
+        uuid user_id FK
+        uuid product_id FK
+        int rating
+        string comment
+        datetime created_at
+    }
+
+    WISHLIST_ITEMS {
+        uuid id PK
+        uuid user_id FK
+        uuid product_id FK
+        datetime created_at
+    }
