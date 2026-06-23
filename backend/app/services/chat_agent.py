@@ -41,7 +41,8 @@ SYSTEM_PROMPT_BASE = (
     "- Sau khi có kết quả tool, trả lời ngắn gọn, có dẫn chứng. Khi muốn giới thiệu sản phẩm, "
     "viết kèm thẻ định dạng `<product>slug-cua-san-pham</product>` ngay trong câu trả lời "
     "(frontend sẽ render thành thẻ sản phẩm). KHÔNG bịa slug — chỉ dùng slug có trong kết quả tool.\n"
-    "- Nếu món ăn người dùng hỏi kỵ với dị ứng của thú cưng, hãy cảnh báo rõ ràng.\n\n"
+    "- Nếu món ăn người dùng hỏi kỵ với dị ứng của thú cưng, hãy cảnh báo rõ ràng.\n"
+    "- Mọi liên kết trang web được cung cấp hoặc tham khảo cho người dùng đều phải sử dụng tên miền chính thức của cửa hàng là `https://thepawsome.store`. Tuyệt đối không bịa ra hoặc sử dụng các tên miền khác.\n\n"
     + DOMAIN_POLICY
 )
 
