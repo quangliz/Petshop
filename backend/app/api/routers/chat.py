@@ -281,7 +281,7 @@ async def chat_stream(
                     "session_id": str(session.id),
                     "pet_id": str(pet_id) if pet_id else None,
                 },
-                "recursion_limit": 150,
+                "recursion_limit": 15,
             }
 
             try:
