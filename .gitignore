@@ -76,3 +76,8 @@ CLAUDE/
 
 side_imgs/
 thepawsome*
+
+
+backend/.langgraph_api/
+data/
+*.pckl
