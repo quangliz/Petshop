@@ -77,7 +77,7 @@ def preflight_safety_response(text: str) -> str | None:
     return None
 
 
-def sanitize_retrieved_content(content: str, max_chars: int = 3000) -> str:
+def sanitize_retrieved_content(content: str, max_chars: int = 1600) -> str:
     cleaned_lines = []
     for line in content.replace("\x00", "").splitlines():
         if UNTRUSTED_INSTRUCTION_RE.search(line):
@@ -85,3 +85,58 @@ def sanitize_retrieved_content(content: str, max_chars: int = 3000) -> str:
         else:
             cleaned_lines.append(line)
     return "\n".join(cleaned_lines)[:max_chars]
+
+
+# ---------------------------------------------------------------------------
+# Post-guard: validate & auto-repair AI output before sending to client
+# ---------------------------------------------------------------------------
+
+# Matches: [Any text](thepawsome.store/slug) or (https://thepawsome.store/slug)
+_MARKDOWN_PRODUCT_LINK_RE = re.compile(
+    r'\[([^\]]*?)\]\((?:https?://)?(?:www\.)?thepawsome\.store/([^)\s]+)\)'
+)
+
+# Also catches bare links without anchor text written by model
+_BARE_PRODUCT_LINK_RE = re.compile(
+    r'(?<!\()(?:https?://)?(?:www\.)?thepawsome\.store/([A-Za-z0-9][A-Za-z0-9\-]{2,})'
+)
+
+
+def postguard_response(text: str) -> tuple[str, list[str]]:
+    """Validate and auto-repair agent output before it reaches the client.
+
+    Detects markdown product links and bare thepawsome.store URLs that should
+    have been rendered as ``<product>slug</product>`` chips, converts them
+    automatically, and returns a list of warning strings for monitoring.
+
+    Returns:
+        (repaired_text, warnings): repaired_text is safe to send to client;
+        warnings is empty when the output was already correct.
+    """
+    warnings: list[str] = []
+
+    # 1. Convert [Anchor](thepawsome.store/slug) → <product>slug</product>
+    md_matches = _MARKDOWN_PRODUCT_LINK_RE.findall(text)
+    if md_matches:
+        warnings.append(
+            f"OUTPUT_FORMAT_VIOLATION: {len(md_matches)} markdown product link(s) "
+            f"found instead of <product> tags — auto-converted: "
+            + ", ".join(slug for _, slug in md_matches)
+        )
+        text = _MARKDOWN_PRODUCT_LINK_RE.sub(
+            lambda m: f"<product>{m.group(2)}</product>", text
+        )
+
+    # 2. Convert bare URLs thepawsome.store/slug → <product>slug</product>
+    bare_matches = _BARE_PRODUCT_LINK_RE.findall(text)
+    if bare_matches:
+        warnings.append(
+            f"OUTPUT_FORMAT_VIOLATION: {len(bare_matches)} bare product URL(s) "
+            f"found — auto-converted: " + ", ".join(bare_matches)
+        )
+        text = _BARE_PRODUCT_LINK_RE.sub(
+            lambda m: f"<product>{m.group(1)}</product>", text
+        )
+
+    return text, warnings
+
