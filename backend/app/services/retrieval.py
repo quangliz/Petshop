@@ -538,7 +538,7 @@ async def search_products(
         _product_result(product, score=fusion_scores[product.slug] / max_score, short=short)
         for product in ranked
     ]
-    if settings.COHERE_API_KEY and candidates:
+    if settings.COHERE_RERANK_ENABLED and settings.COHERE_API_KEY and candidates:
         return await rerank_products_cohere(query, candidates, top_n=limit)
     return candidates[:limit]
 
@@ -575,7 +575,7 @@ async def search_knowledge(query: str, limit: int = 4, embedding: list[float] | 
         }
         for score, doc, metadata in ranked
     ]
-    if settings.COHERE_API_KEY and candidates:
+    if settings.COHERE_RERANK_ENABLED and settings.COHERE_API_KEY and candidates:
         return await rerank_knowledge_cohere(query, candidates, top_n=limit)
     return candidates[:limit]
 

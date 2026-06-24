@@ -1,4 +1,5 @@
 import pytest
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from app.services.retrieval import rerank_products_cohere, rerank_knowledge_cohere
 from app.core.config import settings
@@ -26,6 +27,53 @@ async def test_rerank_disabled_when_api_key_missing(sample_products):
         assert len(res) == 2
         assert res[0]["id"] == "1"
         assert res[1]["id"] == "2"
+
+
+@pytest.mark.anyio
+async def test_search_respects_cohere_rerank_enabled_flag(sample_products):
+    from app.services import retrieval
+
+    products = [
+        SimpleNamespace(
+            slug=item["id"],
+            target_species=["cat"],
+            category=None,
+            brand=item["brand"],
+            sale_price=None,
+            price=10000,
+            stock_qty=5,
+            variants=[],
+        )
+        for item in sample_products
+    ]
+
+    class _ScalarResult:
+        def all(self):
+            return []
+
+    class _ExecuteResult:
+        def scalars(self):
+            return _ScalarResult()
+
+    class _DB:
+        async def execute(self, *args, **kwargs):
+            return _ExecuteResult()
+
+    with (
+        patch.object(settings, "COHERE_API_KEY", "mock-key"),
+        patch.object(settings, "COHERE_RERANK_ENABLED", False),
+        patch.object(retrieval, "_word_ranked_products", AsyncMock(return_value=products)),
+        patch.object(retrieval, "rerank_products_cohere", AsyncMock()) as mock_rerank,
+        patch.object(
+            retrieval,
+            "_product_result",
+            side_effect=lambda product, score=None, short=False: {"slug": product.slug, "score": score},
+        ),
+    ):
+        res = await retrieval.search_products(_DB(), "pate", limit=2, keyword_only=True)
+
+    assert len(res) == 2
+    assert mock_rerank.await_count == 0
 
 @pytest.mark.anyio
 async def test_rerank_products_success(sample_products):

@@ -72,6 +72,7 @@ class Settings(BaseSettings):
     LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
 
     # Cohere Rerank config
+    COHERE_RERANK_ENABLED: bool = True
     COHERE_API_KEY: str = ""
     COHERE_RERANK_MODEL: str = "rerank-multilingual-v3.0"
 

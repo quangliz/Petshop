@@ -1,0 +1,507 @@
+{
+  "generated_at": "2026-06-24T11:12:42.023750+00:00",
+  "eval_project": "thepawsome-eval",
+  "judge_project": "thepawsome-judge",
+  "project_stats": {
+    "eval": {
+      "run_count": 50,
+      "latency_p50_seconds": 7.071,
+      "latency_p99_seconds": 16.666,
+      "error_rate": 0.0,
+      "total_tokens": 182181,
+      "prompt_tokens": 168853,
+      "completion_tokens": 13328,
+      "total_cost_usd": 0.02743,
+      "prompt_cost_usd": 0.019434,
+      "completion_cost_usd": 0.007997,
+      "cache_read_tokens": 78592,
+      "last_run_start_time": "2026-06-24T10:40:08.963507+00:00"
+    },
+    "judge": {
+      "run_count": 50,
+      "latency_p50_seconds": 1.998,
+      "latency_p99_seconds": 6.747,
+      "error_rate": 0.0,
+      "total_tokens": 57558,
+      "prompt_tokens": 51507,
+      "completion_tokens": 6051,
+      "total_cost_usd": 0.189278,
+      "prompt_cost_usd": 0.128767,
+      "completion_cost_usd": 0.06051,
+      "cache_read_tokens": 0,
+      "last_run_start_time": "2026-06-24T10:40:16.049344+00:00"
+    }
+  },
+  "project_isolation": {
+    "eval_root_names": [
+      "agent_eval_case"
+    ],
+    "judge_root_names": [
+      "agent_eval_judge"
+    ],
+    "ok": true
+  },
+  "eval_root_summary": {
+    "run_count": 50,
+    "error_count": 0,
+    "error_rate": 0.0,
+    "latency_seconds": {
+      "min": 0.0,
+      "p50": 7.071,
+      "p90": 14.765,
+      "p95": 15.062,
+      "p99": 16.666,
+      "max": 17.896
+    },
+    "total_tokens": 182181,
+    "avg_tokens_per_case": 3643.6,
+    "total_cost_usd": 0.02743,
+    "avg_cost_usd": 0.000549
+  },
+  "judge_root_summary": {
+    "run_count": 50,
+    "error_count": 0,
+    "error_rate": 0.0,
+    "latency_seconds": {
+      "min": 1.418,
+      "p50": 1.998,
+      "p90": 2.677,
+      "p95": 2.812,
+      "p99": 6.747,
+      "max": 7.352
+    },
+    "total_tokens": 57558,
+    "avg_tokens_per_case": 1151.2,
+    "total_cost_usd": 0.189278,
+    "avg_cost_usd": 0.003786
+  },
+  "trace_contract": {
+    "required_tool_hit_rate": 82.0,
+    "tool_order_rate": 82.0,
+    "handoff_hit_rate": 100.0,
+    "unexpected_handoff_absence_rate": 100.0,
+    "safety_preflight_hit_rate": 100.0,
+    "unexpected_safety_absence_rate": 100.0,
+    "avg_tool_calls_per_case": 1.18,
+    "tool_call_counts": {
+      "get_pet_detail_tool": 6,
+      "list_pets_tool": 5,
+      "request_human_support_tool": 4,
+      "search_knowledge_tool": 20,
+      "search_products_tool": 24
+    },
+    "groups": [
+      {
+        "group": "cart_boundary",
+        "cases": 2,
+        "required_tool_hit_rate": 100.0,
+        "tool_order_rate": 100.0,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      },
+      {
+        "group": "guardrail",
+        "cases": 6,
+        "required_tool_hit_rate": 66.7,
+        "tool_order_rate": 66.7,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      },
+      {
+        "group": "hitl",
+        "cases": 4,
+        "required_tool_hit_rate": 100.0,
+        "tool_order_rate": 100.0,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      },
+      {
+        "group": "knowledge_rag",
+        "cases": 12,
+        "required_tool_hit_rate": 100.0,
+        "tool_order_rate": 100.0,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      },
+      {
+        "group": "personalization",
+        "cases": 8,
+        "required_tool_hit_rate": 25.0,
+        "tool_order_rate": 25.0,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      },
+      {
+        "group": "product_knowledge_combo",
+        "cases": 6,
+        "required_tool_hit_rate": 83.3,
+        "tool_order_rate": 83.3,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      },
+      {
+        "group": "product_search",
+        "cases": 12,
+        "required_tool_hit_rate": 100.0,
+        "tool_order_rate": 100.0,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      }
+    ]
+  },
+  "judge_scores": {
+    "relevance": 4.8,
+    "groundedness": 4.28,
+    "helpfulness": 4.7,
+    "safety": 4.76,
+    "average": 4.63,
+    "cases_below_4_average": [
+      27,
+      28,
+      30,
+      32,
+      35,
+      38,
+      44
+    ],
+    "groups": [
+      {
+        "group": "cart_boundary",
+        "cases": 2,
+        "relevance": 4.5,
+        "groundedness": 3.5,
+        "helpfulness": 4,
+        "safety": 4.5,
+        "average": 4.12
+      },
+      {
+        "group": "guardrail",
+        "cases": 6,
+        "relevance": 5,
+        "groundedness": 4.17,
+        "helpfulness": 4.67,
+        "safety": 4.67,
+        "average": 4.62
+      },
+      {
+        "group": "hitl",
+        "cases": 4,
+        "relevance": 5,
+        "groundedness": 5,
+        "helpfulness": 5,
+        "safety": 5,
+        "average": 5
+      },
+      {
+        "group": "knowledge_rag",
+        "cases": 12,
+        "relevance": 5,
+        "groundedness": 4.67,
+        "helpfulness": 5,
+        "safety": 5,
+        "average": 4.92
+      },
+      {
+        "group": "personalization",
+        "cases": 8,
+        "relevance": 4.5,
+        "groundedness": 3.5,
+        "helpfulness": 4.25,
+        "safety": 4.25,
+        "average": 4.12
+      },
+      {
+        "group": "product_knowledge_combo",
+        "cases": 6,
+        "relevance": 4.33,
+        "groundedness": 3.5,
+        "helpfulness": 4.33,
+        "safety": 4.5,
+        "average": 4.17
+      },
+      {
+        "group": "product_search",
+        "cases": 12,
+        "relevance": 4.92,
+        "groundedness": 4.75,
+        "helpfulness": 4.92,
+        "safety": 5,
+        "average": 4.9
+      }
+    ]
+  },
+  "tool_runs": [
+    {
+      "tool": "get_pet_detail_tool",
+      "calls": 6,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_seconds": {
+        "min": 0.046,
+        "p50": 0.113,
+        "p90": 0.534,
+        "p95": 0.665,
+        "p99": 0.77,
+        "max": 0.796
+      }
+    },
+    {
+      "tool": "list_pets_tool",
+      "calls": 5,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_seconds": {
+        "min": 0.046,
+        "p50": 0.068,
+        "p90": 0.268,
+        "p95": 0.283,
+        "p99": 0.294,
+        "max": 0.297
+      }
+    },
+    {
+      "tool": "request_human_support_tool",
+      "calls": 4,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_seconds": {
+        "min": 0.124,
+        "p50": 0.138,
+        "p90": 0.188,
+        "p95": 0.197,
+        "p99": 0.205,
+        "max": 0.207
+      }
+    },
+    {
+      "tool": "search_knowledge_tool",
+      "calls": 20,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_seconds": {
+        "min": 0.583,
+        "p50": 1.347,
+        "p90": 7.21,
+        "p95": 7.97,
+        "p99": 9.004,
+        "max": 9.262
+      }
+    },
+    {
+      "tool": "search_products_tool",
+      "calls": 24,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_seconds": {
+        "min": 0.716,
+        "p50": 1.118,
+        "p90": 1.85,
+        "p95": 1.944,
+        "p99": 3.248,
+        "max": 3.633
+      }
+    }
+  ],
+  "case_run_ids": {
+    "1": {
+      "eval_run_id": "eced8498-8800-4c9f-abfb-efe297582e0c",
+      "judge_run_id": "d58b748c-6db9-48c7-980d-c0490a1ffaed"
+    },
+    "2": {
+      "eval_run_id": "d695b064-8d34-4d75-b220-1549e23d2be0",
+      "judge_run_id": "b9212663-1b9d-4133-b820-8bf5cae1ca51"
+    },
+    "3": {
+      "eval_run_id": "a84933d7-1a34-4386-84d8-8b131e513ac8",
+      "judge_run_id": "52e5a6c4-5cb3-47ed-9b2f-e853fa760fa9"
+    },
+    "4": {
+      "eval_run_id": "b566c2a8-4986-4777-b2d0-2511368290a3",
+      "judge_run_id": "42bbbdaa-cf7e-4cc3-8206-fb7528641026"
+    },
+    "5": {
+      "eval_run_id": "542ab969-2f18-4608-8686-794e08821a37",
+      "judge_run_id": "9f9d23e0-26e3-4b36-83b0-67d85269aa75"
+    },
+    "6": {
+      "eval_run_id": "6779563f-82d7-4121-8d0a-fe25c8e80766",
+      "judge_run_id": "5609beef-bf2b-41b2-98b1-10d7a42ac524"
+    },
+    "7": {
+      "eval_run_id": "75665163-8167-4c32-980d-cafc6b488d51",
+      "judge_run_id": "6b5fa25b-2c3e-4f6a-b8fe-795b7adbfd32"
+    },
+    "8": {
+      "eval_run_id": "cb2b1af6-4692-49c6-950d-737a3d696113",
+      "judge_run_id": "d4bd3767-b14b-4dfb-8a74-d287d1b5a77e"
+    },
+    "9": {
+      "eval_run_id": "34ced214-6a80-4fe7-bedc-db120ed77f5b",
+      "judge_run_id": "87042b54-0183-4418-9107-b3c210f05dad"
+    },
+    "10": {
+      "eval_run_id": "1cea78cf-104e-4dfd-8d48-01180d60a615",
+      "judge_run_id": "01855f8b-b710-41bb-8d79-bba5017df2dd"
+    },
+    "11": {
+      "eval_run_id": "6a180e6f-1770-4897-9791-f87e4a35543d",
+      "judge_run_id": "621b7d7d-404e-4c1e-bcf0-68f176e489fd"
+    },
+    "12": {
+      "eval_run_id": "40d17474-0493-412c-af02-83d88a1c9521",
+      "judge_run_id": "a0e5bc91-bc15-47a9-99a7-20dc731547fc"
+    },
+    "13": {
+      "eval_run_id": "8c45ac0f-cf4a-40c1-9f94-6d941f8e0bb5",
+      "judge_run_id": "e1ba9c0c-0126-4b33-8923-4882428ee5da"
+    },
+    "14": {
+      "eval_run_id": "178113bc-9f9b-478f-a709-0ffae4b1a1b1",
+      "judge_run_id": "0b02f8a0-8e3c-45b9-a175-3d122199d9a9"
+    },
+    "15": {
+      "eval_run_id": "4b3c8434-cab0-4226-a6d1-33e4abe43036",
+      "judge_run_id": "af655eab-df14-4671-812b-57cf03abb017"
+    },
+    "16": {
+      "eval_run_id": "04db98ff-5675-475d-a7d5-4f5051432120",
+      "judge_run_id": "f3a4e710-e14a-4964-9ce1-2d2cbc6394e2"
+    },
+    "17": {
+      "eval_run_id": "eab13739-de18-4fb3-8d5a-b75a30be7299",
+      "judge_run_id": "d28c0b77-ff18-401f-8bcf-55be7f2b1254"
+    },
+    "18": {
+      "eval_run_id": "4c300c9d-d714-42f9-8c22-ec5b3c59593a",
+      "judge_run_id": "3ef533da-1911-4ec2-b6ae-12149172fc6b"
+    },
+    "19": {
+      "eval_run_id": "e23695b5-84d8-40ee-9920-f5a899c34de8",
+      "judge_run_id": "592ed64a-087e-4b6d-a59e-676c76ad8027"
+    },
+    "20": {
+      "eval_run_id": "ee15ad37-ff63-4f1f-9834-a8136945e5bf",
+      "judge_run_id": "57321cfe-73fd-422e-9418-b7a15414015a"
+    },
+    "21": {
+      "eval_run_id": "dadadf5d-ffb3-470b-80c7-a0faccdff09c",
+      "judge_run_id": "6e5d1069-bfc6-4823-b069-2fcf6ded546c"
+    },
+    "22": {
+      "eval_run_id": "9324e0ab-e796-4583-8f27-7b59f6494fc1",
+      "judge_run_id": "2be1f7b9-3915-4491-bc21-9316d0293830"
+    },
+    "23": {
+      "eval_run_id": "1d079e73-5ea1-44c6-87bb-795fa0d250b0",
+      "judge_run_id": "ae2416c2-f08b-43ab-9252-6a4a0da752ab"
+    },
+    "24": {
+      "eval_run_id": "4437bbd6-57d5-4dca-91a1-1d2fa74c56ae",
+      "judge_run_id": "2cb981cb-8e66-4ac8-97a5-358e115b3e54"
+    },
+    "25": {
+      "eval_run_id": "1bf58129-3d45-42d7-b2d0-5c5626bcd00c",
+      "judge_run_id": "2e0dd8dd-5cf2-4720-b993-74e1b48b3690"
+    },
+    "26": {
+      "eval_run_id": "51f755c3-a8e8-4139-9015-c0f07ae103e2",
+      "judge_run_id": "d3fdeae3-8479-42d4-b1aa-911def777b39"
+    },
+    "27": {
+      "eval_run_id": "1d449917-c923-43e5-9031-8af8f9d014a8",
+      "judge_run_id": "c1bf324b-4445-4768-83dc-7fd923095ef8"
+    },
+    "28": {
+      "eval_run_id": "f6a134d2-93e9-4ce8-9037-e66293bf6421",
+      "judge_run_id": "5cf62f23-083e-4120-ac6f-25453c179207"
+    },
+    "29": {
+      "eval_run_id": "dedc7eaf-089b-44a3-9a24-2664580b7cc5",
+      "judge_run_id": "9b9c41dc-3d40-44f4-aadf-69fe6f6204db"
+    },
+    "30": {
+      "eval_run_id": "b8634d6a-423a-46e9-b6ef-49b599e357c9",
+      "judge_run_id": "0338e22f-e2d4-421a-a866-f62ef847b55a"
+    },
+    "31": {
+      "eval_run_id": "02a542c5-1908-432f-b2c3-9f47ffcba96f",
+      "judge_run_id": "de511252-487c-4cc1-9e82-75b86b544697"
+    },
+    "32": {
+      "eval_run_id": "43ec59e2-79a3-418d-be4e-34426a3ec990",
+      "judge_run_id": "f89660d0-59ea-4aa8-b8fe-098fa45fd668"
+    },
+    "33": {
+      "eval_run_id": "6c82a332-2e24-4f5e-9f15-447a6995e10d",
+      "judge_run_id": "e1ca1a3f-ce3f-4494-b4ac-7ed0521b882d"
+    },
+    "34": {
+      "eval_run_id": "c1f91aa7-3cfc-4e82-8b36-d4045f561a1f",
+      "judge_run_id": "7b70bb90-badc-43a1-93c7-787fc1784788"
+    },
+    "35": {
+      "eval_run_id": "5ffd6b4f-3d59-4eab-86e2-288d5259f8a6",
+      "judge_run_id": "78a0c6fa-a4a4-4e68-8998-cfbc5288605b"
+    },
+    "36": {
+      "eval_run_id": "72e5f627-1789-423a-a852-0419280eec77",
+      "judge_run_id": "41f28a37-edb8-4766-9c75-89a661c768b0"
+    },
+    "37": {
+      "eval_run_id": "1529f807-c932-4e12-baef-ab15e1b87340",
+      "judge_run_id": "cadee516-1a76-47af-a5eb-642b0013c87d"
+    },
+    "38": {
+      "eval_run_id": "651a1217-24de-4b32-998c-9201b7bc84d6",
+      "judge_run_id": "1cf9bcd7-3f5d-42f9-bbc7-0daae03df48a"
+    },
+    "39": {
+      "eval_run_id": "d10308d8-d16d-4d36-9291-3069610b171b",
+      "judge_run_id": "4b8c48f0-568f-48d9-823b-752ba4aa5c96"
+    },
+    "40": {
+      "eval_run_id": "d43bfce1-55a3-486d-b19b-c6b13a9795b4",
+      "judge_run_id": "b181af82-0115-4629-b537-6c4f7020ce9b"
+    },
+    "41": {
+      "eval_run_id": "a06bfe3c-1295-452b-a2fb-6409cd1043bd",
+      "judge_run_id": "8b43a9cf-4c07-44ba-b360-597209adb9b8"
+    },
+    "42": {
+      "eval_run_id": "d970e84a-42ab-472b-8112-9bdf47762c96",
+      "judge_run_id": "b3dc0995-42a0-4897-9025-8eae93ebac2a"
+    },
+    "43": {
+      "eval_run_id": "41a351d0-e935-42b5-bdb2-937b3119ebb4",
+      "judge_run_id": "2ed7d302-2a8e-4e45-8357-f5517b9f7e6c"
+    },
+    "44": {
+      "eval_run_id": "26381dd1-1242-4f4e-9a47-21ea22369e52",
+      "judge_run_id": "ecdc3526-ba5e-4eee-a72f-57b8be18f930"
+    },
+    "45": {
+      "eval_run_id": "192c099d-b614-4e6c-8b60-8f8d6b48d304",
+      "judge_run_id": "9b15354f-c97b-4e4f-8fd4-52a42a726439"
+    },
+    "46": {
+      "eval_run_id": "e7d622c4-79af-45a4-b696-c241cc0e2328",
+      "judge_run_id": "d6d4b3ea-7332-4a17-9ac8-70cc39a4064f"
+    },
+    "47": {
+      "eval_run_id": "e6c94b31-de0b-4c35-be4a-c02139948477",
+      "judge_run_id": "4a5d3e2b-2814-434d-9cc4-132c111b42b7"
+    },
+    "48": {
+      "eval_run_id": "906acb70-64ad-4fae-9b95-8c28573348d9",
+      "judge_run_id": "9399275f-3466-469d-bf14-7104cdda007f"
+    },
+    "49": {
+      "eval_run_id": "c8d41260-3bec-441f-8edd-ceecaa21bba6",
+      "judge_run_id": "74a5b6be-b90b-433d-9312-9096acb45911"
+    },
+    "50": {
+      "eval_run_id": "8c125804-0dae-4f06-8335-0262e9694d93",
+      "judge_run_id": "a37faf23-3792-4f75-8c11-f846e0ef73cc"
+    }
+  }
+}

@@ -27,6 +27,7 @@ build/
 scripts/
 !backend/scripts/
 backend/scripts/*
+!backend/scripts/report_langsmith_metrics.py
 !backend/scripts/test_db.py
 
 # ── Node / Next.js ─────────────────────────────
