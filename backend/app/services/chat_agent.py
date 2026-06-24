@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.services.retrieval import search_forum_discussions, search_products, search_knowledge
 from app.services.pets_service import get_pet_profile_cached
 from app.models.user import Pet
+from app.models.catalog import Product
 from app.models.chat import ChatSession, ChatRoutingStatusEnum
 from app.services.ai_safety import DOMAIN_POLICY, sanitize_retrieved_content
 
@@ -25,6 +26,8 @@ SYSTEM_PROMPT_BASE = (
     "Quy tắc sử dụng công cụ:\n"
     "- Khi người dùng hỏi về sản phẩm, gợi ý mua hàng, hoặc cần tìm thức ăn/đồ dùng cụ thể: "
     "GỌI tool `search_products` để tìm sản phẩm trong cửa hàng.\n"
+    "- Khi người dùng muốn tìm hiểu chi tiết hơn về một sản phẩm cụ thể (như thành phần, công dụng, hướng dẫn sử dụng, mô tả đầy đủ) sau khi đã tìm ra slug hoặc tên của nó: "
+    "GỌI tool `get_product_detail_tool` để tra cứu thông tin chi tiết sản phẩm.\n"
     "- Khi người dùng hỏi về dinh dưỡng, sức khỏe, huấn luyện, grooming, đặc điểm giống loài, "
     "chính sách cửa hàng, giao hàng, thanh toán, đổi trả, bảo mật, điều khoản hoặc FAQ: "
     "GỌI tool `search_knowledge` để tra cứu kho kiến thức trước khi trả lời.\n"
@@ -105,6 +108,43 @@ def _build_tools(
                 f"| giá: {price:,.0f}đ"
             )
         return "\n".join(lines)
+
+    @tool
+    async def get_product_detail_tool(slug: str) -> str:
+        """Lấy thông tin chi tiết của một sản phẩm (mô tả, thương hiệu, thành phần, đối tượng sử dụng) qua slug hoặc tên của sản phẩm.
+
+        Args:
+            slug: Slug hoặc tên sản phẩm để tra cứu.
+
+        Returns: Thông tin chi tiết của sản phẩm dưới dạng văn bản, hoặc thông báo nếu không tìm thấy.
+        """
+        # Try to find by slug first
+        result = await db.execute(
+            select(Product).where(Product.slug == slug, Product.is_active)
+        )
+        product = result.scalar_one_or_none()
+
+        # If not found, try to search by name (case-insensitive)
+        if not product:
+            result = await db.execute(
+                select(Product).where(Product.name.ilike(slug), Product.is_active)
+            )
+            product = result.scalar_one_or_none()
+
+        if not product:
+            return f"Không tìm thấy thông tin sản phẩm '{slug}'."
+
+        price = float(product.sale_price) if product.sale_price else float(product.price)
+        species = ", ".join(product.target_species) if product.target_species else "tất cả"
+        return (
+            f"Thông tin chi tiết sản phẩm:\n"
+            f"- Tên: {product.name}\n"
+            f"- Slug: {product.slug}\n"
+            f"- Thương hiệu: {product.brand or 'Không rõ'}\n"
+            f"- Giá: {price:,.0f}đ\n"
+            f"- Dành cho: {species}\n"
+            f"- Mô tả/Thành phần/Công dụng: {product.description or 'Chưa có mô tả chi tiết.'}"
+        )
 
     @tool
     async def search_knowledge_tool(query: str) -> str:
@@ -209,6 +249,7 @@ def _build_tools(
 
     tools = [
         search_products_tool,
+        get_product_detail_tool,
         search_knowledge_tool,
         list_pets_tool,
         get_pet_detail_tool,

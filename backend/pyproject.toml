@@ -26,6 +26,7 @@ dependencies = [
     "sse-starlette>=3.3.4",
     "uvicorn[standard]>=0.29.0",
     "fastapi-mail>=1.6.2",
+    "langgraph-cli[inmem]>=0.4.30",
 ]
 
 [dependency-groups]

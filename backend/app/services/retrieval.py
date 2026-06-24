@@ -766,23 +766,34 @@ async def rerank_products_cohere(query: str, products: list[dict], top_n: int = 
         "documents": docs,
         "top_n": top_n
     }
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            res = await client.post(url, json=payload, headers=headers)
-            if res.status_code == 200:
-                data = res.json()
-                results = data.get("results", [])
-                reranked = []
-                for r in results:
-                    idx = r["index"]
-                    p = products[idx].copy()
-                    p["score"] = r["relevance_score"]
-                    reranked.append(p)
-                return reranked
-            else:
-                logger.error(f"Cohere Rerank products failed with status {res.status_code}: {res.text}")
-    except Exception as e:
-        logger.exception(f"Exception during Cohere product reranking: {str(e)}")
+    
+    max_retries = 3
+    retry_delay = 6.0
+    
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                res = await client.post(url, json=payload, headers=headers)
+                if res.status_code == 200:
+                    data = res.json()
+                    results = data.get("results", [])
+                    reranked = []
+                    for r in results:
+                        idx = r["index"]
+                        p = products[idx].copy()
+                        p["score"] = r["relevance_score"]
+                        reranked.append(p)
+                    return reranked
+                elif res.status_code == 429:
+                    logger.warning(f"Cohere API rate limited (429) during product rerank. Retrying in {retry_delay}s... (Attempt {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 1.5
+                else:
+                    logger.error(f"Cohere Rerank products failed with status {res.status_code}: {res.text}")
+                    break
+        except Exception as e:
+            logger.exception(f"Exception during Cohere product reranking: {str(e)}")
+            break
     return products[:top_n]
 
 
@@ -803,22 +814,33 @@ async def rerank_knowledge_cohere(query: str, items: list[dict], top_n: int = 4)
         "documents": docs,
         "top_n": top_n
     }
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            res = await client.post(url, json=payload, headers=headers)
-            if res.status_code == 200:
-                data = res.json()
-                results = data.get("results", [])
-                reranked = []
-                for r in results:
-                    idx = r["index"]
-                    item = items[idx].copy()
-                    item["score"] = r["relevance_score"]
-                    item["raw_score"] = r["relevance_score"]
-                    reranked.append(item)
-                return reranked
-            else:
-                logger.error(f"Cohere Rerank knowledge failed with status {res.status_code}: {res.text}")
-    except Exception as e:
-        logger.exception(f"Exception during Cohere knowledge reranking: {str(e)}")
+    
+    max_retries = 3
+    retry_delay = 6.0
+    
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                res = await client.post(url, json=payload, headers=headers)
+                if res.status_code == 200:
+                    data = res.json()
+                    results = data.get("results", [])
+                    reranked = []
+                    for r in results:
+                        idx = r["index"]
+                        item = items[idx].copy()
+                        item["score"] = r["relevance_score"]
+                        item["raw_score"] = r["relevance_score"]
+                        reranked.append(item)
+                    return reranked
+                elif res.status_code == 429:
+                    logger.warning(f"Cohere API rate limited (429) during knowledge rerank. Retrying in {retry_delay}s... (Attempt {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 1.5
+                else:
+                    logger.error(f"Cohere Rerank knowledge failed with status {res.status_code}: {res.text}")
+                    break
+        except Exception as e:
+            logger.exception(f"Exception during Cohere knowledge reranking: {str(e)}")
+            break
     return items[:top_n]
