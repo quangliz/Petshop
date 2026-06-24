@@ -20,15 +20,19 @@
 \contentsline {table}{\numberline {4.4}{\ignorespaces Danh sách công cụ và thư viện sử dụng\relax }}{50}{table.caption.33}%
 \contentsline {table}{\numberline {4.5}{\ignorespaces Thống kê mã nguồn chính\relax }}{51}{table.caption.34}%
 \contentsline {table}{\numberline {4.6}{\ignorespaces Nhóm kiểm thử backend\relax }}{52}{table.caption.35}%
-\contentsline {table}{\numberline {4.7}{\ignorespaces Kết quả đánh giá chất lượng trợ lý ảo Catbot\relax }}{53}{table.caption.36}%
-\contentsline {table}{\numberline {4.8}{\ignorespaces Thống kê các chỉ số an toàn của trợ lý AI\relax }}{53}{table.caption.37}%
+\contentsline {table}{\numberline {4.7}{\ignorespaces Thiết lập đánh giá Catbot\relax }}{53}{table.caption.36}%
+\contentsline {table}{\numberline {4.8}{\ignorespaces Tổng hợp số liệu trace và vận hành eval\relax }}{53}{table.caption.37}%
+\contentsline {table}{\numberline {4.9}{\ignorespaces Trace contract theo nhóm câu hỏi\relax }}{54}{table.caption.38}%
+\contentsline {table}{\numberline {4.10}{\ignorespaces Số liệu trace contract và ràng buộc phản hồi\relax }}{54}{table.caption.39}%
+\contentsline {table}{\numberline {4.11}{\ignorespaces Số liệu LangSmith theo project\relax }}{55}{table.caption.40}%
+\contentsline {table}{\numberline {4.12}{\ignorespaces Số liệu tool-call trong eval\relax }}{55}{table.caption.41}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {B.1}{\ignorespaces Đặc tả use case Quản lý wishlist\relax }}{70}{table.a.B.1}%
-\contentsline {table}{\numberline {B.2}{\ignorespaces Đặc tả use case Đánh giá sản phẩm sau mua\relax }}{70}{table.a.B.2}%
-\contentsline {table}{\numberline {B.3}{\ignorespaces Đặc tả use case Yêu cầu đổi trả\relax }}{71}{table.a.B.3}%
-\contentsline {table}{\numberline {B.4}{\ignorespaces Đặc tả use case Quản lý embedding\relax }}{72}{table.a.B.4}%
+\contentsline {table}{\numberline {B.1}{\ignorespaces Đặc tả use case Quản lý wishlist\relax }}{71}{table.a.B.1}%
+\contentsline {table}{\numberline {B.2}{\ignorespaces Đặc tả use case Đánh giá sản phẩm sau mua\relax }}{71}{table.a.B.2}%
+\contentsline {table}{\numberline {B.3}{\ignorespaces Đặc tả use case Yêu cầu đổi trả\relax }}{72}{table.a.B.3}%
+\contentsline {table}{\numberline {B.4}{\ignorespaces Đặc tả use case Quản lý embedding\relax }}{73}{table.a.B.4}%
 \contentsfinish 
 \contentsfinish 

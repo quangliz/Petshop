@@ -297,47 +297,126 @@ Frontend hiện có script \texttt{npm run lint} và \texttt{npm run build}. Tro
 \subsection{Đánh giá thực nghiệm chất lượng và độ an toàn của trợ lý AI}
 \label{subsection:4.4.2}
 
-Để đánh giá chất lượng và độ an toàn của trợ lý ảo Catbot trong ThePawsome, đồ án thiết lập bộ đánh giá thực nghiệm (Evaluation Dataset) gồm 50 câu hỏi đa dạng, bao phủ nhiều nhóm nghiệp vụ khác nhau: Dinh dưỡng (Nutrition), Sức khỏe (Health), Sản phẩm (Product), Tình huống khẩn cấp (Emergency), Yêu cầu không an toàn (Unsafe) và Tấn công Prompt Injection. 
-
-Phương pháp đánh giá sử dụng mô hình \textit{LLM-as-a-judge} với giám khảo là mô hình ngôn ngữ lớn mạnh (GPT-4o) để chấm điểm tự động các câu trả lời dựa trên ba tiêu chí chính từ thang điểm 1 đến 5: Độ liên quan (Relevance), Tính căn cứ dữ liệu (Groundedness) và Độ hữu ích (Helpfulness). Tiến trình đánh giá và các metrics được quan sát và lưu vết trực quan thông qua dự án LangSmith mang tên \texttt{thepawsome-eval}.
-
-Bảng \ref{table:4.eval_summary} trình bày kết quả so sánh chất lượng trung bình giữa mô hình sử dụng RAG (hệ thống Catbot tích hợp kho tri thức mới và hồ sơ thú cưng) và mô hình No-RAG (chỉ sử dụng kiến thức nội tại của LLM).
-
-\begin{table}[H]
-\centering
-\small
-\renewcommand{\arraystretch}{1.3}
-\caption{Kết quả đánh giá chất lượng trợ lý ảo Catbot}
-\label{table:4.eval_summary}
-\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{2.6cm}|>{\centering\arraybackslash}p{2.8cm}|>{\centering\arraybackslash}p{2.4cm}|>{\centering\arraybackslash}p{2.2cm}|}
-\hline
-\textbf{Chế độ vận hành} & \textbf{Relevance\newline (Độ liên quan)} & \textbf{Groundedness\newline (Tính căn cứ)} & \textbf{Helpfulness\newline (Hữu ích)} & \textbf{Average\newline (Trung bình)} \\ \hline
-Không sử dụng RAG (No-RAG) & 4.68 & 3.16 & 4.20 & 4.01 \\ \hline
-Có sử dụng RAG (Catbot RAG) & 4.62 & 4.28 & 4.60 & 4.50 \\ \hline
-\end{tabularx}
-\end{table}
-
-Kết quả thực nghiệm cho thấy mô hình Catbot sử dụng RAG cải thiện đáng kể điểm Groundedness (4.28 so với 3.16) và điểm Helpfulness (4.60 so với 4.20). Điều này chứng minh rằng Catbot RAG đưa ra các phản hồi có tính xác thực cao hơn, bám sát các tài liệu sách dịch y khoa, chính sách cửa hàng và hồ sơ thú cưng thực tế, từ đó hạn chế tối đa rủi ro ảo tưởng (hallucination) thường gặp ở các LLM.
-
-Bên cạnh đó, hệ thống cũng kiểm tra các chỉ số an toàn và tính toàn vẹn dữ liệu. Bảng \ref{table:4.eval_safety} thống kê tỷ lệ vượt qua (pass rate) của Catbot đối với các tiêu chuẩn an toàn đề ra.
+Để quan sát chất lượng phản hồi, khả năng gọi tool và hành vi an toàn của Catbot, đồ án sử dụng bộ đánh giá gồm 50 câu hỏi được tạo từ dữ liệu hiện có trong CSDL. Bộ câu hỏi bao phủ các nhóm nghiệp vụ: tìm sản phẩm, truy xuất tri thức, kết hợp sản phẩm với tri thức, cá nhân hóa theo hồ sơ thú cưng, guardrail, ranh giới giỏ hàng và chuyển giao nhân viên. Bảng \ref{table:4.eval_setup} tóm tắt thiết lập đánh giá. Phần này chỉ báo cáo số liệu quan sát được từ artifact eval, không gán nhãn tổng thể cho hệ thống.
 
 \begin{table}[H]
 \centering
 \small
 \renewcommand{\arraystretch}{1.25}
-\caption{Thống kê các chỉ số an toàn của trợ lý AI}
-\label{table:4.eval_safety}
-\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{4.2cm}|>{\centering\arraybackslash}p{2.0cm}|>{\centering\arraybackslash}p{2.0cm}|>{\raggedright\arraybackslash}X|}
+\caption{Thiết lập đánh giá Catbot}
+\label{table:4.eval_setup}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{4.4cm}|>{\raggedright\arraybackslash}X|}
 \hline
-\textbf{Chỉ số kiểm tra\newline (Metric)} & \textbf{Kết quả\newline đạt được} & \textbf{Ngưỡng\newline yêu cầu} & \textbf{Cơ chế bảo vệ} \\ \hline
-Emergency escalation\newline (Cảnh báo khẩn cấp) & 100.0\% & 100\% & Nhận diện dấu hiệu cấp cứu y tế dập tắt prompt và khuyên đưa đi thú y ngay. \\ \hline
-Prompt injection safety\newline (An toàn Prompt Injection) & 100.0\% & 100\% & Chặn các truy vấn cố tình yêu cầu lộ System Prompt hoặc chiếm quyền. \\ \hline
-Valid product slugs\newline (Tính chính xác sản phẩm) & 100.0\% & 100\% & Chỉ render sản phẩm có thật trong kết quả truy xuất từ CSDL của cửa hàng. \\ \hline
-Citation presence\newline (Trích dẫn nguồn tài liệu) & 91.3\% & $\ge$ 80\% & Bắt buộc đính kèm link/tên nguồn khi trích xuất thông tin tư vấn y khoa. \\ \hline
+\textbf{Thành phần} & \textbf{Giá trị quan sát} \\ \hline
+Số case eval & 50 câu hỏi, gồm 12 case tìm sản phẩm, 12 case knowledge RAG, 8 case cá nhân hóa, 6 case kết hợp sản phẩm--tri thức, 6 case guardrail, 4 case HITL và 2 case ranh giới giỏ hàng. \\ \hline
+Dữ liệu tham chiếu & 17 tham chiếu sản phẩm, 16 tham chiếu knowledge và 1 tham chiếu hồ sơ thú cưng được xác thực từ dữ liệu hiện có. \\ \hline
+Mô hình trả lời & \texttt{gpt-4o-mini}. \\ \hline
+Phương pháp chấm chất lượng & Sử dụng \textit{LLM-as-a-judge} với \texttt{gpt-4o} để đọc câu hỏi, câu trả lời và evidence của từng case. \\ \hline
+LangSmith tracing & Trace agent lưu trong \texttt{thepawsome-eval}; phần judge được chạy tách riêng để không trộn vào số liệu vận hành của agent. \\ \hline
+Cấu hình rerank & Cohere rerank tắt trong lúc eval để không đưa độ trễ/rate limit bên ngoài vào số liệu agent. \\ \hline
 \end{tabularx}
 \end{table}
 
-Việc đạt tỷ lệ 100.0\% trên các chỉ số an toàn quan trọng (cấp cứu, injection, kiểm soát slug sản phẩm thật) và 91.3\% ở chỉ số trích dẫn chứng minh rằng trợ lý Catbot của hệ thống ThePawsome đã đáp ứng tốt các tiêu chuẩn an toàn thông tin và định hướng chuyên môn trước khi đưa vào vận hành thương mại.
+Bảng \ref{table:4.eval_trace_summary} trình bày các số liệu trace và vận hành từ 50 case. Các chỉ số này tập trung vào hành vi của agent khi gọi tool, xử lý guardrail, chuyển giao người thật và tuân thủ ràng buộc phản hồi.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\caption{Tổng hợp số liệu trace và vận hành eval}
+\label{table:4.eval_trace_summary}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{4.6cm}|>{\centering\arraybackslash}p{2.4cm}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Chỉ số} & \textbf{Giá trị} & \textbf{Ghi chú} \\ \hline
+Trace score trung bình & 98.46/100 & Tính từ required tool, forbidden tool, thứ tự tool, safety mode, HITL, slug sản phẩm, citation và các ràng buộc nội dung. \\ \hline
+\texttt{hard\_gates\_ok} & 48/50 & Số case có toàn bộ hard-gate được ghi nhận là \texttt{true}. \\ \hline
+Required-tool hit rate & 100.0\% & Agent gọi đủ tool bắt buộc trong expected trace. \\ \hline
+Tool-order rate & 100.0\% & Các case nhiều tool giữ đúng thứ tự kỳ vọng. \\ \hline
+HITL handoff hit rate & 100.0\% & Các case cần chuyển người thật có trace gọi \texttt{request\_human\_support\_tool}. \\ \hline
+Safety preflight hit rate & 100.0\% & Các case guardrail được xử lý ở lớp safety trước khi trả lời. \\ \hline
+Số tool call trung bình & 2.16 tool/case & Tính trên trace agent của 50 case eval. \\ \hline
+Eval error rate & 0.0\% & Tỷ lệ run agent eval có lỗi trong LangSmith. \\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\caption{Trace contract theo nhóm câu hỏi}
+\label{table:4.eval_group_summary}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{1.4cm}|>{\centering\arraybackslash}p{2.0cm}|>{\centering\arraybackslash}p{1.8cm}|>{\centering\arraybackslash}p{1.7cm}|>{\centering\arraybackslash}p{1.7cm}|}
+\hline
+\textbf{Nhóm câu hỏi} & \textbf{Case} & \textbf{Required tool} & \textbf{Tool order} & \textbf{Handoff} & \textbf{Safety} \\ \hline
+Tìm sản phẩm & 12 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+Knowledge RAG & 12 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+Cá nhân hóa theo hồ sơ thú cưng & 8 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+Kết hợp sản phẩm--tri thức & 6 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+Guardrail & 6 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+HITL & 4 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+Ranh giới giỏ hàng & 2 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+\end{tabularx}
+\end{table}
+
+Bảng \ref{table:4.eval_trace_contract} mô tả các chỉ số trace contract và ràng buộc phản hồi được trích từ artifact JSON. Các chỉ số này cho biết actual trace có khớp với kỳ vọng về tool, trạng thái handoff, guardrail và nội dung phản hồi hay không.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\caption{Số liệu trace contract và ràng buộc phản hồi}
+\label{table:4.eval_trace_contract}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{2.2cm}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Chỉ số} & \textbf{Giá trị} & \textbf{Ý nghĩa quan sát} \\ \hline
+Required tools called & 50/50 & Tool bắt buộc trong expected trace xuất hiện trong actual trace. \\ \hline
+Forbidden tools absent & 50/50 & Tool không được phép không xuất hiện trong actual trace. \\ \hline
+Tool order & 50/50 & Thứ tự tool ở các case nhiều bước khớp với contract. \\ \hline
+Safety mode & 50/50 & Trạng thái guardrail hoặc agent mode khớp kỳ vọng của case. \\ \hline
+Handoff status & 50/50 & Case cần hoặc không cần chuyển người thật có trạng thái tương ứng. \\ \hline
+Valid product slugs & 50/50 & Slug trong thẻ sản phẩm thuộc kết quả tool hoặc dữ liệu hợp lệ. \\ \hline
+Product tag contract & 49/50 & Thẻ \texttt{\textless product\textgreater slug\textless/product\textgreater} xuất hiện khi contract yêu cầu. \\ \hline
+Expected product present & 49/50 & Sản phẩm kỳ vọng được nhắc hoặc render trong phản hồi. \\ \hline
+Citation contract & 44/50 & Phản hồi có citation khi contract yêu cầu. \\ \hline
+Must-not-include & 48/50 & Phản hồi không chứa các cụm bị cấm trong từng case. \\ \hline
+No specific dosage & 50/50 & Phản hồi không đưa liều thuốc cụ thể trong các tình huống y tế nhạy cảm. \\ \hline
+\end{tabularx}
+\end{table}
+
+LangSmith được dùng để quan sát riêng trace của agent. Bảng \ref{table:4.eval_langsmith_summary} trình bày các golden signal của project \texttt{thepawsome-eval}: số run, lỗi, độ trễ, token và chi phí.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\caption{Số liệu LangSmith theo project}
+\label{table:4.eval_langsmith_summary}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{3.0cm}|>{\centering\arraybackslash}p{2.1cm}|>{\centering\arraybackslash}X|>{\centering\arraybackslash}p{3.0cm}|}
+\hline
+\textbf{Project} & \textbf{Runs / Error} & \textbf{Latency p50/p95/p99} & \textbf{Tokens / Cost} \\ \hline
+\texttt{thepawsome-\allowbreak eval} & 50 / 0.0\% & 11.164s / 19.523s / 21.996s & 439,301 / \$0.050332 \\ \hline
+\end{tabularx}
+\end{table}
+
+Bảng \ref{table:4.eval_tool_metrics} ghi nhận số lần gọi tool và độ trễ tool từ trace agent trong project \texttt{thepawsome-eval}. Tổng số tool call trung bình là 2.16 tool/case.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\caption{Số liệu tool-call trong eval}
+\label{table:4.eval_tool_metrics}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{1.5cm}|>{\centering\arraybackslash}p{1.5cm}|>{\centering\arraybackslash}p{2.0cm}|>{\centering\arraybackslash}p{2.0cm}|>{\centering\arraybackslash}p{2.0cm}|}
+\hline
+\textbf{Tool} & \textbf{Calls} & \textbf{Errors} & \textbf{P50} & \textbf{P95} & \textbf{Max} \\ \hline
+\texttt{get\_pet\_detail\_tool} & 7 & 0 & 0.043s & 0.184s & 0.244s \\ \hline
+\texttt{get\_product\_detail\_tool} & 45 & 0 & 0.080s & 0.166s & 0.212s \\ \hline
+\texttt{list\_pets\_tool} & 1 & 0 & 0.082s & 0.082s & 0.082s \\ \hline
+\texttt{request\_human\_support\_tool} & 4 & 0 & 0.122s & 0.153s & 0.158s \\ \hline
+\texttt{search\_knowledge\_tool} & 23 & 0 & 1.083s & 3.474s & 5.248s \\ \hline
+\texttt{search\_products\_tool} & 28 & 0 & 0.705s & 1.083s & 2.062s \\ \hline
+\end{tabularx}
+\end{table}
 
 \section{Triển khai}
 \label{section:4.5}
