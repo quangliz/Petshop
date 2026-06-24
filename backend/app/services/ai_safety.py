@@ -22,6 +22,15 @@ INJECTION_PATTERNS = (
     r"hãy đóng vai",
 )
 
+MEDICAL_ADVICE_PATTERNS = (
+    r"\bchẩn đoán(?:\s+chính xác)?\b",
+    r"\bkê\s+(?:đơn|liều)\b",
+    r"\bliều\s+(?:bao nhiêu|nào|kháng sinh|thuốc)\b",
+    r"\bkháng sinh\b.*\b(?:liều|cho chó|cho mèo)\b",
+    r"\bthuốc giảm đau của người\b",
+    r"\b(?:paracetamol|ibuprofen|aspirin)\b.*\b(?:mèo|chó|thú cưng)\b",
+)
+
 CONFIRMATION_PATTERNS = (
     r"\b(?:đồng ý|xác nhận|chắc chắn)\b.*\b(?:thêm|mua)\b",
     r"\b(?:thêm|mua)\b.*\b(?:vào giỏ|sản phẩm này)\b.*\b(?:đi|nhé|giúp)\b",
@@ -55,6 +64,11 @@ def looks_like_prompt_injection(text: str) -> bool:
     return any(re.search(pattern, lowered) for pattern in INJECTION_PATTERNS)
 
 
+def asks_for_medical_diagnosis_or_dosage(text: str) -> bool:
+    lowered = text.lower()
+    return any(re.search(pattern, lowered) for pattern in MEDICAL_ADVICE_PATTERNS)
+
+
 def has_cart_confirmation(text: str) -> bool:
     lowered = text.lower()
     return any(re.search(pattern, lowered) for pattern in CONFIRMATION_PATTERNS)
@@ -73,6 +87,13 @@ def preflight_safety_response(text: str) -> str | None:
             "thú y và không thể chẩn đoán. Hãy liên hệ ngay bác sĩ thú y hoặc cơ sở cấp "
             "cứu gần nhất; giữ thú cưng yên, không tự cho dùng thuốc và mang theo thông "
             "tin về triệu chứng/chất đã ăn phải nếu có."
+        )
+    if asks_for_medical_diagnosis_or_dosage(text):
+        return (
+            "Tôi không thể chẩn đoán bệnh, kê đơn hoặc đưa liều thuốc cá nhân hóa cho "
+            "thú cưng. Việc dùng kháng sinh, thuốc giảm đau của người hoặc bất kỳ thuốc "
+            "điều trị nào cần được bác sĩ thú y thăm khám và chỉ định. Nếu thú cưng có "
+            "triệu chứng bất thường, hãy liên hệ bác sĩ thú y sớm và không tự cho dùng thuốc."
         )
     return None
 
@@ -139,4 +160,3 @@ def postguard_response(text: str) -> tuple[str, list[str]]:
         )
 
     return text, warnings
-
