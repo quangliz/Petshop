@@ -15,10 +15,9 @@ const PetCard = ({ pet, onDelete, onEdit }: { pet: Pet, onDelete: (id: string) =
   const speciesColors: Record<string, string> = {
     dog: 'oklch(0.95 0.05 55)',
     cat: 'oklch(0.93 0.06 195)',
-    bird: 'oklch(0.96 0.04 85)',
     other: 'var(--neutral-100)'
   };
-  const emoji: Record<string, string> = { dog: '🐶', cat: '🐱', bird: '🦜', other: '🐾' };
+  const emoji: Record<string, string> = { dog: '🐶', cat: '🐱', other: '🐾' };
 
   return (
     <div className="bg-white border border-neutral-100 rounded-[20px] shadow-sm overflow-hidden flex flex-col">
@@ -207,7 +206,7 @@ export default function GeneralProfilePage() {
                 <div>
                   <label className={labelCls}>Loài *</label>
                   <select className={`${inputCls} bg-white`} value={petFormData.species} onChange={e => setPetFormData({ ...petFormData, species: e.target.value })}>
-                    <option value="dog">Chó</option><option value="cat">Mèo</option><option value="bird">Chim</option><option value="other">Khác</option>
+                    <option value="dog">Chó</option><option value="cat">Mèo</option><option value="other">Khác</option>
                   </select>
                 </div>
                 <div>

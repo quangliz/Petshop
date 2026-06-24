@@ -118,7 +118,7 @@ def _build_tools(
     @tool
     async def search_products_tool(
         query: str,
-        species: Optional[List[Literal["cat", "dog", "bird", "fish", "rabbit", "hamster"]]] = None,
+        species: Optional[List[Literal["cat", "dog"]]] = None,
     ) -> str:
         """Tìm sản phẩm trong cửa hàng ThePawsome theo từ khóa.
 
@@ -129,7 +129,7 @@ def _build_tools(
         Args:
             query: Từ khóa hoặc mô tả sản phẩm (ví dụ: 'hạt cho mèo lông dài 5kg').
             species: Lọc theo loài. Chỉ truyền khi biết chắc loài thú cưng.
-                     Giá trị hợp lệ: 'cat', 'dog', 'bird', 'fish', 'rabbit', 'hamster'.
+                     Giá trị hợp lệ: 'cat', 'dog'.
 
         Returns: Danh sách top-5 sản phẩm, kèm slug để dùng trong thẻ <product>slug</product>.
         """

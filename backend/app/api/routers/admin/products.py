@@ -882,7 +882,7 @@ async def suggest_product_tags(name: str, description: str) -> dict:
     prompt = (
         f"Sản phẩm: {name[:500]}\nMô tả: {(description or '')[:500]}\n\n"
         "Hãy gợi ý:\n"
-        "1. target_species: danh sách loài phù hợp (dog, cat, bird, fish, rabbit, hamster)\n"
+        "1. target_species: danh sách loài phù hợp (dog, cat)\n"
         "2. age_range: độ tuổi phù hợp (puppy/kitten, adult, senior, all)\n"
         "3. tags: 3-5 thẻ mô tả ngắn\n"
         'Trả về JSON thuần: {"target_species": [...], "age_range": "...", "tags": [...]}'
