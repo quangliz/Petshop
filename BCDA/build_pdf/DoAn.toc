@@ -17,7 +17,7 @@
 \contentsline {subsection}{\numberline {2.1.3}Vấn đề cần giải quyết}{6}{subsection.2.1.3}%
 \contentsline {subsection}{\numberline {2.1.4}Định hướng yêu cầu cho hệ thống}{7}{subsection.2.1.4}%
 \contentsline {section}{\numberline {2.2}Tổng quan chức năng}{7}{section.2.2}%
-\contentsline {subsection}{\numberline {2.2.1}Tác nhân tham gia hệ thống}{7}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.1}Tác nhân tham gia hệ thống}{8}{subsection.2.2.1}%
 \contentsline {subsection}{\numberline {2.2.2}Biểu đồ use case tổng quát}{8}{subsection.2.2.2}%
 \contentsline {subsection}{\numberline {2.2.3}Biểu đồ use case phân rã nhóm mua hàng}{9}{subsection.2.2.3}%
 \contentsline {subsection}{\numberline {2.2.4}Biểu đồ use case phân rã nhóm hồ sơ thú cưng và Catbot}{9}{subsection.2.2.4}%
@@ -26,7 +26,7 @@
 \contentsline {subsection}{\numberline {2.2.7}Quy trình nghiệp vụ}{11}{subsection.2.2.7}%
 \contentsline {subsubsection}{\numberline {a}Quy trình mua hàng và thanh toán}{12}{subsubsection.2.2.7.1}%
 \contentsline {subsubsection}{\numberline {b}Quy trình tư vấn bằng Catbot và chuyển giao hỗ trợ}{14}{subsubsection.2.2.7.2}%
-\contentsline {section}{\numberline {2.3}Đặc tả chức năng}{16}{section.2.3}%
+\contentsline {section}{\numberline {2.3}Đặc tả chức năng}{15}{section.2.3}%
 \contentsline {subsection}{\numberline {2.3.1}Đặc tả use case Đăng ký, đăng nhập và quản lý phiên}{16}{subsection.2.3.1}%
 \contentsline {subsection}{\numberline {2.3.2}Đặc tả use case Tìm kiếm, xem sản phẩm và chọn biến thể}{17}{subsection.2.3.2}%
 \contentsline {subsection}{\numberline {2.3.3}Đặc tả use case Quản lý giỏ hàng và đặt hàng}{18}{subsection.2.3.3}%

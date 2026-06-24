@@ -43,9 +43,9 @@ Cohere Rerank là thành phần tùy chọn. Tài liệu Cohere mô tả Rerank 
 \section{LangGraph tool-calling và an toàn AI}
 \label{section:3.4}
 
-Catbot được triển khai bằng LangGraph. Tài liệu LangGraph mô tả framework này như một lớp orchestration để xây dựng agent có trạng thái, workflow dài và khả năng gọi tool \cite{langgraphDocs}. Trong ThePawsome, graph đơn giản gồm node agent và node tools, lặp theo điều kiện \texttt{tools\_condition}. Agent không được tự ý bịa dữ liệu sản phẩm; khi muốn giới thiệu sản phẩm, nó phải gọi tool tìm sản phẩm và chỉ render thẻ \texttt{\textless product\textgreater slug\textless/product\textgreater} với slug có thật trong kết quả tool.
+Catbot được triển khai bằng LangGraph. Tài liệu LangGraph mô tả framework này như một lớp orchestration để xây dựng agent có trạng thái, workflow dài và khả năng gọi tool \cite{langgraphDocs}. Trong ThePawsome, graph gồm node planner, node agent và node tools. Planner là một LLM chạy ở nhiệt độ thấp, sinh ra \texttt{ToolRoutingPlan} có cấu trúc để chỉ ra các tool cần gọi cho lượt hỏi hiện tại. Sau đó agent thực hiện tool-calling; nếu agent chuẩn bị trả lời trong khi còn thiếu tool đã được planner yêu cầu, graph đưa thêm một thông điệp nhắc hoàn tất kế hoạch rồi quay lại agent. Agent không được tự ý bịa dữ liệu sản phẩm; khi muốn giới thiệu sản phẩm, nó phải gọi tool tìm sản phẩm và chỉ render thẻ \texttt{\textless product\textgreater slug\textless/product\textgreater} với slug có thật trong kết quả tool.
 
-Hình \ref{fig:3.1} mô tả luồng RAG và tool-calling của Catbot theo mã nguồn hiện tại. Người dùng gửi câu hỏi từ widget chat; backend chạy bước kiểm tra an toàn sơ bộ; LangGraph agent quyết định gọi tool sản phẩm, tool knowledge/forum, tool hồ sơ thú cưng hoặc tool chuyển giao người thật; phản hồi được stream về frontend bằng SSE.
+Hình \ref{fig:3.1} mô tả luồng RAG và tool-calling của Catbot theo mã nguồn hiện tại. Người dùng gửi câu hỏi từ widget chat; backend chạy bước kiểm tra an toàn sơ bộ; planner lập kế hoạch tool-call; LangGraph agent gọi tool sản phẩm, tool knowledge/forum, tool hồ sơ thú cưng hoặc tool chuyển giao người thật; phản hồi được stream về frontend bằng SSE.
 
 \begin{figure}[H]
 \centering
@@ -56,7 +56,7 @@ Hình \ref{fig:3.1} mô tả luồng RAG và tool-calling của Catbot theo mã 
 
 Server-Sent Events được dùng để stream phản hồi từng phần từ backend tới trình duyệt. Thư viện \texttt{sse-starlette} cung cấp triển khai SSE cho Starlette/FastAPI \cite{sseStarletteDocs}. Trong router chat, producer agent chạy trong một task độc lập và đưa sự kiện vào queue, còn generator SSE chỉ đọc queue để trả về client. Thiết kế này giúp kết quả vẫn được lưu xuống CSDL nếu client ngắt kết nối giữa chừng.
 
-An toàn AI được xử lý ở nhiều lớp. Lớp thứ nhất là \texttt{preflight\_safety\_response()} trong \texttt{backend/app/services/ai\_safety.py}, phát hiện prompt injection và dấu hiệu cấp cứu thú y để trả lời fallback trước khi gọi LLM. Lớp thứ hai là prompt hệ thống quy định Catbot không chẩn đoán, không kê đơn, không tiết lộ secret và không làm theo chỉ dẫn nằm trong tài liệu truy xuất. Lớp thứ ba là \texttt{sanitize\_retrieved\_content()}, loại bỏ các dòng giống chỉ dẫn hệ thống trong nội dung retrieval trước khi đưa vào context.
+An toàn AI được xử lý ở nhiều lớp. Lớp thứ nhất là \texttt{preflight\_safety\_response()} trong \texttt{backend/app/services/ai\_safety.py}, phát hiện prompt injection, dấu hiệu cấp cứu thú y và yêu cầu chẩn đoán hoặc liều thuốc cụ thể để trả lời fallback trước khi gọi LLM. Lớp thứ hai là prompt hệ thống và planner tool-routing, quy định Catbot không chẩn đoán, không kê đơn, không tiết lộ secret, chọn đúng tool theo ngữ nghĩa và không làm theo chỉ dẫn nằm trong tài liệu truy xuất. Lớp thứ ba là \texttt{sanitize\_retrieved\_content()}, loại bỏ các dòng giống chỉ dẫn hệ thống trong nội dung retrieval trước khi đưa vào context.
 
 \section{Xác thực, phân quyền và giao dịch thương mại điện tử}
 \label{section:3.5}
@@ -87,7 +87,7 @@ Next.js App Router & Giao diện storefront, auth, admin và routing theo layout
 PostgreSQL + SQLAlchemy async & Dữ liệu quan hệ, transaction, khóa dòng và migration. & MySQL, MongoDB, Firebase. & Cần toàn vẹn giao dịch cao và có thể mở rộng bằng pgvector. \\ \hline
 pgvector & Lưu và tìm kiếm embedding sản phẩm/knowledge. & Pinecone, Milvus, Weaviate, Elasticsearch vector. & Giảm độ phức tạp triển khai, tận dụng cùng PostgreSQL. \\ \hline
 Redis & Cache embedding, pet profile, rate limit và dữ liệu TTL. & In-memory process cache, Memcached. & Có TTL chuẩn, dùng chung được cho nhiều instance backend. \\ \hline
-LangGraph & Orchestration agent có trạng thái và tool-calling. & Chain tuyến tính, function-calling tự quản lý. & Phù hợp luồng agent cần gọi nhiều tool và chuyển giao người thật. \\ \hline
+LangGraph & Orchestration agent có trạng thái, planner node và tool-calling. & Chain tuyến tính, function-calling tự quản lý. & Phù hợp luồng agent cần lập kế hoạch tool, gọi nhiều tool và chuyển giao người thật. \\ \hline
 SePay VietQR & Thanh toán chuyển khoản QR và webhook. & MoMo, Stripe. & Phù hợp bối cảnh Việt Nam, dễ tích hợp QR chuyển khoản và đối soát webhook trong phạm vi đồ án. \\ \hline
 Cloudinary & Lưu ảnh sản phẩm, banner và avatar thú cưng. & Lưu file local, S3. & Có API upload và URL ảnh ổn định cho frontend \cite{cloudinaryUploadDocs}. \\ \hline
 \end{tabularx}

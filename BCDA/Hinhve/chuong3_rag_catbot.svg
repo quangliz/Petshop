@@ -110,11 +110,11 @@
 
   <g>
     <rect x="485" y="420" width="360" height="112" rx="10" class="ai" />
-    <text x="665" y="448" text-anchor="middle" class="node-title">LangGraph agent</text>
+    <text x="665" y="448" text-anchor="middle" class="node-title">LangGraph planner + agent</text>
     <text x="665" y="471" text-anchor="middle" class="node-text">
-      <tspan x="665" dy="0">START -> agent -> tools_condition</tspan>
-      <tspan x="665" dy="19">ToolMessage -> agent</tspan>
-      <tspan x="665" dy="19">ChatOpenAI sinh câu trả lời</tspan>
+      <tspan x="665" dy="0">START -> planner -> agent</tspan>
+      <tspan x="665" dy="19">tools -> agent, enforce_plan khi thiếu tool</tspan>
+      <tspan x="665" dy="19">ChatOpenAI gọi tool và sinh câu trả lời</tspan>
     </text>
   </g>
 
@@ -136,8 +136,8 @@
   <!-- Tools and data lane -->
   <g>
     <rect x="965" y="145" width="255" height="72" rx="10" class="tool" />
-    <text x="1092.5" y="171" text-anchor="middle" class="node-title">search_products_tool</text>
-    <text x="1092.5" y="194" text-anchor="middle" class="node-text">Tìm sản phẩm và slug thật</text>
+    <text x="1092.5" y="171" text-anchor="middle" class="node-title">product tools</text>
+    <text x="1092.5" y="194" text-anchor="middle" class="node-text">Tìm sản phẩm, chi tiết và slug thật</text>
   </g>
 
   <g>

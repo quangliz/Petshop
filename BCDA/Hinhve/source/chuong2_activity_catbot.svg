@@ -76,10 +76,10 @@
 
   <g>
     <rect x="575" y="520" width="350" height="82" rx="10" class="ai" />
-    <text x="750" y="547" text-anchor="middle" class="node-title">Catbot</text>
+    <text x="750" y="547" text-anchor="middle" class="node-title">Planner + Catbot agent</text>
     <text x="750" y="570" text-anchor="middle" class="node-text">
-      <tspan x="750" dy="0">Chọn công cụ cần dùng</tspan>
-      <tspan x="750" dy="19">theo nội dung câu hỏi</tspan>
+      <tspan x="750" dy="0">Lập kế hoạch tool-call</tspan>
+      <tspan x="750" dy="19">và thực thi theo kế hoạch</tspan>
     </text>
   </g>
 
@@ -87,7 +87,7 @@
     <rect x="135" y="655" width="255" height="78" rx="10" class="knowledge" />
     <text x="262.5" y="681" text-anchor="middle" class="node-title">Sản phẩm</text>
     <text x="262.5" y="704" text-anchor="middle" class="node-text">
-      <tspan x="262.5" dy="0">Tìm sản phẩm phù hợp</tspan>
+      <tspan x="262.5" dy="0">Tìm sản phẩm / lấy chi tiết</tspan>
       <tspan x="262.5" dy="19">và slug có thật</tspan>
     </text>
   </g>
