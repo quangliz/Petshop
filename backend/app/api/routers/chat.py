@@ -19,6 +19,7 @@ from app.services.chat_agent import build_agent, build_system_prompt
 from app.services.pets_service import get_pet_profile_cached
 from app.services.ai_safety import has_cart_confirmation, preflight_safety_response
 from app.services.retrieval import search_products
+from app.services.context_compaction import compact_history_if_needed
 from app.core.limiter import limiter
 from app.core.config import settings
 
@@ -83,6 +84,12 @@ async def get_session_messages(session_id: str, db: SessionDep, current_user: Op
     msgs = result.scalars().all()
 
     messages = []
+    if session.context_summary:
+        messages.append({
+            "role": "system",
+            "content": f"[Tóm tắt hội thoại trước đó]: {session.context_summary}",
+            "is_from_human": False
+        })
     for m in msgs:
         if m.role not in (ChatRoleEnum.user, ChatRoleEnum.assistant):
             continue
@@ -224,8 +231,11 @@ async def chat_stream(
         .order_by(ChatMessage.created_at.asc())
     )
     past_msgs = result.scalars().all()
+    past_msgs_list = await compact_history_if_needed(db, session, list(past_msgs))
     history = [SystemMessage(content=build_system_prompt(pet_context, product_context))]
-    for msg in past_msgs:
+    if session.context_summary:
+        history.append(SystemMessage(content=f"Tóm tắt các thảo luận trước đó của cuộc hội thoại này: {session.context_summary}"))
+    for msg in past_msgs_list:
         if msg.role == ChatRoleEnum.user:
             history.append(HumanMessage(content=msg.content))
         elif msg.role == ChatRoleEnum.assistant:

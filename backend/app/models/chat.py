@@ -28,6 +28,7 @@ class ChatSession(Base):
     routing_status: Mapped[ChatRoutingStatusEnum] = mapped_column(
         SQLEnum(ChatRoutingStatusEnum), default=ChatRoutingStatusEnum.ai, server_default="ai"
     )
+    context_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
