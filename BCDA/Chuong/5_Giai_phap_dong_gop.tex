@@ -1,0 +1,123 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+Chương này trình bày các giải pháp và đóng góp nổi bật của đồ án. Các nội dung dưới đây không lặp lại toàn bộ phần thiết kế ở Chương \ref{chapter:DesignAndImplementation}, mà tập trung vào những vấn đề khó, quyết định kỹ thuật và kết quả đạt được trong quá trình xây dựng ThePawsome.
+
+\section{Catbot RAG có ngữ cảnh hồ sơ thú cưng}
+\label{section:5.1}
+
+\subsection{Bài toán}
+\label{subsection:5.1.1}
+
+Trong website petshop thông thường, chatbot nếu có thường trả lời theo kịch bản cố định hoặc dựa trên văn bản marketing chung. Cách tiếp cận này không đủ cho sản phẩm thú cưng, vì một câu hỏi như ``nên mua loại hạt nào cho mèo nhà tôi'' phụ thuộc vào loài, tuổi, cân nặng, sức khỏe, dị ứng và ngữ cảnh sản phẩm đang xem. Nếu chatbot chỉ dựa vào mô hình ngôn ngữ lớn mà không truy xuất dữ liệu thật của cửa hàng, nó có thể giới thiệu sản phẩm không tồn tại hoặc đưa lời khuyên không phù hợp với hồ sơ thú cưng.
+
+\subsection{Giải pháp}
+\label{subsection:5.1.2}
+
+Đồ án triển khai Catbot theo hướng RAG có kiểm soát bằng LangGraph. Mỗi request chat đi qua router \texttt{/api/v1/chat/stream}. Backend nạp lịch sử hội thoại, pet context nếu người dùng chọn hồ sơ thú cưng, product context nếu người dùng đang xem một sản phẩm, sau đó tạo system prompt bằng \texttt{build\_system\_prompt()}. Trong graph, node planner dùng LLM với structured output để sinh \texttt{ToolRoutingPlan}; node agent thực thi kế hoạch bằng tool-calling; node tools chạy các tool bất đồng bộ và trả kết quả về agent. Nếu câu trả lời cần dữ liệu nhưng agent chưa gọi đủ tool theo kế hoạch, graph nhắc agent hoàn tất tool còn thiếu trước khi trả lời cuối cùng. Agent có các tool chính gồm \texttt{search\_products\_tool}, \texttt{get\_product\_detail\_tool}, \texttt{search\_knowledge\_tool}, \texttt{list\_pets\_tool}, \texttt{get\_pet\_detail\_tool} và \texttt{request\_human\_support\_tool}.
+
+Điểm quan trọng là agent không được tự quyết định dữ liệu sản phẩm. Khi trả lời có gợi ý sản phẩm, prompt bắt buộc Catbot chỉ dùng slug có thật từ kết quả tool và render theo định dạng \texttt{\textless product\textgreater slug\textless/product\textgreater}. Với câu hỏi chỉ kiểm tra sản phẩm có bán hay không, tool tìm sản phẩm là đủ; với câu hỏi cần đánh giá độ phù hợp, thành phần, lứa tuổi hoặc dị ứng, agent cần lấy thêm chi tiết sản phẩm bằng \texttt{get\_product\_detail\_tool}. Backend sau đó dùng regex \texttt{PRODUCT\_TAG\_RE} để truy vấn lại các slug trong database và chỉ trả về thẻ sản phẩm hợp lệ cho frontend. Cách làm này biến LLM thành lớp lập kế hoạch, diễn giải và tổng hợp, còn dữ liệu sản phẩm vẫn được kiểm chứng bằng CSDL.
+
+Hồ sơ thú cưng được cache bằng Redis thông qua \texttt{get\_pet\_profile\_cached()}. Key cache bao gồm id thú cưng và hash nội dung hồ sơ, nên khi người dùng sửa tuổi, cân nặng, ghi chú sức khỏe hoặc dị ứng thì hash thay đổi và cache cũ không bị dùng nhầm. Bên cạnh đó, planner không hardcode tên thú cưng; nó nhận danh sách tên thú cưng của người dùng hiện tại từ CSDL để quyết định khi nào cần gọi \texttt{get\_pet\_detail\_tool} hoặc \texttt{list\_pets\_tool}. Đây là giải pháp nhỏ nhưng quan trọng để Catbot phản hồi nhanh mà vẫn giữ tính đúng đắn theo dữ liệu mới.
+
+\subsection{Kết quả đạt được}
+\label{subsection:5.1.3}
+
+Catbot đã có thể trả lời bằng tiếng Việt, stream từng phần về frontend, truy xuất sản phẩm thật, truy xuất knowledge/forum, đọc hồ sơ thú cưng của người dùng và chuyển giao khi cần người thật. So với chatbot kịch bản cố định, giải pháp này linh hoạt hơn; so với LLM gọi trực tiếp không có retrieval, giải pháp này kiểm soát tốt hơn rủi ro bịa sản phẩm và lệch ngữ cảnh. Hạn chế còn lại là chất lượng tư vấn phụ thuộc mạnh vào chất lượng dữ liệu sản phẩm, tài liệu knowledge và API key mô hình AI được cấu hình ở môi trường triển khai.
+
+\section{Tìm kiếm lai và quản trị tri thức forum}
+\label{section:5.2}
+
+\subsection{Bài toán}
+\label{subsection:5.2.1}
+
+Tìm kiếm sản phẩm trong petshop có hai kiểu truy vấn rất khác nhau. Kiểu thứ nhất là truy vấn chính xác theo tên, thương hiệu, size hoặc SKU; ví dụ người dùng gõ tên dòng hạt hoặc thương hiệu. Kiểu thứ hai là truy vấn theo ý định; ví dụ ``thức ăn cho mèo con dễ tiêu hóa'' hoặc ``sữa tắm cho chó da nhạy cảm''. Nếu chỉ dùng keyword search, hệ thống bỏ lỡ ý định ngữ nghĩa. Nếu chỉ dùng vector search, hệ thống có thể xếp thấp các kết quả có từ khóa thương hiệu hoặc size rất rõ.
+
+Ngoài ra, forum cộng đồng vừa là nơi trao đổi kinh nghiệm vừa có thể trở thành nguồn tri thức cho Catbot. Tuy nhiên, không thể đưa mọi bài forum vào RAG vì thông tin cộng đồng có thể sai, quá ngắn, mang tính cấp cứu cá biệt hoặc chứa prompt injection.
+
+\subsection{Giải pháp}
+\label{subsection:5.2.2}
+
+Đồ án triển khai tìm kiếm lai trong \texttt{backend/app/services/retrieval.py}. Với sản phẩm, hệ thống lấy candidate từ hai nguồn: semantic rank qua PGVector và keyword rank qua truy vấn SQL kết hợp scoring theo trường. Các trường tên sản phẩm, slug, thương hiệu, danh mục và mô tả có trọng số khác nhau. Sau đó hệ thống trộn thứ hạng bằng RRF với \(RRF\_K=60\), trọng số keyword 0.75 và semantic 0.25. Cách đặt trọng số này ưu tiên dữ liệu có tính thương mại rõ ràng như tên và thương hiệu, nhưng vẫn giữ khả năng hiểu mô tả ý định.
+
+Với knowledge, hệ thống tách hai nguồn: tài liệu quản trị viên nhập trong \texttt{knowledge\_docs} và thảo luận forum đủ điều kiện. Hàm \texttt{evaluate\_forum\_thread\_knowledge()} đánh giá thread dựa trên trạng thái published, độ dài tối thiểu, prompt injection, dấu hiệu cấp cứu, accepted reply, tác giả chuyên gia hoặc reply chuyên gia. Thread đạt yêu cầu được đánh dấu \texttt{eligible} và reindex vào collection \texttt{petshop\_knowledge}. Khi retrieval forum, hệ thống chỉ chọn thread published, không bị AI block, có accepted reply/chuyên gia/upvote đủ cao và chỉ lấy các reply đáng tin cậy.
+
+Nếu cấu hình Cohere API, các candidate sản phẩm hoặc knowledge được rerank thêm bằng \texttt{rerank\_products\_cohere()} và \texttt{rerank\_knowledge\_cohere()}. Nếu không có cấu hình này, hệ thống vẫn chạy bằng RRF và điểm semantic/quality nội bộ.
+
+\subsection{Kết quả đạt được}
+\label{subsection:5.2.3}
+
+Giải pháp tìm kiếm lai giúp hệ thống không bị phụ thuộc vào một phương pháp duy nhất. Sản phẩm chưa được embedding vẫn có thể tìm thấy bằng keyword search; sản phẩm có mô tả phù hợp với ý định người dùng vẫn có cơ hội xuất hiện nhờ vector search. Với forum, đóng góp chính nằm ở lớp governance: không phải mọi nội dung cộng đồng đều trở thành dữ liệu AI, mà phải đi qua kiểm tra chất lượng và an toàn. Điều này giúp RAG khai thác được kinh nghiệm cộng đồng nhưng vẫn giảm rủi ro đưa dữ liệu nhiễu vào prompt.
+
+\section{Checkout an toàn với idempotency, khóa dòng và SePay}
+\label{section:5.3}
+
+\subsection{Bài toán}
+\label{subsection:5.3.1}
+
+Checkout là luồng có rủi ro cao nhất của hệ thống thương mại điện tử. Nếu hai người cùng mua biến thể cuối cùng của một sản phẩm, hệ thống có thể bán vượt tồn kho nếu chỉ kiểm tra số lượng bằng truy vấn đọc thông thường. Nếu người dùng double-click nút đặt hàng hoặc trình duyệt retry request, hệ thống có thể tạo nhiều đơn cho cùng một giỏ. Với thanh toán QR, webhook có thể bị gửi lại nhiều lần, sai số tiền, thiếu mã đơn hoặc đến sau khi giữ hàng đã quá hạn. Những lỗi này không thể xử lý bằng giao diện; chúng phải được chặn ở tầng backend và CSDL.
+
+\subsection{Giải pháp}
+\label{subsection:5.3.2}
+
+Hình \ref{fig:5.1} mô tả luồng checkout SePay đã triển khai. Request checkout bắt buộc gửi header \texttt{Idempotency-Key}. Backend tạo scope theo user id hoặc guest email, tính hash canonical của payload và khóa advisory transaction theo cặp scope/key. Nếu key đã được dùng cho cùng payload, hệ thống trả lại đơn cũ; nếu key được dùng cho payload khác, backend trả lỗi 409. Cách này xử lý được cả double-click lẫn retry mạng.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong5_checkout_sepay.png}
+\caption{Luồng checkout an toàn với SePay và reservation}
+\label{fig:5.1}
+\end{figure}
+
+Sau bước idempotency, backend khóa các dòng \texttt{products} và \texttt{product\_variants} bằng \texttt{with\_for\_update()}, kiểm tra biến thể có thuộc đúng sản phẩm không, sản phẩm/biến thể còn active không và tồn kho có đủ không. Giá được snapshot vào \texttt{order\_items}, nên nếu quản trị viên đổi giá sau khi khách đặt hàng, đơn cũ vẫn giữ đúng giá tại thời điểm mua.
+
+Với đơn SePay, hệ thống tạo \texttt{payments} có \texttt{merchant\_ref} là \texttt{order\_code}, tạo QR với thời hạn thanh toán 15 phút và tạo reservation tồn kho có thêm grace 5 phút. Webhook SePay phải có header \texttt{Authorization: Apikey ...}, giao dịch phải là tiền vào, mã giao dịch không được trùng, nội dung phải bóc tách được mã đơn và số tiền chuyển khoản phải không nhỏ hơn payment amount. Khi webhook hợp lệ, hệ thống commit reservation, cập nhật payment/order sang trạng thái đã thanh toán và tăng \texttt{sold\_count}. Nếu reservation đã bị release nhưng tồn kho có thể reacquire, hệ thống vẫn hoàn tất giao dịch; nếu không thể reacquire, payment được đánh dấu \texttt{requires\_review}.
+
+\subsection{Kết quả đạt được}
+\label{subsection:5.3.3}
+
+Luồng checkout hiện tại giải quyết ba rủi ro chính: tạo đơn trùng, overselling và webhook không đáng tin. Các ràng buộc unique trên \texttt{orders} và \texttt{payments} là lớp bảo vệ cuối cùng nếu request song song lọt qua tầng ứng dụng. Worker \texttt{reservation\_expiry} giúp giải phóng hàng quá hạn mà không phụ thuộc vào request tiếp theo của người dùng.
+
+\section{Human-in-the-loop cho tình huống vượt phạm vi AI}
+\label{section:5.4}
+
+\subsection{Bài toán}
+\label{subsection:5.4.1}
+
+AI không nên thay thế hoàn toàn nhân viên hỗ trợ, đặc biệt trong bối cảnh thú cưng có thể gặp tình huống y tế nhạy cảm hoặc khách hàng cần xử lý khiếu nại, đổi trả, thanh toán. Nếu chatbot cố trả lời mọi thứ, hệ thống vừa gây rủi ro an toàn vừa làm giảm trải nghiệm khi người dùng thật sự cần người thật.
+
+\subsection{Giải pháp}
+\label{subsection:5.4.2}
+
+ThePawsome lưu trạng thái định tuyến của mỗi phiên chat trong \texttt{chat\_sessions.routing\_status} với ba giá trị \texttt{ai}, \texttt{pending\_human} và \texttt{human}. Catbot có tool \texttt{request\_human\_support\_tool}; khi tool này được gọi, phiên chat chuyển sang \texttt{pending\_human}. Nếu người dùng tiếp tục gửi tin nhắn trong khi phiên không còn ở trạng thái AI, backend không gọi LLM nữa mà trả thông báo đang chờ nhân viên.
+
+Phía admin có các endpoint \texttt{/chat/admin/sessions/pending}, \texttt{/claim}, \texttt{/messages} và \texttt{/close}. Nhân viên có thể claim phiên, gửi tin nhắn được lưu với \texttt{is\_from\_human=True}, sau đó đóng phiên để trả quyền xử lý lại cho AI. Dù hiện tại dependency admin đang yêu cầu \texttt{AdminUser}, mô hình role trong code đã có \texttt{support}; đây là cơ sở để mở rộng phân quyền chi tiết hơn trong giai đoạn tiếp.
+
+\subsection{Kết quả đạt được}
+\label{subsection:5.4.3}
+
+Giải pháp HITL giúp Catbot có ranh giới trách nhiệm rõ. AI xử lý câu hỏi phổ biến và tư vấn dữ liệu có căn cứ; người thật tiếp quản khi yêu cầu vượt phạm vi. Về mặt dữ liệu, toàn bộ hội thoại vẫn nằm trong cùng \texttt{chat\_sessions} và \texttt{chat\_messages}, nên hệ thống có thể xem lại lịch sử, đo chất lượng hỗ trợ và phân tích các tình huống AI thường phải chuyển giao.
+
+\section{Quan sát hệ thống và hardening}
+\label{section:5.5}
+
+\subsection{Bài toán}
+\label{subsection:5.5.1}
+
+Một hệ thống tích hợp thương mại điện tử và AI cần được quan sát tốt hơn một website bán hàng đơn giản. Khi lỗi xảy ra, nhóm phát triển cần biết request nào lỗi, user nào liên quan, route nào bị ảnh hưởng, AI gọi model gì, tốn bao nhiêu token, latency bao nhiêu và chi phí ước tính thế nào. Ngoài ra, cấu hình production phải tránh các lỗi phổ biến như dùng secret mặc định, thiếu health check hoặc để endpoint nhạy cảm không có phân quyền.
+
+\subsection{Giải pháp}
+\label{subsection:5.5.2}
+
+Backend thêm middleware request context để sinh hoặc nhận \texttt{X-Request-ID}, log route, method, status, latency và user id nếu có access token hợp lệ. Các header bảo mật như \texttt{X-Content-Type-Options}, \texttt{X-Frame-Options}, \texttt{Referrer-Policy} và \texttt{Permissions-Policy} được gắn ở middleware. Startup chặn \texttt{SECRET\_KEY} rỗng hoặc thuộc danh sách yếu; production yêu cầu secret đủ dài.
+
+Với AI, router chat ghi \texttt{AICallLog} gồm user id, session id, model, prompt tokens, completion tokens, latency và chi phí ước tính. Khi tổng chi phí trong ngày vượt ngưỡng cảnh báo, service alert có thể gửi cảnh báo. Hệ thống cũng có endpoint observability cho web vitals, funnel event và SLO metrics ở mức triển khai thử nghiệm.
+
+\subsection{Kết quả đạt được}
+\label{subsection:5.5.3}
+
+Các cơ chế này không trực tiếp tạo ra tính năng mua hàng, nhưng là đóng góp quan trọng để sản phẩm có thể vận hành ổn định hơn. Khi kết hợp request id, audit log, AI call log, health check và secret guard, ThePawsome có nền tảng để điều tra lỗi, kiểm soát chi phí AI và triển khai lên môi trường thật an toàn hơn. Đây cũng là phần khác biệt giữa một prototype chỉ chạy được trên máy cá nhân và một hệ thống có định hướng vận hành.
+
+Tóm lại, các đóng góp nổi bật của đồ án nằm ở việc kết hợp AI/RAG với dữ liệu thương mại điện tử và hồ sơ thú cưng, thiết kế tìm kiếm lai phù hợp dữ liệu sản phẩm tiếng Việt, quản trị tri thức forum trước khi đưa vào RAG, bảo vệ checkout bằng locking/idempotency/reservation và xây dựng cơ chế HITL cho các tình huống AI không nên tự xử lý.
+
+\end{document}

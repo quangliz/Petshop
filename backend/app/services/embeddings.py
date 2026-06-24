@@ -45,6 +45,7 @@ def _build_store(collection: str) -> PGVector:
         embeddings=get_embedder(),
         collection_name=collection,
         connection=_psycopg_url(),
+        engine_args={"pool_pre_ping": True, "pool_recycle": 300},
         use_jsonb=True,
     )
 

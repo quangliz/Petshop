@@ -1,0 +1,49 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "DejaVu Sans, Arial", "primaryColor": "#f5f3ff", "primaryTextColor": "#111827", "lineColor": "#475569"}}}%%
+erDiagram
+    USERS ||--o{ FORUM_THREADS : authors
+    USERS ||--o{ FORUM_REPLIES : authors
+    FORUM_THREADS ||--o{ FORUM_REPLIES : has
+    FORUM_THREADS ||--o{ FORUM_THREAD_VOTES : receives
+    FORUM_REPLIES ||--o{ FORUM_REPLY_VOTES : receives
+    USERS ||--o{ FORUM_THREAD_VOTES : votes
+    USERS ||--o{ FORUM_REPLY_VOTES : votes
+
+    USERS {
+        uuid id PK
+    }
+
+    FORUM_THREADS {
+        uuid id PK
+        uuid author_id FK
+        string title
+        string slug UK
+        string category
+        string status
+        string knowledge_status
+        uuid accepted_reply_id
+    }
+
+    FORUM_REPLIES {
+        uuid id PK
+        uuid thread_id FK
+        uuid parent_reply_id FK
+        uuid author_id FK
+        string status
+        boolean is_expert_answer
+        boolean is_accepted
+        string knowledge_status
+    }
+
+    FORUM_THREAD_VOTES {
+        uuid id PK
+        uuid thread_id FK
+        uuid user_id FK
+        int value
+    }
+
+    FORUM_REPLY_VOTES {
+        uuid id PK
+        uuid reply_id FK
+        uuid user_id FK
+        int value
+    }

@@ -17,7 +17,7 @@ from app.models.user import Pet
 from app.models.catalog import Product
 from app.services.chat_agent import build_agent, build_system_prompt
 from app.services.pets_service import get_pet_profile_cached
-from app.services.ai_safety import has_cart_confirmation, preflight_safety_response
+from app.services.ai_safety import has_cart_confirmation, preflight_safety_response, postguard_response
 from app.services.retrieval import search_products
 from app.services.context_compaction import compact_history_if_needed
 from app.core.limiter import limiter
@@ -236,9 +236,12 @@ async def chat_stream(
     )
     past_msgs = result.scalars().all()
     past_msgs_list = await compact_history_if_needed(db, session, list(past_msgs))
-    history = [SystemMessage(content=build_system_prompt(pet_context, product_context))]
-    if session.context_summary:
-        history.append(SystemMessage(content=f"Tóm tắt các thảo luận trước đó của cuộc hội thoại này: {session.context_summary}"))
+    history = [SystemMessage(content=build_system_prompt(
+        pet_context,
+        product_context,
+        context_summary=session.context_summary or "",
+    ))]
+
     for msg in past_msgs_list:
         if msg.role == ChatRoleEnum.user:
             history.append(HumanMessage(content=msg.content))
@@ -417,6 +420,14 @@ async def chat_stream(
                             # Reset so next agent-node LLM call is detected
                             llm_call_start = None
                             notified_tool_names.clear()
+
+                # ── Post-guard: validate & auto-repair output format ─────────
+                if full_content:
+                    repaired, pg_warnings = postguard_response(full_content)
+                    if pg_warnings:
+                        for w in pg_warnings:
+                            logger.warning("[postguard] session=%s: %s", session.id, w)
+                        full_content = repaired
 
                 # ── Persist assistant message ─────────────────────────
                 am = ChatMessage(

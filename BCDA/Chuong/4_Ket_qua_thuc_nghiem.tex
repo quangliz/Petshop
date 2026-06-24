@@ -1,0 +1,434 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+Chương này trình bày quá trình phân tích thiết kế, triển khai và đánh giá hệ thống ThePawsome dựa trên mã nguồn hiện tại. Khác với Chương \ref{chapter:Technology}, chương này không tập trung vào lý thuyết chung của công nghệ, mà mô tả cách các công nghệ đã được đưa vào kiến trúc phần mềm, mô hình dữ liệu, luồng xử lý nghiệp vụ, giao diện, kiểm thử và triển khai.
+
+\section{Thiết kế kiến trúc}
+\label{section:4.1}
+
+\subsection{Lựa chọn kiến trúc phần mềm}
+\label{subsection:4.1.1}
+
+ThePawsome sử dụng kiến trúc monorepo tách frontend và backend. Trong cùng repository, thư mục \texttt{backend/} chứa API FastAPI, models SQLAlchemy, services nghiệp vụ, migration Alembic và test backend; thư mục \texttt{frontend/} chứa ứng dụng Next.js App Router, component giao diện, store phía client và axios API client. Cách tổ chức này phù hợp với đồ án vì toàn bộ hệ thống vẫn là một sản phẩm thống nhất, nhưng ranh giới xử lý giữa UI và nghiệp vụ backend được phân tách rõ.
+
+Ở backend, kiến trúc được tổ chức theo các tầng chính: API routers, dependencies, services, models và database. Router nhận request, validate bằng Pydantic và gọi service hoặc ORM; dependency kiểm soát phiên CSDL, xác thực, phân quyền; service chứa logic có tính tái sử dụng như retrieval, indexing, inventory, payment, AI safety và audit; model định nghĩa schema quan hệ; database cung cấp engine/session bất đồng bộ. Thiết kế này giúp nghiệp vụ phức tạp như checkout, thanh toán webhook và Catbot không bị dồn toàn bộ vào route handler.
+
+Ở frontend, kiến trúc được tổ chức quanh Next.js route groups và component. Nhóm \texttt{(shop)} phục vụ khách hàng, \texttt{(auth)} phục vụ đăng nhập/đăng ký/khôi phục mật khẩu, còn \texttt{admin} phục vụ quản trị. Axios instance nằm tại \texttt{frontend/src/lib/api.ts} để gắn base URL, gửi access token và xử lý refresh token tập trung. TanStack Query được dùng cho server-state; Zustand được dùng cho client-state nhỏ như auth và ngữ cảnh sản phẩm đang xem.
+
+\subsection{Thiết kế tổng quan}
+\label{subsection:4.1.2}
+
+Hình \ref{fig:4.1} mô tả kiến trúc tổng quan của ThePawsome theo các tầng frontend, backend, data/runtime và dịch vụ ngoài. Sơ đồ được dựng lại từ cấu trúc mã nguồn hiện tại, không phải hình minh họa template.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\linewidth]{Hinhve/chuong4_kien_truc_tong_the.png}
+\caption{Kiến trúc tổng quan hệ thống ThePawsome}
+\label{fig:4.1}
+\end{figure}
+
+Luồng chính của hệ thống bắt đầu từ frontend gọi REST API hoặc SSE tới FastAPI. API router kiểm tra dependency xác thực/phân quyền, sau đó gọi các service nghiệp vụ. Dữ liệu bền vững được lưu trong PostgreSQL; dữ liệu vector của LangChain PGVector cũng nằm trong PostgreSQL thông qua các bảng \texttt{langchain\_pg\_collection} và \texttt{langchain\_pg\_embedding}. Redis hỗ trợ cache và rate limit. Một worker riêng chạy \texttt{app.workers.reservation\_expiry} để quét reservation quá hạn và trả tồn kho.
+
+\subsection{Thiết kế gói backend và frontend}
+\label{subsection:4.1.3}
+
+Bảng \ref{table:4.1} mô tả các gói backend quan trọng và trách nhiệm của từng gói. Các gói này tương ứng trực tiếp với thư mục trong \texttt{backend/app}.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\caption{Các gói chính của backend}
+\label{table:4.1}
+\begin{tabular}{|p{3.2cm}|p{10.8cm}|}
+\hline
+\textbf{Gói} & \textbf{Trách nhiệm} \\ \hline
+\texttt{api/routers} & Định nghĩa endpoint public và admin cho auth, products, cart, orders, payments, pets, chat, forum, reviews, banners, promotions, returns, audit logs và observability. \\ \hline
+\texttt{api/deps.py} & Cung cấp dependency dùng chung: phiên \texttt{AsyncSession}, người dùng hiện tại, optional user, admin user và các role như catalog manager, order operator, support, content manager. \\ \hline
+\texttt{models} & Định nghĩa 28 bảng nghiệp vụ bằng SQLAlchemy ORM, bao phủ user, catalog, commerce, forum, chat, knowledge, audit và AI observability. \\ \hline
+\texttt{services} & Chứa logic nghiệp vụ dùng lại: RAG retrieval, embedding/indexing, safety, inventory reservation, SePay service, forum knowledge scoring, pet profile cache và audit. \\ \hline
+\texttt{core} & Chứa cấu hình, security, email, Redis client, limiter và logging. \\ \hline
+\texttt{workers} & Chạy tác vụ nền, hiện tại có worker giải phóng reservation tồn kho quá hạn. \\ \hline
+\end{tabular}
+\end{table}
+
+Bảng \ref{table:4.2} mô tả các gói frontend quan trọng. Thiết kế frontend ưu tiên tách route, component dùng chung và thư viện truy cập API để tránh tạo nhiều client rời rạc.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\caption{Các gói chính của frontend}
+\label{table:4.2}
+\begin{tabular}{|p{3.2cm}|p{10.8cm}|}
+\hline
+\textbf{Gói} & \textbf{Trách nhiệm} \\ \hline
+\texttt{src/app/(shop)} & Trang khách hàng: trang chủ, shop, chi tiết sản phẩm, giỏ hàng, checkout, hồ sơ, đơn hàng, wishlist, forum và các trang chính sách. \\ \hline
+\texttt{src/app/(auth)} & Đăng nhập, đăng ký, quên mật khẩu, đặt lại mật khẩu và xác minh email. \\ \hline
+\texttt{src/app/admin} & Dashboard quản trị users, products, orders, forum, promotions, banners, knowledge và embeddings. \\ \hline
+\texttt{src/components} & Component giao diện tái sử dụng như Header, Footer, ChatWidget, review, forum, skeleton, UI primitives và các component nghiệp vụ. \\ \hline
+\texttt{src/lib} & Axios instance, Zustand store, shared types, guest cart và utilities. \\ \hline
+\texttt{src/providers} & Query provider và auth initializer ở mức layout. \\ \hline
+\end{tabular}
+\end{table}
+
+\section{Thiết kế chi tiết}
+\label{section:4.2}
+
+\subsection{Thiết kế giao diện}
+\label{subsection:4.2.1}
+
+Giao diện ThePawsome hướng tới người dùng phổ thông tại Việt Nam, ưu tiên thao tác mua hàng rõ ràng, responsive trên mobile/desktop và có đủ trạng thái loading, empty, error. Frontend dùng Tailwind CSS và các UI primitive dùng chung để giữ giao diện nhất quán. Các trang sản phẩm có skeleton để giảm cảm giác chờ; các thao tác mutation như thêm giỏ, checkout, gửi forum hoặc review dùng thông báo phản hồi; các trang quản trị dùng bảng, form và modal để thao tác dữ liệu. Các hình dưới đây minh họa những màn hình đại diện của hệ thống, gồm luồng mua hàng, thanh toán, tư vấn bằng Catbot và quản trị sản phẩm.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_shop.png}
+\caption{Màn hình shop và bộ lọc sản phẩm}
+\label{fig:4.2}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_product_detail.png}
+\caption{Màn hình chi tiết sản phẩm}
+\label{fig:4.product_detail}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_checkout_sepay.png}
+\caption{Màn hình checkout và thanh toán SePay}
+\label{fig:4.checkout_sepay}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_catbot.png}
+\caption{Màn hình Catbot tư vấn sản phẩm}
+\label{fig:4.3}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong4_ui_admin_products.png}
+\caption{Màn hình quản trị sản phẩm}
+\label{fig:4.admin_products}
+\end{figure}
+
+\subsection{Thiết kế cơ sở dữ liệu}
+\label{subsection:4.2.2}
+
+CSDL nghiệp vụ hiện có 28 bảng SQLAlchemy, chưa tính các bảng nội bộ do LangChain PGVector tạo để lưu collection và embedding. Để tránh quá tải trong một sơ đồ duy nhất, ERD được chia thành sơ đồ liên kết nhóm và các sơ đồ chi tiết theo từng miền dữ liệu. Hình \ref{fig:4.erd_groups} trình bày quan hệ phụ thuộc chính giữa các nhóm bảng; Bảng \ref{table:4.4} tổng hợp đầy đủ 28 bảng nghiệp vụ.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.78\textheight,keepaspectratio]{Hinhve/chuong4_erd_lien_ket_nhom.png}
+\caption{Liên kết tổng quan giữa các nhóm bảng dữ liệu}
+\label{fig:4.erd_groups}
+\end{figure}
+
+Bảng \ref{table:4.4} tổng hợp các nhóm bảng chính. Nhóm catalog lưu danh mục, sản phẩm, biến thể và ảnh. Nhóm commerce lưu giỏ hàng, đơn hàng, payment, reservation, mã giảm giá và đổi trả. Nhóm forum lưu thread, reply và vote. Nhóm AI/knowledge lưu tài liệu knowledge, chat session, message, log chi phí AI và audit log.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.2}
+\caption{Tổng hợp nhóm bảng dữ liệu}
+\label{table:4.4}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.1cm}|>{\raggedright\arraybackslash}p{1.4cm}|>{\raggedright\arraybackslash}p{9.1cm}|}
+\hline
+\textbf{Nhóm} & \textbf{Số bảng} & \textbf{Các bảng chính} \\ \hline
+User/Pet & 3 & \texttt{users}, \texttt{refresh\_sessions}, \texttt{pets}. \\ \hline
+Catalog & 5 & \texttt{categories}, \texttt{banners}, \texttt{products}, \texttt{product\_variants}, \texttt{product\_images}. \\ \hline
+Commerce & 9 & \texttt{carts}, \texttt{cart\_items}, \texttt{promotions}, \texttt{orders}, \texttt{order\_items}, \texttt{payments}, \texttt{inventory\_reservations}, \texttt{order\_returns}, \texttt{order\_return\_items}. \\ \hline
+Forum & 4 & \texttt{forum\_threads}, \texttt{forum\_replies}, \texttt{forum\_thread\_votes}, \texttt{forum\_reply\_votes}. \\ \hline
+AI/Knowledge/\allowbreak Log & 5 & \texttt{knowledge\_docs}, \texttt{chat\_sessions}, \texttt{chat\_messages}, \texttt{ai\_call\_logs}, \texttt{audit\_logs}. \\ \hline
+Review/Wishlist & 2 & \texttt{reviews}, \texttt{wishlist\_items}. \\ \hline
+\end{tabular}
+\end{table}
+
+Các hình tiếp theo trình bày ERD chi tiết cho từng nhóm bảng. Trong các sơ đồ này, một số bảng ngoài nhóm như \texttt{users}, \texttt{products} hoặc \texttt{pets} được lặp lại như bảng tham chiếu để làm rõ khóa ngoại liên miền.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_user_pet.png}
+\caption{ERD nhóm User/Pet}
+\label{fig:4.erd_user_pet}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_catalog.png}
+\caption{ERD nhóm Catalog}
+\label{fig:4.erd_catalog}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=1.0\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_commerce.png}
+\caption{ERD nhóm Commerce}
+\label{fig:4.erd_commerce}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_forum.png}
+\caption{ERD nhóm Forum}
+\label{fig:4.erd_forum}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_ai_knowledge_log.png}
+\caption{ERD nhóm AI/Knowledge/Log}
+\label{fig:4.erd_ai_knowledge_log}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth,height=0.82\textheight,keepaspectratio]{Hinhve/chuong4_erd_review_wishlist.png}
+\caption{ERD nhóm Review/Wishlist}
+\label{fig:4.erd_review_wishlist}
+\end{figure}
+
+Một số ràng buộc dữ liệu quan trọng đã được thể hiện trực tiếp trong model và migration. Giá sản phẩm và biến thể phải dương; giá khuyến mãi nếu có phải nhỏ hơn giá gốc; tồn kho không âm; số lượng trong giỏ và đơn phải lớn hơn 0; mỗi người dùng chỉ review một sản phẩm một lần; mỗi user chỉ vote một thread hoặc reply một trạng thái tại một thời điểm; \texttt{orders} có unique constraint trên cặp \texttt{idempotency\_scope} và \texttt{idempotency\_key}; \texttt{payments} có unique constraint trên \texttt{external\_txn\_id}, \texttt{merchant\_ref} và cặp \texttt{order\_id}/\texttt{idempotency\_key}. Các ràng buộc này là lớp phòng thủ dữ liệu bên cạnh validation ở API.
+
+\subsection{Thiết kế luồng xử lý quan trọng}
+\label{subsection:4.2.3}
+
+Luồng checkout được thiết kế theo hướng ưu tiên toàn vẹn dữ liệu. Backend nhận \texttt{Idempotency-Key}, khóa advisory transaction theo scope người dùng hoặc guest email, sau đó khóa các dòng sản phẩm/biến thể bằng \texttt{with\_for\_update()}. Khi sản phẩm hợp lệ và đủ tồn kho, hệ thống trừ tồn kho ngay trong transaction, tạo order, order items và snapshot giá. Với SePay, hệ thống tạo \texttt{inventory\_reservations} để worker có thể hoàn hàng nếu quá hạn. Với COD, đơn hàng chờ xử lý mà không cần payment online.
+
+Luồng Catbot được thiết kế theo hướng agent có kiểm soát. Trước khi gọi LLM, backend kiểm tra prompt injection, dấu hiệu cấp cứu và yêu cầu y tế vượt phạm vi tư vấn. Nếu an toàn, LangGraph graph nhận lịch sử hội thoại, pet context và product context. Node planner trước tiên sinh \texttt{ToolRoutingPlan} có cấu trúc, dựa trên ngữ nghĩa câu hỏi và danh sách thú cưng thật của người dùng trong CSDL. Node agent sau đó gọi các tool tương ứng như tìm sản phẩm, lấy chi tiết sản phẩm, tìm knowledge/forum, liệt kê hoặc đọc hồ sơ thú cưng và chuyển giao người thật. Nếu agent chuẩn bị trả lời khi còn thiếu tool trong kế hoạch, graph thêm một bước nhắc hoàn tất tool còn thiếu trước khi kết luận. Câu trả lời được stream bằng SSE và lưu lại trong \texttt{chat\_messages}. Khi người dùng yêu cầu gặp nhân viên hoặc tool xác định cần hỗ trợ người thật, phiên chat chuyển sang \texttt{pending\_human}. Nhân viên admin có thể claim, gửi tin nhắn người thật và đóng phiên để trả lại trạng thái AI.
+
+\section{Xây dựng ứng dụng}
+\label{section:4.3}
+
+\subsection{Thư viện và công cụ sử dụng}
+\label{subsection:4.3.1}
+
+Bảng \ref{table:4.5} liệt kê các công cụ và thư viện chính theo phiên bản đang khóa trong \texttt{backend/uv.lock} và \texttt{frontend/package-lock.json}. Một số biến môi trường như OpenAI, Cohere, Cloudinary, Google OAuth và SePay chỉ hoạt động đầy đủ khi người triển khai cung cấp khóa tương ứng.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.18}
+\caption{Danh sách công cụ và thư viện sử dụng}
+\label{table:4.5}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.15cm}|>{\raggedright\arraybackslash}p{3.45cm}|>{\raggedright\arraybackslash}p{1.8cm}|>{\raggedright\arraybackslash}p{5.15cm}|}
+\hline
+\textbf{Mục đích} & \textbf{Công cụ/thư viện} & \textbf{Phiên bản} & \textbf{Vai trò trong hệ thống} \\ \hline
+Backend API & FastAPI & 0.136.0 & Xây dựng REST API, middleware, OpenAPI docs. \\ \hline
+ORM/database & SQLAlchemy & 2.0.49 & ORM bất đồng bộ và transaction. \\ \hline
+Migration & Alembic & 1.18.4 & Quản lý thay đổi schema CSDL. \\ \hline
+Vector/RAG & langchain-postgres & 0.0.17 & Tích hợp PGVector store. \\ \hline
+Agent & LangGraph & 1.1.6 & Orchestration planner, agent và tool-calling. \\ \hline
+LLM/Embedding & langchain-openai & 1.1.14 & Gọi OpenAI chat model và embedding model. \\ \hline
+Redis client & redis-py & 7.4.0 & Cache, TTL và rate-limit backend. \\ \hline
+Kiểm thử backend & pytest & 9.0.3 & Chạy test API/service. \\ \hline
+Lint backend & Ruff & 0.15.11 & Kiểm tra style và lỗi Python. \\ \hline
+Frontend framework & Next.js & 16.2.4 & App Router và giao diện web. \\ \hline
+UI library & React / React DOM & 18.3.1 & Component UI. \\ \hline
+Server-state & TanStack Query & 5.99.0 & Fetch/cache/mutation phía frontend. \\ \hline
+CSS & Tailwind CSS & 3.4.19 & Thiết kế responsive và utility class. \\ \hline
+Type checking & TypeScript & 5.9.3 & Kiểm tra kiểu frontend. \\ \hline
+Runtime data & PostgreSQL + pgvector image & pg15 & CSDL quan hệ và vector. \\ \hline
+Cache/runtime & Redis Docker image & 7-alpine & Cache và hạ tầng hỗ trợ. \\ \hline
+Hosting server & Amazon EC2 & AWS & Máy chủ ảo chạy Nginx, frontend, backend và worker trong môi trường production \cite{awsEc2Docs}. \\ \hline
+Managed database & Amazon RDS for PostgreSQL & AWS & Dịch vụ CSDL managed để host PostgreSQL production, tách dữ liệu khỏi vòng đời EC2 \cite{awsRdsDocs}. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Kết quả mã nguồn đạt được}
+\label{subsection:4.3.2}
+
+Tính tại thời điểm rà soát mã nguồn, hệ thống có 61 file Python trong \texttt{backend/app} với khoảng 8.681 dòng code không rỗng, 85 file TypeScript/TSX trong \texttt{frontend/src} với khoảng 12.138 dòng code không rỗng, và 22 file test backend với 123 test case. Nếu không tính \texttt{node\_modules}, \texttt{.next}, \texttt{.venv}, cache và thư mục build, kích thước nguồn backend khoảng 1,7 MB, frontend khoảng 2,1 MB và thư mục báo cáo BCDA khoảng 1,9 MB.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.2}
+\caption{Thống kê mã nguồn chính}
+\label{table:4.6}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{3.7cm}|>{\raggedright\arraybackslash}p{2.0cm}|>{\raggedright\arraybackslash}p{2.2cm}|>{\raggedright\arraybackslash}p{5.7cm}|}
+\hline
+\textbf{Thành phần} & \textbf{Số file} & \textbf{Số dòng code} & \textbf{Ghi chú} \\ \hline
+\texttt{backend/app} & 61 & 8.681 & API, core, models, services, worker. \\ \hline
+\texttt{frontend/src} & 85 & 12.138 & App Router, components, libs, providers. \\ \hline
+\texttt{backend/tests} & 22 & 123 test case & Test auth, products, cart, orders, payments, chat, forum, AI safety, reviews, cache và hardening. \\ \hline
+Model CSDL & 10 file model & 28 bảng & Chưa tính bảng nội bộ của LangChain PGVector. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Minh họa các chức năng chính}
+\label{subsection:4.3.3}
+
+Sản phẩm đã hiện thực các nhóm chức năng quan trọng của một petshop e-commerce. Nhóm storefront gồm trang chủ, banner, shop, bộ lọc, chi tiết sản phẩm, biến thể, sản phẩm tương tự, wishlist, giỏ hàng, checkout, đơn hàng, tra cứu đơn guest và trang chính sách. Nhóm tài khoản gồm đăng ký, xác minh email, đăng nhập, refresh token, quên mật khẩu, đổi mật khẩu, Google OAuth và hồ sơ cá nhân. Nhóm quản trị gồm quản lý sản phẩm/biến thể/ảnh, banner, đơn hàng, người dùng, khuyến mãi, knowledge, embedding và forum.
+
+Nhóm cộng đồng và AI là điểm khác biệt của ThePawsome. Forum hỗ trợ danh mục chủ đề, thread, reply lồng nhau, vote, accepted reply, nhãn chuyên gia xác minh và cơ chế đánh giá thread đủ điều kiện đưa vào kho knowledge. Catbot hỗ trợ hội thoại streaming, lập kế hoạch tool-call bằng planner LLM, tìm sản phẩm, lấy chi tiết sản phẩm khi cần kiểm tra phù hợp, tìm knowledge/forum, đọc hồ sơ thú cưng, chèn thẻ sản phẩm hợp lệ và chuyển giao người thật. Dữ liệu AI call được log để theo dõi token, latency và chi phí ước tính.
+
+\section{Kiểm thử}
+\label{section:4.4}
+
+Kiểm thử backend được tổ chức trong \texttt{backend/tests}. Bộ test bao phủ các nghiệp vụ trọng tâm: auth và refresh token, bảo mật startup, sản phẩm/danh mục, giỏ hàng, đơn hàng, thanh toán SePay, inventory reservation, forum, HITL chat, AI safety, Cohere rerank fallback, review, cache, validation contract và một số yêu cầu hardening. Việc dùng test API/service với CSDL thật phù hợp với bản chất hệ thống thương mại điện tử, vì nhiều lỗi quan trọng chỉ xuất hiện khi có transaction, constraint và lock thật.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.2}
+\caption{Nhóm kiểm thử backend}
+\label{table:4.7}
+\begin{tabular}{|>{\raggedright\arraybackslash}p{2.8cm}|>{\raggedright\arraybackslash}p{6.6cm}|>{\raggedright\arraybackslash}p{4.2cm}|}
+\hline
+\textbf{Nhóm test} & \textbf{Mục tiêu kiểm thử} & \textbf{File tiêu biểu} \\ \hline
+Auth/security & Đăng ký, đăng nhập, refresh token, logout, email verify, secret startup. & \texttt{test\_auth.py}, \texttt{test\_security\_startup.py} \\ \hline
+Commerce & Cart, checkout, guest checkout, cancel order, idempotency, reservation và payment. & \texttt{test\_cart.py}, \texttt{test\_orders.py}, \texttt{test\_payments.py} \\ \hline
+Catalog/review & Danh mục, sản phẩm, sản phẩm tương tự, review sau mua. & \texttt{test\_products.py}, \texttt{test\_reviews.py} \\ \hline
+AI/chat/forum & Safety guardrail, streaming chat, HITL, forum Q\&A, rerank fallback. & \texttt{test\_ai\_safety.py}, \texttt{test\_chat.py}, \texttt{test\_forum.py} \\ \hline
+Hardening & Validation contract, cache, proxy-safe IP, phase hardening. & \texttt{test\_validation\_contracts.py}, \texttt{test\_phase0\_hardening.py} \\ \hline
+\end{tabular}
+\end{table}
+
+Frontend hiện có script \texttt{npm run lint} và \texttt{npm run build}. Trong phạm vi code hiện tại chưa có bộ test component/e2e riêng cho frontend, vì vậy đây là một hạn chế cần bổ sung trong giai đoạn phát triển tiếp. Các luồng UI quan trọng như checkout, SePay polling, Catbot streaming và admin product form nên được kiểm thử thêm bằng Playwright hoặc Cypress khi dữ liệu mẫu ổn định.
+
+\subsection{Đánh giá thực nghiệm chất lượng và độ an toàn của trợ lý AI}
+\label{subsection:4.4.2}
+
+Để quan sát chất lượng phản hồi, khả năng gọi tool và hành vi an toàn của Catbot, đồ án sử dụng bộ đánh giá gồm 50 câu hỏi được tạo từ dữ liệu hiện có trong CSDL. Bộ câu hỏi bao phủ các nhóm nghiệp vụ: tìm sản phẩm, truy xuất tri thức, kết hợp sản phẩm với tri thức, cá nhân hóa theo hồ sơ thú cưng, guardrail, ranh giới giỏ hàng và chuyển giao nhân viên. Bảng \ref{table:4.eval_setup} tóm tắt thiết lập đánh giá. Phần này chỉ báo cáo số liệu quan sát được từ artifact eval, không gán nhãn tổng thể cho hệ thống.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\caption{Thiết lập đánh giá Catbot}
+\label{table:4.eval_setup}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{4.4cm}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Thành phần} & \textbf{Giá trị quan sát} \\ \hline
+Số case eval & 50 câu hỏi, gồm 12 case tìm sản phẩm, 12 case knowledge RAG, 8 case cá nhân hóa, 6 case kết hợp sản phẩm--tri thức, 6 case guardrail, 4 case HITL và 2 case ranh giới giỏ hàng. \\ \hline
+Dữ liệu tham chiếu & 17 tham chiếu sản phẩm, 16 tham chiếu knowledge và 1 tham chiếu hồ sơ thú cưng được xác thực từ dữ liệu hiện có. \\ \hline
+Mô hình trả lời & \texttt{gpt-4o-mini}. \\ \hline
+Phương pháp chấm chất lượng & Sử dụng \textit{LLM-as-a-judge} với \texttt{gpt-4o} để đọc câu hỏi, câu trả lời và evidence của từng case. \\ \hline
+LangSmith tracing & Trace agent lưu trong \texttt{thepawsome-eval}; phần judge được chạy tách riêng để không trộn vào số liệu vận hành của agent. \\ \hline
+Cấu hình rerank & Cohere rerank tắt trong lúc eval để không đưa độ trễ/rate limit bên ngoài vào số liệu agent. \\ \hline
+\end{tabularx}
+\end{table}
+
+Bảng \ref{table:4.eval_trace_summary} trình bày các số liệu trace và vận hành từ 50 case. Các chỉ số này tập trung vào hành vi của agent khi gọi tool, xử lý guardrail, chuyển giao người thật và tuân thủ ràng buộc phản hồi.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\caption{Tổng hợp số liệu trace và vận hành eval}
+\label{table:4.eval_trace_summary}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{4.6cm}|>{\centering\arraybackslash}p{2.4cm}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Chỉ số} & \textbf{Giá trị} & \textbf{Ghi chú} \\ \hline
+Trace score trung bình & 98.46/100 & Tính từ required tool, forbidden tool, thứ tự tool, safety mode, HITL, slug sản phẩm, citation và các ràng buộc nội dung. \\ \hline
+\texttt{hard\_gates\_ok} & 48/50 & Số case có toàn bộ hard-gate được ghi nhận là \texttt{true}. \\ \hline
+Required-tool hit rate & 100.0\% & Agent gọi đủ tool bắt buộc trong expected trace. \\ \hline
+Tool-order rate & 100.0\% & Các case nhiều tool giữ đúng thứ tự kỳ vọng. \\ \hline
+HITL handoff hit rate & 100.0\% & Các case cần chuyển người thật có trace gọi \texttt{request\_human\_support\_tool}. \\ \hline
+Safety preflight hit rate & 100.0\% & Các case guardrail được xử lý ở lớp safety trước khi trả lời. \\ \hline
+Số tool call trung bình & 2.16 tool/case & Tính trên trace agent của 50 case eval. \\ \hline
+Eval error rate & 0.0\% & Tỷ lệ run agent eval có lỗi trong LangSmith. \\ \hline
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\caption{Trace contract theo nhóm câu hỏi}
+\label{table:4.eval_group_summary}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{1.4cm}|>{\centering\arraybackslash}p{2.0cm}|>{\centering\arraybackslash}p{1.8cm}|>{\centering\arraybackslash}p{1.7cm}|>{\centering\arraybackslash}p{1.7cm}|}
+\hline
+\textbf{Nhóm câu hỏi} & \textbf{Case} & \textbf{Required tool} & \textbf{Tool order} & \textbf{Handoff} & \textbf{Safety} \\ \hline
+Tìm sản phẩm & 12 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+Knowledge RAG & 12 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+Cá nhân hóa theo hồ sơ thú cưng & 8 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+Kết hợp sản phẩm--tri thức & 6 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+Guardrail & 6 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+HITL & 4 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+Ranh giới giỏ hàng & 2 & 100.0\% & 100.0\% & 100.0\% & 100.0\% \\ \hline
+\end{tabularx}
+\end{table}
+
+Bảng \ref{table:4.eval_trace_contract} mô tả các chỉ số trace contract và ràng buộc phản hồi được trích từ artifact JSON. Các chỉ số này cho biết actual trace có khớp với kỳ vọng về tool, trạng thái handoff, guardrail và nội dung phản hồi hay không.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\caption{Số liệu trace contract và ràng buộc phản hồi}
+\label{table:4.eval_trace_contract}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{2.2cm}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Chỉ số} & \textbf{Giá trị} & \textbf{Ý nghĩa quan sát} \\ \hline
+Required tools called & 50/50 & Tool bắt buộc trong expected trace xuất hiện trong actual trace. \\ \hline
+Forbidden tools absent & 50/50 & Tool không được phép không xuất hiện trong actual trace. \\ \hline
+Tool order & 50/50 & Thứ tự tool ở các case nhiều bước khớp với contract. \\ \hline
+Safety mode & 50/50 & Trạng thái guardrail hoặc agent mode khớp kỳ vọng của case. \\ \hline
+Handoff status & 50/50 & Case cần hoặc không cần chuyển người thật có trạng thái tương ứng. \\ \hline
+Valid product slugs & 50/50 & Slug trong thẻ sản phẩm thuộc kết quả tool hoặc dữ liệu hợp lệ. \\ \hline
+Product tag contract & 49/50 & Thẻ \texttt{\textless product\textgreater slug\textless/product\textgreater} xuất hiện khi contract yêu cầu. \\ \hline
+Expected product present & 49/50 & Sản phẩm kỳ vọng được nhắc hoặc render trong phản hồi. \\ \hline
+Citation contract & 44/50 & Phản hồi có citation khi contract yêu cầu. \\ \hline
+Must-not-include & 48/50 & Phản hồi không chứa các cụm bị cấm trong từng case. \\ \hline
+No specific dosage & 50/50 & Phản hồi không đưa liều thuốc cụ thể trong các tình huống y tế nhạy cảm. \\ \hline
+\end{tabularx}
+\end{table}
+
+LangSmith được dùng để quan sát riêng trace của agent. Bảng \ref{table:4.eval_langsmith_summary} trình bày các golden signal của project \texttt{thepawsome-eval}: số run, lỗi, độ trễ, token và chi phí.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\caption{Số liệu LangSmith theo project}
+\label{table:4.eval_langsmith_summary}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{3.0cm}|>{\centering\arraybackslash}p{2.1cm}|>{\centering\arraybackslash}X|>{\centering\arraybackslash}p{3.0cm}|}
+\hline
+\textbf{Project} & \textbf{Runs / Error} & \textbf{Latency p50/p95/p99} & \textbf{Tokens / Cost} \\ \hline
+\texttt{thepawsome-\allowbreak eval} & 50 / 0.0\% & 11.164s / 19.523s / 21.996s & 439,301 / \$0.050332 \\ \hline
+\end{tabularx}
+\end{table}
+
+Bảng \ref{table:4.eval_tool_metrics} ghi nhận số lần gọi tool và độ trễ tool từ trace agent trong project \texttt{thepawsome-eval}. Tổng số tool call trung bình là 2.16 tool/case.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\caption{Số liệu tool-call trong eval}
+\label{table:4.eval_tool_metrics}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{1.5cm}|>{\centering\arraybackslash}p{1.5cm}|>{\centering\arraybackslash}p{2.0cm}|>{\centering\arraybackslash}p{2.0cm}|>{\centering\arraybackslash}p{2.0cm}|}
+\hline
+\textbf{Tool} & \textbf{Calls} & \textbf{Errors} & \textbf{P50} & \textbf{P95} & \textbf{Max} \\ \hline
+\texttt{get\_pet\_detail\_tool} & 7 & 0 & 0.043s & 0.184s & 0.244s \\ \hline
+\texttt{get\_product\_detail\_tool} & 45 & 0 & 0.080s & 0.166s & 0.212s \\ \hline
+\texttt{list\_pets\_tool} & 1 & 0 & 0.082s & 0.082s & 0.082s \\ \hline
+\texttt{request\_human\_support\_tool} & 4 & 0 & 0.122s & 0.153s & 0.158s \\ \hline
+\texttt{search\_knowledge\_tool} & 23 & 0 & 1.083s & 3.474s & 5.248s \\ \hline
+\texttt{search\_products\_tool} & 28 & 0 & 0.705s & 1.083s & 2.062s \\ \hline
+\end{tabularx}
+\end{table}
+
+\section{Triển khai}
+\label{section:4.5}
+
+Môi trường local được triển khai bằng Docker Compose cho PostgreSQL/pgvector và Redis. Backend chạy bằng \texttt{uv run uvicorn app.main:app --reload}; frontend chạy bằng \texttt{npm run dev}. Migration chuẩn là \texttt{uv run alembic upgrade head}; \texttt{AUTO\_CREATE\_TABLES} chỉ là tùy chọn dev đặc biệt, không phải luồng chuẩn. Ứng dụng có health check \texttt{/health}, \texttt{/health/live} và \texttt{/health/ready}; endpoint ready kiểm tra cả database, Redis và trạng thái cấu hình OpenAI.
+
+Môi trường production được triển khai trên AWS theo mô hình tách compute và database. Một Amazon EC2 instance đóng vai trò server host cho các container trong \texttt{docker-compose.prod.yml}, gồm Redis, backend, reservation-worker, frontend và Nginx. EC2 phù hợp với phạm vi đồ án vì cho phép chủ động cấu hình hệ điều hành, Docker, reverse proxy, port public và các biến môi trường của ứng dụng. Nginx nhận lưu lượng HTTP/HTTPS từ Internet rồi chuyển tiếp tới frontend và backend nội bộ; backend và worker dùng cùng image nhưng worker có entrypoint là \texttt{python -m app.workers.reservation\_expiry}. Cách tách worker khỏi web process giúp việc quét reservation quá hạn không phụ thuộc request người dùng.
+
+CSDL production được host bằng Amazon RDS for PostgreSQL thay vì chạy PostgreSQL trực tiếp trong EC2. RDS giúp tách dữ liệu bền vững khỏi vòng đời máy chủ ứng dụng, đồng thời hỗ trợ các tác vụ vận hành như backup, patching và mở rộng cấu hình database ở mức managed service. Backend chỉ cần cấu hình \texttt{DATABASE\_URL} trỏ tới endpoint RDS; migration vẫn chạy bằng \texttt{uv run alembic upgrade head}. Do hệ thống dùng LangChain PGVector, RAG và semantic search, RDS PostgreSQL cần dùng phiên bản hỗ trợ extension \texttt{pgvector} và bật \texttt{CREATE EXTENSION vector} trước khi chạy indexing \cite{awsRdsPgvectorDocs}. Về bảo mật mạng, security group của RDS nên chỉ mở cổng PostgreSQL cho EC2/backend, không mở public database ra Internet.
+
+Các secret như \texttt{SECRET\_KEY}, \texttt{OPENAI\_API\_KEY}, \texttt{SEPAY\_API\_KEY}, Cloudinary, Google OAuth và thông tin kết nối RDS cần được cấp ở runtime, không commit vào mã nguồn. Khi triển khai thực tế, quy trình cập nhật gồm pull/build image trên EC2, chạy migration lên RDS, khởi động lại backend/worker/frontend và kiểm tra \texttt{/health}, \texttt{/health/live}, \texttt{/health/ready}.
+
+Tóm lại, chương này đã trình bày thiết kế và triển khai thực tế của ThePawsome dựa trên code hiện có. Hệ thống đã có cấu trúc module rõ, CSDL quan hệ 28 bảng, luồng checkout có khóa và idempotency, Catbot RAG có planner tool-routing, guardrail và HITL, test backend cho các nghiệp vụ trọng tâm và cấu hình triển khai local/production trên AWS EC2/RDS. Điểm còn cần hoàn thiện chính là mở rộng kiểm thử frontend/e2e cho các luồng giao diện quan trọng.
+
+\end{document}

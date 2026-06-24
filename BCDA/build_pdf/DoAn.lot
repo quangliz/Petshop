@@ -1,0 +1,38 @@
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {2.1}{\ignorespaces So sánh hiện trạng một số nhóm hệ thống petshop trực tuyến\relax }}{6}{table.caption.6}%
+\contentsline {table}{\numberline {2.2}{\ignorespaces Danh sách tác nhân của hệ thống\relax }}{8}{table.caption.7}%
+\contentsline {table}{\numberline {2.3}{\ignorespaces Đặc tả use case Đăng ký, đăng nhập và quản lý phiên\relax }}{16}{table.2.3}%
+\contentsline {table}{\numberline {2.4}{\ignorespaces Đặc tả use case Tìm kiếm, xem sản phẩm và chọn biến thể\relax }}{17}{table.2.4}%
+\contentsline {table}{\numberline {2.5}{\ignorespaces Đặc tả use case Quản lý giỏ hàng và đặt hàng\relax }}{18}{table.2.5}%
+\contentsline {table}{\numberline {2.6}{\ignorespaces Đặc tả use case Thanh toán và xác nhận giao dịch\relax }}{20}{table.2.6}%
+\contentsline {table}{\numberline {2.7}{\ignorespaces Đặc tả use case Quản lý hồ sơ thú cưng\relax }}{21}{table.2.7}%
+\contentsline {table}{\numberline {2.8}{\ignorespaces Đặc tả use case Tư vấn bằng Catbot\relax }}{22}{table.2.8}%
+\contentsline {table}{\numberline {2.9}{\ignorespaces Đặc tả use case Tham gia diễn đàn chuyên gia\relax }}{23}{table.2.9}%
+\contentsline {table}{\numberline {2.10}{\ignorespaces Đặc tả use case Quản trị catalog, đơn hàng và tri thức\relax }}{24}{table.2.10}%
+\contentsline {table}{\numberline {2.11}{\ignorespaces Yêu cầu phi chức năng của hệ thống\relax }}{26}{table.2.11}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces Tổng hợp lựa chọn công nghệ trong ThePawsome\relax }}{34}{table.caption.16}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {4.1}{\ignorespaces Các gói chính của backend\relax }}{37}{table.caption.18}%
+\contentsline {table}{\numberline {4.2}{\ignorespaces Các gói chính của frontend\relax }}{37}{table.caption.19}%
+\contentsline {table}{\numberline {4.3}{\ignorespaces Tổng hợp nhóm bảng dữ liệu\relax }}{42}{table.caption.26}%
+\contentsline {table}{\numberline {4.4}{\ignorespaces Danh sách công cụ và thư viện sử dụng\relax }}{50}{table.caption.33}%
+\contentsline {table}{\numberline {4.5}{\ignorespaces Thống kê mã nguồn chính\relax }}{51}{table.caption.34}%
+\contentsline {table}{\numberline {4.6}{\ignorespaces Nhóm kiểm thử backend\relax }}{52}{table.caption.35}%
+\contentsline {table}{\numberline {4.7}{\ignorespaces Thiết lập đánh giá Catbot\relax }}{53}{table.caption.36}%
+\contentsline {table}{\numberline {4.8}{\ignorespaces Tổng hợp số liệu trace và vận hành eval\relax }}{53}{table.caption.37}%
+\contentsline {table}{\numberline {4.9}{\ignorespaces Trace contract theo nhóm câu hỏi\relax }}{54}{table.caption.38}%
+\contentsline {table}{\numberline {4.10}{\ignorespaces Số liệu trace contract và ràng buộc phản hồi\relax }}{54}{table.caption.39}%
+\contentsline {table}{\numberline {4.11}{\ignorespaces Số liệu LangSmith theo project\relax }}{55}{table.caption.40}%
+\contentsline {table}{\numberline {4.12}{\ignorespaces Số liệu tool-call trong eval\relax }}{55}{table.caption.41}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {B.1}{\ignorespaces Đặc tả use case Quản lý wishlist\relax }}{71}{table.a.B.1}%
+\contentsline {table}{\numberline {B.2}{\ignorespaces Đặc tả use case Đánh giá sản phẩm sau mua\relax }}{71}{table.a.B.2}%
+\contentsline {table}{\numberline {B.3}{\ignorespaces Đặc tả use case Yêu cầu đổi trả\relax }}{72}{table.a.B.3}%
+\contentsline {table}{\numberline {B.4}{\ignorespaces Đặc tả use case Quản lý embedding\relax }}{73}{table.a.B.4}%
+\contentsfinish 
+\contentsfinish 

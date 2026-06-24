@@ -16,9 +16,6 @@ class RoleEnum(str, enum.Enum):
 class SpeciesEnum(str, enum.Enum):
     dog = "dog"
     cat = "cat"
-    bird = "bird"
-    fish = "fish"
-    rabbit = "rabbit"
     other = "other"
 
 class GenderEnum(str, enum.Enum):

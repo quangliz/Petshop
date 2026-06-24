@@ -1,0 +1,81 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\section{Chuẩn bị môi trường}
+\label{appendix:A.1}
+
+ThePawsome cần PostgreSQL có extension pgvector, Redis, Python từ 3.11 trở lên, công cụ \texttt{uv} cho backend và Node.js/npm cho frontend. Các biến môi trường mẫu nằm ở \texttt{.env.example} và \texttt{frontend/.env.example}. Khi triển khai thật, bắt buộc thay \texttt{SECRET\_KEY}, cấu hình database, Redis và các API key cần thiết như OpenAI, SePay, Cloudinary hoặc Google OAuth.
+
+\begin{lstlisting}[language=bash,caption={Chuẩn bị file môi trường local}]
+cp .env.example .env
+cp frontend/.env.example frontend/.env.local
+\end{lstlisting}
+
+\section{Khởi động dịch vụ phụ thuộc}
+\label{appendix:A.2}
+
+Ở môi trường local, PostgreSQL/pgvector và Redis được khởi động bằng Docker Compose. Container PostgreSQL dùng image \texttt{pgvector/pgvector:pg15}; Redis dùng image \texttt{redis:7-alpine}.
+
+\begin{lstlisting}[language=bash,caption={Khởi động PostgreSQL và Redis}]
+docker compose up -d postgres redis
+\end{lstlisting}
+
+\section{Chạy backend}
+\label{appendix:A.3}
+
+Backend dùng Alembic làm luồng chuẩn để cập nhật schema. Tùy chọn \texttt{AUTO\_CREATE\_TABLES} chỉ dành cho dev đặc biệt, không dùng làm quy trình chính thức.
+
+\begin{lstlisting}[language=bash,caption={Cài đặt và chạy backend}]
+cd backend
+uv sync --dev
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload
+\end{lstlisting}
+
+Sau khi backend chạy, có thể kiểm tra các endpoint sức khỏe:
+
+\begin{lstlisting}[language=bash,caption={Kiểm tra backend health check}]
+curl http://localhost:8000/health
+curl http://localhost:8000/health/ready
+\end{lstlisting}
+
+\section{Chạy frontend}
+\label{appendix:A.4}
+
+Frontend đọc API URL từ \texttt{NEXT\_PUBLIC\_API\_URL}. Với local dev, giá trị mặc định trỏ tới \texttt{http://localhost:8000/api/v1}.
+
+\begin{lstlisting}[language=bash,caption={Cài đặt và chạy frontend}]
+cd frontend
+npm ci
+npm run dev
+\end{lstlisting}
+
+Frontend mặc định chạy tại \texttt{http://localhost:3000}. Khi kiểm tra giao diện, nên chạy cả backend, frontend, database, Redis và seed dữ liệu sản phẩm/knowledge đủ đại diện.
+
+\section{Kiểm thử và kiểm tra build}
+\label{appendix:A.5}
+
+Backend có thể được kiểm tra bằng Ruff và Pytest. Các test tích hợp cần database/Redis thật theo cấu hình môi trường.
+
+\begin{lstlisting}[language=bash,caption={Kiểm tra backend}]
+cd backend
+uv run ruff check .
+uv run pytest
+\end{lstlisting}
+
+Frontend có thể được kiểm tra bằng lint và build.
+
+\begin{lstlisting}[language=bash,caption={Kiểm tra frontend}]
+cd frontend
+npm run lint
+npm run build
+\end{lstlisting}
+
+\section{Triển khai production bằng Docker Compose}
+\label{appendix:A.6}
+
+File \texttt{docker-compose.prod.yml} định nghĩa các service chính gồm Redis, backend, reservation-worker, frontend và Nginx. Backend và reservation-worker dùng cùng image backend nhưng entrypoint khác nhau. Worker chạy \texttt{python -m app.workers.reservation\_expiry} để quét reservation tồn kho quá hạn.
+
+Khi deploy, cần đảm bảo các secret thật được cấp qua \texttt{.env} hoặc secret manager, không dùng giá trị mẫu. Đặc biệt, \texttt{SECRET\_KEY} rỗng hoặc thuộc danh sách mặc định sẽ bị backend chặn tại startup.
+
+\end{document}

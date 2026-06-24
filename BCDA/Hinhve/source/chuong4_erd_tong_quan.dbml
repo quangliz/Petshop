@@ -1,0 +1,364 @@
+Project ThePawsome {
+  database_type: 'PostgreSQL'
+  Note: 'Full grouped schema. Report figures are split into Mermaid diagrams by table group.'
+}
+
+Table users {
+  id uuid [pk]
+  email varchar [unique]
+  hashed_password varchar
+  full_name varchar
+  phone varchar
+  role varchar
+  is_active boolean
+  is_expert_verified boolean
+}
+
+Table refresh_sessions {
+  id uuid [pk]
+  user_id uuid
+  jti varchar [unique]
+  expires_at timestamptz
+  revoked_at timestamptz
+}
+
+Table pets {
+  id uuid [pk]
+  user_id uuid
+  name varchar
+  species varchar
+  breed varchar
+  health_notes text
+  allergies text
+}
+
+Table categories {
+  id int [pk]
+  parent_id int
+  name varchar
+  slug varchar [unique]
+  image_url varchar
+}
+
+Table banners {
+  id int [pk]
+  title varchar
+  image_url varchar
+  link_url varchar
+  sort_order int
+  is_active boolean
+}
+
+Table products {
+  id uuid [pk]
+  category_id int
+  name varchar
+  slug varchar [unique]
+  price decimal
+  sale_price decimal
+  stock_qty int
+  is_active boolean
+}
+
+Table product_variants {
+  id uuid [pk]
+  product_id uuid
+  sku varchar [unique]
+  price decimal
+  sale_price decimal
+  stock_qty int
+  attributes jsonb
+}
+
+Table product_images {
+  id uuid [pk]
+  product_id uuid
+  variant_id uuid
+  url varchar
+  is_main boolean
+  sort_order int
+}
+
+Table carts {
+  id uuid [pk]
+  user_id uuid [unique]
+  created_at timestamptz
+}
+
+Table cart_items {
+  id uuid [pk]
+  cart_id uuid
+  product_id uuid
+  variant_id uuid
+  quantity int
+}
+
+Table promotions {
+  id uuid [pk]
+  code varchar [unique]
+  promo_type varchar
+  discount_type varchar
+  discount_value decimal
+  min_subtotal decimal
+  starts_at timestamptz
+  expires_at timestamptz
+}
+
+Table orders {
+  id uuid [pk]
+  user_id uuid
+  order_code varchar [unique]
+  status varchar
+  subtotal decimal
+  total decimal
+  payment_method varchar
+  payment_status varchar
+  applied_product_coupon_id uuid
+  applied_shipping_coupon_id uuid
+  idempotency_scope varchar
+  idempotency_key varchar
+}
+
+Table order_items {
+  id uuid [pk]
+  order_id uuid
+  product_id uuid
+  variant_id uuid
+  product_name_snapshot varchar
+  quantity int
+  unit_price_snapshot decimal
+}
+
+Table payments {
+  id uuid [pk]
+  order_id uuid
+  method varchar
+  amount decimal
+  status varchar
+  merchant_ref varchar [unique]
+  external_txn_id varchar [unique]
+}
+
+Table inventory_reservations {
+  id uuid [pk]
+  order_id uuid
+  order_item_id uuid [unique]
+  product_id uuid
+  variant_id uuid
+  quantity int
+  status varchar
+  expires_at timestamptz
+}
+
+Table order_returns {
+  id uuid [pk]
+  order_id uuid
+  user_id uuid
+  status varchar
+  reason text
+  refund_amount decimal
+}
+
+Table order_return_items {
+  id uuid [pk]
+  return_id uuid
+  order_item_id uuid
+  quantity int
+}
+
+Table reviews {
+  id uuid [pk]
+  user_id uuid
+  product_id uuid
+  rating int
+  comment text
+}
+
+Table wishlist_items {
+  id uuid [pk]
+  user_id uuid
+  product_id uuid
+  created_at timestamptz
+}
+
+Table forum_threads {
+  id uuid [pk]
+  author_id uuid
+  title varchar
+  slug varchar [unique]
+  category varchar
+  status varchar
+  knowledge_status varchar
+  accepted_reply_id uuid
+}
+
+Table forum_replies {
+  id uuid [pk]
+  thread_id uuid
+  parent_reply_id uuid
+  author_id uuid
+  status varchar
+  is_expert_answer boolean
+  is_accepted boolean
+  knowledge_status varchar
+}
+
+Table forum_thread_votes {
+  id uuid [pk]
+  thread_id uuid
+  user_id uuid
+  value int
+}
+
+Table forum_reply_votes {
+  id uuid [pk]
+  reply_id uuid
+  user_id uuid
+  value int
+}
+
+Table knowledge_docs {
+  id uuid [pk]
+  owner_id uuid
+  title varchar
+  category varchar
+  review_status varchar
+  version int
+  content text
+}
+
+Table chat_sessions {
+  id uuid [pk]
+  user_id uuid
+  pet_id uuid
+  title varchar
+  routing_status varchar
+  created_at timestamptz
+}
+
+Table chat_messages {
+  id uuid [pk]
+  session_id uuid
+  role varchar
+  content text
+  token_usage jsonb
+  is_from_human boolean
+}
+
+Table ai_call_logs {
+  id uuid [pk]
+  user_id uuid
+  session_id uuid
+  model_name varchar
+  prompt_tokens int
+  completion_tokens int
+  cost_usd decimal
+  latency_ms int
+}
+
+Table audit_logs {
+  id uuid [pk]
+  user_id uuid
+  action varchar
+  resource_type varchar
+  resource_id varchar
+  old_values jsonb
+  new_values jsonb
+}
+
+TableGroup user_pet {
+  users
+  refresh_sessions
+  pets
+}
+
+TableGroup catalog {
+  categories
+  banners
+  products
+  product_variants
+  product_images
+}
+
+TableGroup commerce {
+  carts
+  cart_items
+  promotions
+  orders
+  order_items
+  payments
+  inventory_reservations
+  order_returns
+  order_return_items
+}
+
+TableGroup forum {
+  forum_threads
+  forum_replies
+  forum_thread_votes
+  forum_reply_votes
+}
+
+TableGroup ai_knowledge_log {
+  knowledge_docs
+  chat_sessions
+  chat_messages
+  ai_call_logs
+  audit_logs
+}
+
+TableGroup review_wishlist {
+  reviews
+  wishlist_items
+}
+
+Ref: refresh_sessions.user_id > users.id
+Ref: pets.user_id > users.id
+
+Ref: categories.parent_id > categories.id
+Ref: products.category_id > categories.id
+Ref: product_variants.product_id > products.id
+Ref: product_images.product_id > products.id
+Ref: product_images.variant_id > product_variants.id
+
+Ref: carts.user_id > users.id
+Ref: cart_items.cart_id > carts.id
+Ref: cart_items.product_id > products.id
+Ref: cart_items.variant_id > product_variants.id
+Ref: orders.user_id > users.id
+Ref: orders.applied_product_coupon_id > promotions.id
+Ref: orders.applied_shipping_coupon_id > promotions.id
+Ref: order_items.order_id > orders.id
+Ref: order_items.product_id > products.id
+Ref: order_items.variant_id > product_variants.id
+Ref: payments.order_id > orders.id
+Ref: inventory_reservations.order_id > orders.id
+Ref: inventory_reservations.order_item_id > order_items.id
+Ref: inventory_reservations.product_id > products.id
+Ref: inventory_reservations.variant_id > product_variants.id
+Ref: order_returns.order_id > orders.id
+Ref: order_returns.user_id > users.id
+Ref: order_return_items.return_id > order_returns.id
+Ref: order_return_items.order_item_id > order_items.id
+
+Ref: reviews.user_id > users.id
+Ref: reviews.product_id > products.id
+Ref: wishlist_items.user_id > users.id
+Ref: wishlist_items.product_id > products.id
+
+Ref: forum_threads.author_id > users.id
+Ref: forum_replies.thread_id > forum_threads.id
+Ref: forum_replies.parent_reply_id > forum_replies.id
+Ref: forum_replies.author_id > users.id
+Ref: forum_thread_votes.thread_id > forum_threads.id
+Ref: forum_thread_votes.user_id > users.id
+Ref: forum_reply_votes.reply_id > forum_replies.id
+Ref: forum_reply_votes.user_id > users.id
+
+Ref: knowledge_docs.owner_id > users.id
+Ref: chat_sessions.user_id > users.id
+Ref: chat_sessions.pet_id > pets.id
+Ref: chat_messages.session_id > chat_sessions.id
+Ref: ai_call_logs.user_id > users.id
+Ref: ai_call_logs.session_id > chat_sessions.id
+Ref: audit_logs.user_id > users.id

@@ -1,0 +1,40 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "DejaVu Sans, Arial", "primaryTextColor": "#111827", "lineColor": "#475569"}}}%%
+flowchart TD
+    start(( ))
+    customer["Khách hàng<br/>Gửi câu hỏi cho Catbot<br/>kèm ngữ cảnh sản phẩm / thú cưng"]
+    backend["Backend<br/>Tạo hoặc tiếp tục phiên chat<br/>kiểm tra phạm vi an toàn"]
+    canAdvise{"Có thể tư vấn<br/>bằng AI?"}
+    guard["Guardrail<br/>Từ chối phần không an toàn<br/>khuyên gặp bác sĩ / nhân viên"]
+    planner["Planner LLM<br/>Lập kế hoạch tool-call<br/>ToolRoutingPlan có cấu trúc"]
+    agent["Catbot agent<br/>Thực thi kế hoạch<br/>và tổng hợp trả lời"]
+    products["Sản phẩm<br/>Tìm sản phẩm / lấy chi tiết<br/>và slug có thật"]
+    pets["Hồ sơ thú cưng<br/>Lấy tuổi, cân nặng,<br/>dị ứng và ghi chú sức khỏe"]
+    knowledge["Kho kiến thức<br/>Tra cứu RAG<br/>tài liệu và forum đã kiểm soát"]
+    support["Nhân viên hỗ trợ<br/>Tiếp nhận khi khách yêu cầu<br/>hoặc câu hỏi vượt phạm vi"]
+    result["Kết quả trên widget<br/>Trả lời tiếng Việt, có nguồn khi cần,<br/>hiển thị thẻ sản phẩm hoặc tin nhắn người thật"]
+    stop((( )))
+
+    start --> customer --> backend --> canAdvise
+    canAdvise -- "Không" --> guard --> result
+    canAdvise -- "Có" --> planner --> agent
+    agent --> products --> result
+    agent --> pets --> result
+    agent --> knowledge --> result
+    agent -. "cần người thật" .-> support --> result
+    result --> stop
+
+    classDef actor fill:#dbeafe,stroke:#334155,stroke-width:1.5px,color:#111827;
+    classDef backend fill:#dcfce7,stroke:#334155,stroke-width:1.5px,color:#111827;
+    classDef ai fill:#ede9fe,stroke:#334155,stroke-width:1.5px,color:#111827;
+    classDef knowledge fill:#fef3c7,stroke:#334155,stroke-width:1.5px,color:#111827;
+    classDef support fill:#ffedd5,stroke:#334155,stroke-width:1.5px,color:#111827;
+    classDef guard fill:#fee2e2,stroke:#ef4444,stroke-width:1.6px,color:#111827;
+    classDef terminal fill:#111827,stroke:#111827,color:#111827;
+
+    class customer,result actor;
+    class backend backend;
+    class planner,agent ai;
+    class products,pets,knowledge,canAdvise knowledge;
+    class support support;
+    class guard guard;
+    class start,stop terminal;

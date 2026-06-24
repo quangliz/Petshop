@@ -1,0 +1,273 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1120" viewBox="0 0 1700 1120">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#475569" />
+    </marker>
+    <style>
+      .title { font: 700 29px "DejaVu Sans", Arial, sans-serif; fill: #111827; }
+      .section { font: 700 18px "DejaVu Sans", Arial, sans-serif; fill: #0f172a; }
+      .node-title { font: 700 15px "DejaVu Sans", Arial, sans-serif; fill: #111827; }
+      .node-text { font: 14px "DejaVu Sans", Arial, sans-serif; fill: #111827; }
+      .small { font: 12px "DejaVu Sans", Arial, sans-serif; fill: #334155; }
+      .label { font: 13px "DejaVu Sans", Arial, sans-serif; fill: #334155; }
+      .lane { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.4; }
+      .frontend { fill: #dbeafe; stroke: #334155; stroke-width: 1.5; }
+      .backend { fill: #dcfce7; stroke: #334155; stroke-width: 1.5; }
+      .ai { fill: #ede9fe; stroke: #334155; stroke-width: 1.5; }
+      .tool { fill: #fef3c7; stroke: #334155; stroke-width: 1.5; }
+      .data { fill: #fce7f3; stroke: #334155; stroke-width: 1.5; }
+      .cache { fill: #ffedd5; stroke: #334155; stroke-width: 1.5; }
+      .safe { fill: #fee2e2; stroke: #ef4444; stroke-width: 1.6; }
+      .note { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.2; stroke-dasharray: 6 5; }
+      .arrow { fill: none; stroke: #475569; stroke-width: 2; marker-end: url(#arrow); }
+      .dashed { stroke-dasharray: 8 7; }
+    </style>
+  </defs>
+
+  <rect width="1700" height="1120" fill="#ffffff" />
+  <text x="850" y="42" text-anchor="middle" class="title">Luồng RAG và tool-calling của Catbot</text>
+
+  <g transform="translate(990 58)">
+    <rect x="0" y="0" width="650" height="34" rx="8" fill="#ffffff" stroke="#cbd5e1" />
+    <rect x="14" y="10" width="20" height="14" class="frontend" />
+    <text x="42" y="22" class="small">Frontend</text>
+    <rect x="115" y="10" width="20" height="14" class="backend" />
+    <text x="143" y="22" class="small">Backend</text>
+    <rect x="218" y="10" width="20" height="14" class="ai" />
+    <text x="246" y="22" class="small">LangGraph / LLM</text>
+    <rect x="380" y="10" width="20" height="14" class="tool" />
+    <text x="408" y="22" class="small">Tool</text>
+    <rect x="470" y="10" width="20" height="14" class="data" />
+    <text x="498" y="22" class="small">PGVector</text>
+    <rect x="575" y="10" width="20" height="14" class="cache" />
+    <text x="603" y="22" class="small">Redis</text>
+  </g>
+
+  <rect x="35" y="92" width="370" height="780" rx="12" class="lane" />
+  <text x="58" y="126" class="section">Frontend và chat API</text>
+
+  <rect x="430" y="92" width="470" height="780" rx="12" class="lane" />
+  <text x="453" y="126" class="section">Safety, context và LangGraph</text>
+
+  <rect x="925" y="92" width="740" height="780" rx="12" class="lane" />
+  <text x="948" y="126" class="section">Tool và nguồn dữ liệu truy xuất</text>
+
+  <rect x="35" y="895" width="1630" height="175" rx="12" class="lane" />
+  <text x="58" y="929" class="section">Indexing trước khi truy vấn</text>
+
+  <!-- Frontend/API lane -->
+  <g>
+    <rect x="85" y="170" width="270" height="82" rx="10" class="frontend" />
+    <text x="220" y="196" text-anchor="middle" class="node-title">ChatWidget</text>
+    <text x="220" y="219" text-anchor="middle" class="node-text">
+      <tspan x="220" dy="0">Người dùng gửi câu hỏi</tspan>
+      <tspan x="220" dy="19">kèm session / product slug</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="85" y="302" width="270" height="82" rx="10" class="backend" />
+    <text x="220" y="328" text-anchor="middle" class="node-title">POST /chat/stream</text>
+    <text x="220" y="351" text-anchor="middle" class="node-text">
+      <tspan x="220" dy="0">Tạo hoặc tiếp tục session</tspan>
+      <tspan x="220" dy="19">lưu tin nhắn người dùng</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="85" y="650" width="270" height="88" rx="10" class="frontend" />
+    <text x="220" y="677" text-anchor="middle" class="node-title">SSE về trình duyệt</text>
+    <text x="220" y="700" text-anchor="middle" class="node-text">
+      <tspan x="220" dy="0">Stream token, sản phẩm,</tspan>
+      <tspan x="220" dy="19">session id và trạng thái done</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="85" y="775" width="270" height="70" rx="10" class="frontend" />
+    <text x="220" y="802" text-anchor="middle" class="node-title">Render kết quả</text>
+    <text x="220" y="825" text-anchor="middle" class="node-text">Text + thẻ sản phẩm hợp lệ</text>
+  </g>
+
+  <!-- Middle lane -->
+  <g>
+    <rect x="485" y="155" width="360" height="90" rx="10" class="backend" />
+    <text x="665" y="182" text-anchor="middle" class="node-title">Context builder</text>
+    <text x="665" y="205" text-anchor="middle" class="node-text">
+      <tspan x="665" dy="0">Nạp lịch sử, pet context,</tspan>
+      <tspan x="665" dy="19">product context và system prompt</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="485" y="285" width="360" height="88" rx="10" class="safe" />
+    <text x="665" y="312" text-anchor="middle" class="node-title">Preflight safety</text>
+    <text x="665" y="335" text-anchor="middle" class="node-text">
+      <tspan x="665" dy="0">Chặn prompt injection, cấp cứu</tspan>
+      <tspan x="665" dy="19">hoặc câu hỏi ngoài phạm vi</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="485" y="420" width="360" height="112" rx="10" class="ai" />
+    <text x="665" y="448" text-anchor="middle" class="node-title">LangGraph planner + agent</text>
+    <text x="665" y="471" text-anchor="middle" class="node-text">
+      <tspan x="665" dy="0">START -> planner -> agent</tspan>
+      <tspan x="665" dy="19">tools -> agent, enforce_plan khi thiếu tool</tspan>
+      <tspan x="665" dy="19">ChatOpenAI gọi tool và sinh câu trả lời</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="485" y="620" width="360" height="92" rx="10" class="backend" />
+    <text x="665" y="648" text-anchor="middle" class="node-title">Persist và hậu xử lý</text>
+    <text x="665" y="671" text-anchor="middle" class="node-text">
+      <tspan x="665" dy="0">Lưu assistant message</tspan>
+      <tspan x="665" dy="19">trích &lt;product&gt;slug&lt;/product&gt;</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="500" y="760" width="330" height="70" rx="10" class="note" />
+    <text x="665" y="786" text-anchor="middle" class="node-title">Ràng buộc an toàn</text>
+    <text x="665" y="809" text-anchor="middle" class="small">Không bịa slug, không chẩn đoán/kê đơn, không tự thanh toán</text>
+  </g>
+
+  <!-- Tools and data lane -->
+  <g>
+    <rect x="965" y="145" width="255" height="72" rx="10" class="tool" />
+    <text x="1092.5" y="171" text-anchor="middle" class="node-title">product tools</text>
+    <text x="1092.5" y="194" text-anchor="middle" class="node-text">Tìm sản phẩm, chi tiết và slug thật</text>
+  </g>
+
+  <g>
+    <rect x="965" y="255" width="255" height="72" rx="10" class="tool" />
+    <text x="1092.5" y="281" text-anchor="middle" class="node-title">search_knowledge_tool</text>
+    <text x="1092.5" y="304" text-anchor="middle" class="node-text">Knowledge + forum đủ điều kiện</text>
+  </g>
+
+  <g>
+    <rect x="965" y="365" width="255" height="72" rx="10" class="tool" />
+    <text x="1092.5" y="391" text-anchor="middle" class="node-title">pet tools</text>
+    <text x="1092.5" y="414" text-anchor="middle" class="node-text">list_pets / get_pet_detail</text>
+  </g>
+
+  <g>
+    <rect x="965" y="475" width="255" height="72" rx="10" class="tool" />
+    <text x="1092.5" y="501" text-anchor="middle" class="node-title">request_human_support</text>
+    <text x="1092.5" y="524" text-anchor="middle" class="node-text">routing_status = pending_human</text>
+  </g>
+
+  <g>
+    <rect x="965" y="600" width="255" height="76" rx="10" class="cache" />
+    <text x="1092.5" y="627" text-anchor="middle" class="node-title">Redis</text>
+    <text x="1092.5" y="650" text-anchor="middle" class="node-text">
+      <tspan x="1092.5" dy="0">Cache embedding query</tspan>
+      <tspan x="1092.5" dy="18">cache pet profile</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="1310" y="125" width="285" height="92" rx="10" class="data" />
+    <text x="1452.5" y="153" text-anchor="middle" class="node-title">Product DB + PGVector</text>
+    <text x="1452.5" y="176" text-anchor="middle" class="node-text">
+      <tspan x="1452.5" dy="0">products, variants</tspan>
+      <tspan x="1452.5" dy="19">collection petshop_products</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="1310" y="250" width="285" height="96" rx="10" class="data" />
+    <text x="1452.5" y="278" text-anchor="middle" class="node-title">Knowledge + Forum</text>
+    <text x="1452.5" y="301" text-anchor="middle" class="node-text">
+      <tspan x="1452.5" dy="0">knowledge_docs</tspan>
+      <tspan x="1452.5" dy="19">eligible forum discussions</tspan>
+      <tspan x="1452.5" dy="19">collection petshop_knowledge</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="1310" y="380" width="285" height="76" rx="10" class="data" />
+    <text x="1452.5" y="407" text-anchor="middle" class="node-title">Pet profile</text>
+    <text x="1452.5" y="430" text-anchor="middle" class="node-text">tuổi, cân nặng, dị ứng, sức khỏe</text>
+  </g>
+
+  <g>
+    <rect x="1310" y="505" width="285" height="76" rx="10" class="backend" />
+    <text x="1452.5" y="532" text-anchor="middle" class="node-title">Human-in-the-loop</text>
+    <text x="1452.5" y="555" text-anchor="middle" class="node-text">Nhân viên claim và phản hồi phiên</text>
+  </g>
+
+  <g>
+    <rect x="1310" y="625" width="285" height="76" rx="10" class="ai" />
+    <text x="1452.5" y="652" text-anchor="middle" class="node-title">OpenAI / Cohere</text>
+    <text x="1452.5" y="675" text-anchor="middle" class="node-text">Chat, embedding, rerank tùy chọn</text>
+  </g>
+
+  <!-- Indexing lane -->
+  <g>
+    <rect x="115" y="965" width="310" height="66" rx="10" class="data" />
+    <text x="270" y="991" text-anchor="middle" class="node-title">Nguồn dữ liệu quản trị</text>
+    <text x="270" y="1014" text-anchor="middle" class="node-text">Products, knowledge docs, forum eligible</text>
+  </g>
+
+  <g>
+    <rect x="520" y="965" width="280" height="66" rx="10" class="backend" />
+    <text x="660" y="991" text-anchor="middle" class="node-title">Chunk + sanitize metadata</text>
+    <text x="660" y="1014" text-anchor="middle" class="node-text">indexing.py / forum_knowledge.py</text>
+  </g>
+
+  <g>
+    <rect x="895" y="965" width="260" height="66" rx="10" class="ai" />
+    <text x="1025" y="991" text-anchor="middle" class="node-title">OpenAI embedding</text>
+    <text x="1025" y="1014" text-anchor="middle" class="node-text">text-embedding-3-small</text>
+  </g>
+
+  <g>
+    <rect x="1245" y="965" width="315" height="66" rx="10" class="data" />
+    <text x="1402.5" y="991" text-anchor="middle" class="node-title">PGVector collections</text>
+    <text x="1402.5" y="1014" text-anchor="middle" class="node-text">petshop_products / petshop_knowledge</text>
+  </g>
+
+  <!-- Edges main path -->
+  <path class="arrow" d="M220 252 V302" />
+  <path class="arrow" d="M355 343 H485" />
+  <path class="arrow" d="M665 245 V285" />
+  <path class="arrow" d="M665 373 V420" />
+  <path class="arrow" d="M665 532 V620" />
+  <path class="arrow" d="M485 666 H390 V694 H355" />
+  <path class="arrow" d="M220 738 V775" />
+
+  <!-- safety fallback -->
+  <path class="arrow dashed" d="M485 329 H390 V694 H355" />
+  <text x="392" y="318" class="label">fallback an toàn</text>
+
+  <!-- tools condition to tools -->
+  <path class="arrow" d="M845 468 H930 V181 H965" />
+  <path class="arrow" d="M845 476 H930 V291 H965" />
+  <path class="arrow" d="M845 484 H930 V401 H965" />
+  <path class="arrow dashed" d="M845 492 H930 V511 H965" />
+
+  <!-- tool data edges -->
+  <path class="arrow" d="M1220 181 H1310" />
+  <path class="arrow" d="M1220 291 H1310" />
+  <path class="arrow" d="M1220 401 H1310" />
+  <path class="arrow dashed" d="M1220 511 H1310" />
+  <path class="arrow dashed" d="M1092 547 V600" />
+  <path class="arrow dashed" d="M1220 638 H1310" />
+
+  <!-- tool return -->
+  <path class="arrow dashed" d="M965 710 H905 V520 H845" />
+
+  <!-- LLM/API logs -->
+  <path class="arrow dashed" d="M845 445 H1275 V663 H1310" />
+
+  <!-- Product extraction to frontend -->
+  <path class="arrow dashed" d="M485 690 H405 V810 H355" />
+  <text x="382" y="802" class="label">products event</text>
+
+  <!-- Indexing arrows -->
+  <path class="arrow" d="M425 998 H520" />
+  <path class="arrow" d="M800 998 H895" />
+  <path class="arrow" d="M1155 998 H1245" />
+</svg>

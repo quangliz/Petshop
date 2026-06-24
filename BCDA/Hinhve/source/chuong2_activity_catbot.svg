@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#475569" />
+    </marker>
+    <style>
+      .title { font: 700 27px "DejaVu Sans", Arial, sans-serif; fill: #111827; }
+      .node-title { font: 700 15px "DejaVu Sans", Arial, sans-serif; fill: #111827; }
+      .node-text { font: 14px "DejaVu Sans", Arial, sans-serif; fill: #111827; }
+      .small { font: 12px "DejaVu Sans", Arial, sans-serif; fill: #334155; }
+      .label { font: 13px "DejaVu Sans", Arial, sans-serif; fill: #334155; }
+      .actor { fill: #dbeafe; stroke: #334155; stroke-width: 1.5; }
+      .backend { fill: #dcfce7; stroke: #334155; stroke-width: 1.5; }
+      .ai { fill: #ede9fe; stroke: #334155; stroke-width: 1.5; }
+      .knowledge { fill: #fef3c7; stroke: #334155; stroke-width: 1.5; }
+      .support { fill: #ffedd5; stroke: #334155; stroke-width: 1.5; }
+      .decision { fill: #fef3c7; stroke: #334155; stroke-width: 1.5; }
+      .guard { fill: #fee2e2; stroke: #ef4444; stroke-width: 1.6; }
+      .note { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.2; stroke-dasharray: 6 5; }
+      .arrow { fill: none; stroke: #475569; stroke-width: 2; marker-end: url(#arrow); }
+      .dashed { stroke-dasharray: 8 7; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="900" fill="#ffffff" />
+  <text x="750" y="42" text-anchor="middle" class="title">Quy trình nghiệp vụ tư vấn bằng Catbot và chuyển giao hỗ trợ</text>
+
+  <g transform="translate(1040 58)">
+    <rect x="0" y="0" width="360" height="64" rx="8" fill="#ffffff" stroke="#cbd5e1" />
+    <rect x="14" y="14" width="20" height="14" class="actor" />
+    <text x="42" y="26" class="small">Khách hàng / widget</text>
+    <rect x="180" y="14" width="20" height="14" class="backend" />
+    <text x="208" y="26" class="small">Backend</text>
+    <rect x="14" y="38" width="20" height="14" class="ai" />
+    <text x="42" y="50" class="small">Catbot / AI</text>
+    <rect x="180" y="38" width="20" height="14" class="support" />
+    <text x="208" y="50" class="small">Nhân viên hỗ trợ</text>
+  </g>
+
+  <circle cx="750" cy="92" r="10" fill="#111827" />
+
+  <g>
+    <rect x="590" y="125" width="320" height="78" rx="10" class="actor" />
+    <text x="750" y="151" text-anchor="middle" class="node-title">Khách hàng</text>
+    <text x="750" y="174" text-anchor="middle" class="node-text">
+      <tspan x="750" dy="0">Gửi câu hỏi cho Catbot</tspan>
+      <tspan x="750" dy="19">kèm ngữ cảnh sản phẩm / thú cưng</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="575" y="235" width="350" height="88" rx="10" class="backend" />
+    <text x="750" y="262" text-anchor="middle" class="node-title">Backend</text>
+    <text x="750" y="285" text-anchor="middle" class="node-text">
+      <tspan x="750" dy="0">Tạo hoặc tiếp tục phiên chat</tspan>
+      <tspan x="750" dy="19">kiểm tra phạm vi an toàn</tspan>
+    </text>
+  </g>
+
+  <g>
+    <polygon points="750,360 845,420 750,480 655,420" class="decision" />
+    <text x="750" y="414" text-anchor="middle" class="node-text">
+      <tspan x="750" dy="0">Có thể tư vấn</tspan>
+      <tspan x="750" dy="18">bằng AI?</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="145" y="380" width="300" height="80" rx="10" class="guard" />
+    <text x="295" y="408" text-anchor="middle" class="node-title">Guardrail</text>
+    <text x="295" y="431" text-anchor="middle" class="node-text">
+      <tspan x="295" dy="0">Từ chối phần không an toàn</tspan>
+      <tspan x="295" dy="19">khuyên gặp bác sĩ / nhân viên</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="575" y="520" width="350" height="82" rx="10" class="ai" />
+    <text x="750" y="547" text-anchor="middle" class="node-title">Planner + Catbot agent</text>
+    <text x="750" y="570" text-anchor="middle" class="node-text">
+      <tspan x="750" dy="0">Lập kế hoạch tool-call</tspan>
+      <tspan x="750" dy="19">và thực thi theo kế hoạch</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="135" y="655" width="255" height="78" rx="10" class="knowledge" />
+    <text x="262.5" y="681" text-anchor="middle" class="node-title">Sản phẩm</text>
+    <text x="262.5" y="704" text-anchor="middle" class="node-text">
+      <tspan x="262.5" dy="0">Tìm sản phẩm / lấy chi tiết</tspan>
+      <tspan x="262.5" dy="19">và slug có thật</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="455" y="655" width="255" height="78" rx="10" class="knowledge" />
+    <text x="582.5" y="681" text-anchor="middle" class="node-title">Hồ sơ thú cưng</text>
+    <text x="582.5" y="704" text-anchor="middle" class="node-text">
+      <tspan x="582.5" dy="0">Lấy tuổi, cân nặng,</tspan>
+      <tspan x="582.5" dy="19">dị ứng và ghi chú sức khỏe</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="775" y="655" width="255" height="78" rx="10" class="knowledge" />
+    <text x="902.5" y="681" text-anchor="middle" class="node-title">Kho kiến thức</text>
+    <text x="902.5" y="704" text-anchor="middle" class="node-text">
+      <tspan x="902.5" dy="0">Tra cứu RAG</tspan>
+      <tspan x="902.5" dy="19">tài liệu và forum đã kiểm soát</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="1100" y="655" width="270" height="78" rx="10" class="support" />
+    <text x="1235" y="681" text-anchor="middle" class="node-title">Nhân viên hỗ trợ</text>
+    <text x="1235" y="704" text-anchor="middle" class="node-text">
+      <tspan x="1235" dy="0">Tiếp nhận khi khách yêu cầu</tspan>
+      <tspan x="1235" dy="19">hoặc câu hỏi vượt phạm vi</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="535" y="785" width="430" height="78" rx="10" class="actor" />
+    <text x="750" y="812" text-anchor="middle" class="node-title">Kết quả trên widget</text>
+    <text x="750" y="835" text-anchor="middle" class="node-text">
+      <tspan x="750" dy="0">Trả lời tiếng Việt, có nguồn khi cần,</tspan>
+      <tspan x="750" dy="19">hiển thị thẻ sản phẩm hoặc tin nhắn người thật</tspan>
+    </text>
+  </g>
+
+  <circle cx="1010" cy="824" r="12" fill="none" stroke="#111827" stroke-width="2.2" />
+  <circle cx="1010" cy="824" r="7" fill="#111827" />
+
+  <path class="arrow" d="M750 102 V125" />
+  <path class="arrow" d="M750 203 V235" />
+  <path class="arrow" d="M750 323 V360" />
+
+  <path class="arrow" d="M655 420 H445" />
+  <text x="520" y="407" class="label">Không</text>
+  <path class="arrow" d="M145 420 H80 V824 H535" />
+
+  <path class="arrow" d="M750 480 V520" />
+  <text x="765" y="503" class="label">Có</text>
+
+  <path class="arrow" d="M575 561 H262 V655" />
+  <path class="arrow" d="M690 602 V655" />
+  <path class="arrow" d="M810 602 V655" />
+  <path class="arrow dashed" d="M925 561 H1235 V655" />
+  <text x="1040" y="548" class="label">cần người thật</text>
+
+  <path class="arrow" d="M262 733 V760 H650 V785" />
+  <path class="arrow" d="M582 733 V785" />
+  <path class="arrow" d="M902 733 V760 H850 V785" />
+  <path class="arrow" d="M1235 733 V824 H965" />
+  <path class="arrow" d="M965 824 H998" />
+</svg>

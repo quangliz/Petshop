@@ -1,0 +1,47 @@
+\documentclass[DoAn.tex]{subfiles}
+\begin{document}
+\begin{titlepage}
+\thispagestyle{empty}
+\newgeometry{top=1.5cm,bottom=1.5cm,left=1.5cm,right=1.5cm}
+\begingroup
+\newlength{\coverrulelot}
+\setlength{\coverrulelot}{1.2pt}
+\setlength{\fboxsep}{3pt}
+\setlength{\fboxrule}{\coverrulelot}
+\noindent\makebox[\textwidth][c]{%
+\fbox{%
+  \setlength{\fboxrule}{0.7pt}%
+  \fbox{%
+    \begin{minipage}[t][0.90\textheight][t]{0.92\textwidth}
+      \centering
+      \vspace*{0.8cm}
+
+      {\bfseries\Large TRƯỜNG ĐẠI HỌC XÂY DỰNG HÀ NỘI}\\[0.15cm]
+      {\Large KHOA CÔNG NGHỆ THÔNG TIN}\\[1.0cm]
+
+      \includegraphics[width=3.4cm]{Hinhve/logodhxd.png}\\[1.75cm]
+
+      {\bfseries\Huge ĐỒ ÁN TỐT NGHIỆP}\\[1.2cm]
+
+      {\bfseries\Large XÂY DỰNG HỆ THỐNG THƯƠNG MẠI ĐIỆN TỬ THEPAWSOME}\\[0.2cm]
+      {\bfseries\Large TÍCH HỢP TRỢ LÝ AI}\\[1.8cm]
+
+	      \begin{tabular}{@{}>{\bfseries}l@{\hspace{1.2cm}}l@{}}
+	        Giảng viên hướng dẫn: & Phạm Hồng Phong \\[0.35cm]
+	        Sinh viên thực hiện: & Nguyễn Văn Quang \\[0.35cm]
+	        Mã số sinh viên: & 0317367 \\[0.35cm]
+	        Lớp: & 67CNCS \\[0.35cm]
+	        Ngành: & Khoa học máy tính
+	      \end{tabular}
+
+      \vfill
+      Hà Nội, 06/2026
+      \vspace*{0.6cm}
+    \end{minipage}%
+  }%
+}
+}
+\endgroup
+\restoregeometry
+\end{titlepage}
+\end{document}

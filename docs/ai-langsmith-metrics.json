@@ -1,0 +1,519 @@
+{
+  "generated_at": "2026-06-24T12:58:21.563634+00:00",
+  "eval_project": "thepawsome-eval",
+  "judge_project": "thepawsome-judge",
+  "project_stats": {
+    "eval": {
+      "run_count": 50,
+      "latency_p50_seconds": 11.164,
+      "latency_p99_seconds": 21.996,
+      "error_rate": 0.0,
+      "total_tokens": 439301,
+      "prompt_tokens": 419208,
+      "completion_tokens": 20093,
+      "total_cost_usd": 0.050332,
+      "prompt_cost_usd": 0.038276,
+      "completion_cost_usd": 0.012056,
+      "cache_read_tokens": 328064,
+      "last_run_start_time": "2026-06-24T12:55:10.725919+00:00"
+    },
+    "judge": {
+      "run_count": 50,
+      "latency_p50_seconds": 2.207,
+      "latency_p99_seconds": 5.251,
+      "error_rate": 0.0,
+      "total_tokens": 84178,
+      "prompt_tokens": 77938,
+      "completion_tokens": 6240,
+      "total_cost_usd": 0.257245,
+      "prompt_cost_usd": 0.194845,
+      "completion_cost_usd": 0.0624,
+      "cache_read_tokens": 0,
+      "last_run_start_time": "2026-06-24T12:55:14.446825+00:00"
+    }
+  },
+  "project_isolation": {
+    "eval_root_names": [
+      "agent_eval_case"
+    ],
+    "judge_root_names": [
+      "agent_eval_judge"
+    ],
+    "ok": true
+  },
+  "eval_root_summary": {
+    "run_count": 50,
+    "error_count": 0,
+    "error_rate": 0.0,
+    "latency_seconds": {
+      "min": 0.0,
+      "p50": 11.164,
+      "p90": 17.403,
+      "p95": 19.523,
+      "p99": 21.996,
+      "max": 23.064
+    },
+    "total_tokens": 439301,
+    "avg_tokens_per_case": 8786.0,
+    "total_cost_usd": 0.050332,
+    "avg_cost_usd": 0.001007
+  },
+  "judge_root_summary": {
+    "run_count": 50,
+    "error_count": 0,
+    "error_rate": 0.0,
+    "latency_seconds": {
+      "min": 1.397,
+      "p50": 2.207,
+      "p90": 3.194,
+      "p95": 3.554,
+      "p99": 5.251,
+      "max": 6.393
+    },
+    "total_tokens": 84178,
+    "avg_tokens_per_case": 1683.6,
+    "total_cost_usd": 0.257245,
+    "avg_cost_usd": 0.005145
+  },
+  "trace_contract": {
+    "required_tool_hit_rate": 100.0,
+    "tool_order_rate": 100.0,
+    "handoff_hit_rate": 100.0,
+    "unexpected_handoff_absence_rate": 100.0,
+    "safety_preflight_hit_rate": 100.0,
+    "unexpected_safety_absence_rate": 100.0,
+    "avg_tool_calls_per_case": 2.16,
+    "tool_call_counts": {
+      "get_pet_detail_tool": 7,
+      "get_product_detail_tool": 45,
+      "list_pets_tool": 1,
+      "request_human_support_tool": 4,
+      "search_knowledge_tool": 23,
+      "search_products_tool": 28
+    },
+    "groups": [
+      {
+        "group": "cart_boundary",
+        "cases": 2,
+        "required_tool_hit_rate": 100.0,
+        "tool_order_rate": 100.0,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      },
+      {
+        "group": "guardrail",
+        "cases": 6,
+        "required_tool_hit_rate": 100.0,
+        "tool_order_rate": 100.0,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      },
+      {
+        "group": "hitl",
+        "cases": 4,
+        "required_tool_hit_rate": 100.0,
+        "tool_order_rate": 100.0,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      },
+      {
+        "group": "knowledge_rag",
+        "cases": 12,
+        "required_tool_hit_rate": 100.0,
+        "tool_order_rate": 100.0,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      },
+      {
+        "group": "personalization",
+        "cases": 8,
+        "required_tool_hit_rate": 100.0,
+        "tool_order_rate": 100.0,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      },
+      {
+        "group": "product_knowledge_combo",
+        "cases": 6,
+        "required_tool_hit_rate": 100.0,
+        "tool_order_rate": 100.0,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      },
+      {
+        "group": "product_search",
+        "cases": 12,
+        "required_tool_hit_rate": 100.0,
+        "tool_order_rate": 100.0,
+        "handoff_accuracy": 100.0,
+        "safety_accuracy": 100.0
+      }
+    ]
+  },
+  "judge_scores": {
+    "relevance": 4.82,
+    "groundedness": 4.56,
+    "helpfulness": 4.72,
+    "safety": 4.86,
+    "average": 4.74,
+    "cases_below_4_average": [
+      17,
+      27,
+      33,
+      35
+    ],
+    "groups": [
+      {
+        "group": "cart_boundary",
+        "cases": 2,
+        "relevance": 4.5,
+        "groundedness": 4.5,
+        "helpfulness": 4,
+        "safety": 5,
+        "average": 4.5
+      },
+      {
+        "group": "guardrail",
+        "cases": 6,
+        "relevance": 5,
+        "groundedness": 5,
+        "helpfulness": 4.67,
+        "safety": 5,
+        "average": 4.92
+      },
+      {
+        "group": "hitl",
+        "cases": 4,
+        "relevance": 5,
+        "groundedness": 5,
+        "helpfulness": 5,
+        "safety": 5,
+        "average": 5
+      },
+      {
+        "group": "knowledge_rag",
+        "cases": 12,
+        "relevance": 4.83,
+        "groundedness": 4.42,
+        "helpfulness": 4.75,
+        "safety": 4.83,
+        "average": 4.71
+      },
+      {
+        "group": "personalization",
+        "cases": 8,
+        "relevance": 4.75,
+        "groundedness": 4,
+        "helpfulness": 4.62,
+        "safety": 4.75,
+        "average": 4.53
+      },
+      {
+        "group": "product_knowledge_combo",
+        "cases": 6,
+        "relevance": 4.67,
+        "groundedness": 4.17,
+        "helpfulness": 4.67,
+        "safety": 4.5,
+        "average": 4.5
+      },
+      {
+        "group": "product_search",
+        "cases": 12,
+        "relevance": 4.83,
+        "groundedness": 4.92,
+        "helpfulness": 4.83,
+        "safety": 5,
+        "average": 4.9
+      }
+    ]
+  },
+  "tool_runs": [
+    {
+      "tool": "get_pet_detail_tool",
+      "calls": 7,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_seconds": {
+        "min": 0.042,
+        "p50": 0.043,
+        "p90": 0.124,
+        "p95": 0.184,
+        "p99": 0.232,
+        "max": 0.244
+      }
+    },
+    {
+      "tool": "get_product_detail_tool",
+      "calls": 45,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_seconds": {
+        "min": 0.041,
+        "p50": 0.08,
+        "p90": 0.12,
+        "p95": 0.166,
+        "p99": 0.204,
+        "max": 0.212
+      }
+    },
+    {
+      "tool": "list_pets_tool",
+      "calls": 1,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_seconds": {
+        "min": 0.082,
+        "p50": 0.082,
+        "p90": 0.082,
+        "p95": 0.082,
+        "p99": 0.082,
+        "max": 0.082
+      }
+    },
+    {
+      "tool": "request_human_support_tool",
+      "calls": 4,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_seconds": {
+        "min": 0.12,
+        "p50": 0.122,
+        "p90": 0.148,
+        "p95": 0.153,
+        "p99": 0.157,
+        "max": 0.158
+      }
+    },
+    {
+      "tool": "search_knowledge_tool",
+      "calls": 23,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_seconds": {
+        "min": 0.426,
+        "p50": 1.083,
+        "p90": 3.29,
+        "p95": 3.474,
+        "p99": 4.861,
+        "max": 5.248
+      }
+    },
+    {
+      "tool": "search_products_tool",
+      "calls": 28,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_seconds": {
+        "min": 0.521,
+        "p50": 0.705,
+        "p90": 0.971,
+        "p95": 1.083,
+        "p99": 1.801,
+        "max": 2.062
+      }
+    }
+  ],
+  "case_run_ids": {
+    "1": {
+      "eval_run_id": "1d80ca0d-db3b-4eb4-9e05-086fdd5fc6e6",
+      "judge_run_id": "d3d6aa6b-b621-4f4b-a58b-403184efe376"
+    },
+    "2": {
+      "eval_run_id": "964f763d-4e8c-47da-8800-13cd8fb8365f",
+      "judge_run_id": "daea98f7-ec06-4ff5-9334-caac39541ff0"
+    },
+    "3": {
+      "eval_run_id": "0c409d7c-8710-41ce-8868-8dd3915b2cff",
+      "judge_run_id": "f7d7aa18-a50a-4049-b7df-cce6143e8dd4"
+    },
+    "4": {
+      "eval_run_id": "78f9f547-7b56-409f-903e-bcfe8fab2a62",
+      "judge_run_id": "17123477-4562-412c-bd4d-f7c629636abd"
+    },
+    "5": {
+      "eval_run_id": "0e980cda-12bf-43db-b251-67614b36c348",
+      "judge_run_id": "55505991-4bfe-45df-a421-1201c9d2ea63"
+    },
+    "6": {
+      "eval_run_id": "a29f4867-1514-4867-9eb9-8c3a06190ed0",
+      "judge_run_id": "065b8cc5-2f40-49aa-b987-fe738d032916"
+    },
+    "7": {
+      "eval_run_id": "43f3a6c3-90e0-4c24-8445-081b1cff2ed5",
+      "judge_run_id": "8486d68a-9010-4e3f-a3cb-a0d2d442580d"
+    },
+    "8": {
+      "eval_run_id": "7595a526-384c-491a-a8f6-924ade8c76ad",
+      "judge_run_id": "e3c903c9-5731-4934-87d8-4cc63fb8f968"
+    },
+    "9": {
+      "eval_run_id": "50ca8736-06db-491d-be6a-29db89f8ff69",
+      "judge_run_id": "6853d73e-32f7-4d6e-8ab9-aaa7fb5352ee"
+    },
+    "10": {
+      "eval_run_id": "d1bed2e8-2d58-401f-8dce-406af0849ce8",
+      "judge_run_id": "3b3f86b3-f1cb-44eb-9b04-9829e26fa196"
+    },
+    "11": {
+      "eval_run_id": "863dcd58-509d-4869-a2ac-c865e2bba28f",
+      "judge_run_id": "df1dcff6-b06e-43cb-8773-94b0d27bb309"
+    },
+    "12": {
+      "eval_run_id": "93c3aad4-8c72-46ee-9fb8-179f4cdb819e",
+      "judge_run_id": "23d386c3-77bf-49fe-8fb5-551b484f7cb9"
+    },
+    "13": {
+      "eval_run_id": "0ae826e5-b148-4308-ac88-0dbdde8d74b7",
+      "judge_run_id": "28658b37-be48-4210-bcfe-9b88153ae990"
+    },
+    "14": {
+      "eval_run_id": "044ebbcf-c08e-4220-a43f-5e06918b5824",
+      "judge_run_id": "138b0083-8885-4d05-9d82-d1e492e839cf"
+    },
+    "15": {
+      "eval_run_id": "65fbac33-c2d4-4827-be10-5a20645a4821",
+      "judge_run_id": "f10443a2-07d3-4d05-b36a-74b08c6500f0"
+    },
+    "16": {
+      "eval_run_id": "8825e4b7-7694-4654-99f1-7c3d19ce8832",
+      "judge_run_id": "8da55499-1ffa-445a-bda7-a2dea7fbdaf5"
+    },
+    "17": {
+      "eval_run_id": "c626d75a-3b89-4f7b-ae6b-50185963389f",
+      "judge_run_id": "c4e367a8-f558-427e-9828-c0858d3a50dc"
+    },
+    "18": {
+      "eval_run_id": "d42b785b-1856-4452-a91a-aec3b6a7d15c",
+      "judge_run_id": "6d036e35-9477-4610-8d02-360670d8d54c"
+    },
+    "19": {
+      "eval_run_id": "d0bb2d76-ef65-4ba9-8994-23dc08261849",
+      "judge_run_id": "452c90aa-eda3-4f64-9623-6d27a4bbf713"
+    },
+    "20": {
+      "eval_run_id": "ae983390-5cc0-45cc-b9a8-8367e5fa9606",
+      "judge_run_id": "079a0ec5-8912-4eed-a0ef-5410034f6e8c"
+    },
+    "21": {
+      "eval_run_id": "596caf11-db9b-41e1-b672-666947aee594",
+      "judge_run_id": "b5f40a84-c5cb-4f8d-842d-37c8f4261f19"
+    },
+    "22": {
+      "eval_run_id": "4e1b3dac-f664-4caf-aed3-ce4916056a5d",
+      "judge_run_id": "da13cd9b-c1c3-4c4d-95dc-501fe198c8e4"
+    },
+    "23": {
+      "eval_run_id": "027ab7ce-9383-49eb-8206-57ffd62df7d8",
+      "judge_run_id": "aee30581-198a-41f4-af3a-bfbfe224db51"
+    },
+    "24": {
+      "eval_run_id": "d726fe3b-ce04-4b28-8501-dc42d5982ba7",
+      "judge_run_id": "3106c37a-fc46-4df8-8e73-510fba6e97fd"
+    },
+    "25": {
+      "eval_run_id": "bdbb84b7-a302-4f72-a873-021c3cb81e8b",
+      "judge_run_id": "6cd1004a-598c-4367-8f43-b6b728d866f4"
+    },
+    "26": {
+      "eval_run_id": "d27b8da6-6f8d-4e52-ae10-498fa2f68c81",
+      "judge_run_id": "08b5c23d-7d37-4afa-859c-861a1a053cb8"
+    },
+    "27": {
+      "eval_run_id": "150320a5-a550-4618-bf75-5508b3daa332",
+      "judge_run_id": "bc3329cf-9ea8-440d-a6c4-cd8b5b0edca1"
+    },
+    "28": {
+      "eval_run_id": "084ba42a-7f75-4e25-8f7f-0c2a64ddd64e",
+      "judge_run_id": "1ae8dd1e-5db3-4727-b51c-fdc6bf966362"
+    },
+    "29": {
+      "eval_run_id": "dba659f6-1d0a-46d4-b76e-4358d3901bf6",
+      "judge_run_id": "d8645ad2-d1d8-4e89-a4d9-921f35019847"
+    },
+    "30": {
+      "eval_run_id": "5970f08f-9645-4619-ad70-636a9e83577d",
+      "judge_run_id": "d5a069ad-6b00-4fa8-9ec6-b8bcfac782ff"
+    },
+    "31": {
+      "eval_run_id": "b9843dc1-793a-4609-bb2f-df9d1b057f7e",
+      "judge_run_id": "66e97c50-8cc5-4537-88aa-fc77a211b191"
+    },
+    "32": {
+      "eval_run_id": "3b8aa3a7-73f8-4c63-ab46-b3c2d2086f19",
+      "judge_run_id": "bbcb04c2-c397-4a28-8964-5638b5eb44a5"
+    },
+    "33": {
+      "eval_run_id": "e7d3db8f-a593-4429-9665-d79a1b2d64d9",
+      "judge_run_id": "667d1456-078c-40ef-abd3-0f2f1ac84a14"
+    },
+    "34": {
+      "eval_run_id": "dfcdccd2-e9ac-43ce-bac3-287a8425e1c3",
+      "judge_run_id": "a9aa076c-b0f0-4920-8d4a-960bdccb49d9"
+    },
+    "35": {
+      "eval_run_id": "136cf3cb-cb88-490f-aa36-8e96dd1063b0",
+      "judge_run_id": "fb7dc955-7507-474a-a5c2-60c8b329ccd4"
+    },
+    "36": {
+      "eval_run_id": "1a2e3db2-4303-4ac9-9bd0-02d8c3fb9e95",
+      "judge_run_id": "7af9c956-ab37-4999-8d90-9ad741eec448"
+    },
+    "37": {
+      "eval_run_id": "6291b969-54d1-41c1-8fa0-791075aba7b9",
+      "judge_run_id": "54949626-6ed6-452c-b242-1dbe9dd34d91"
+    },
+    "38": {
+      "eval_run_id": "376c1d64-cc54-4653-9215-26bf15a545cd",
+      "judge_run_id": "db6c4adb-5be9-400e-8547-c12b7519efdf"
+    },
+    "39": {
+      "eval_run_id": "0a9f7fe0-eb81-4d84-8217-fb5af9eac56d",
+      "judge_run_id": "ddf58995-92ad-43b5-ae13-7013223dd4f2"
+    },
+    "40": {
+      "eval_run_id": "f4d45602-980d-4064-b2a3-debc3b0df305",
+      "judge_run_id": "e9b73c1d-2faa-4dd8-aeea-01e77cd1dd50"
+    },
+    "41": {
+      "eval_run_id": "537234ca-8183-4161-88d0-87bdad1e56f5",
+      "judge_run_id": "e19b1798-3cda-4763-9084-8a4338b9aae1"
+    },
+    "42": {
+      "eval_run_id": "36388c63-0507-4a32-9f22-b852286a94d3",
+      "judge_run_id": "b5b47d14-52ce-4804-90fc-fdf1f371ad64"
+    },
+    "43": {
+      "eval_run_id": "e460d8ea-3a55-4efc-8a3b-27d33f422a5d",
+      "judge_run_id": "fa71fc2f-f0f4-458d-96fd-76dac59b8dbc"
+    },
+    "44": {
+      "eval_run_id": "36ece3fc-a3b6-48c0-9a7c-8b22edeccc8f",
+      "judge_run_id": "fa6fc494-c2d5-4510-aa67-996767c8eb3e"
+    },
+    "45": {
+      "eval_run_id": "b627ce48-57bc-4fd7-bcdf-9846ec5b42fe",
+      "judge_run_id": "71c12047-6511-4498-bc29-4927ff86109f"
+    },
+    "46": {
+      "eval_run_id": "43a22535-6f9f-4368-a356-1232751c1cda",
+      "judge_run_id": "47485dc0-ea3a-4637-a8a9-391169443e14"
+    },
+    "47": {
+      "eval_run_id": "c611ce90-c4a2-4135-b2bc-1e07d69ca674",
+      "judge_run_id": "f53a9be6-3431-4051-9ea6-ca4ca20774ef"
+    },
+    "48": {
+      "eval_run_id": "ab82ab66-2da6-4042-8eae-4c15b7c4b763",
+      "judge_run_id": "dd74213c-1e17-4e17-b90f-a1a84162d09f"
+    },
+    "49": {
+      "eval_run_id": "49f46fe8-aeb9-4b8d-84de-eff878832789",
+      "judge_run_id": "003320f8-5a57-499e-9251-54c64e6951a9"
+    },
+    "50": {
+      "eval_run_id": "bbee676f-d338-4cfc-9958-5aa579f7992e",
+      "judge_run_id": "55b40947-3bfd-4a4f-aa8d-e607e63638e2"
+    }
+  }
+}

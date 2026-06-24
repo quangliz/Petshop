@@ -1,0 +1,66 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "DejaVu Sans, Arial", "primaryColor": "#fdf2f8", "primaryTextColor": "#111827", "lineColor": "#475569"}}}%%
+erDiagram
+    USERS ||--o{ KNOWLEDGE_DOCS : owns
+    USERS ||--o{ CHAT_SESSIONS : starts
+    PETS ||--o{ CHAT_SESSIONS : context
+    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : contains
+    USERS ||--o{ AI_CALL_LOGS : costs
+    CHAT_SESSIONS ||--o{ AI_CALL_LOGS : measured_by
+    USERS ||--o{ AUDIT_LOGS : performs
+
+    USERS {
+        uuid id PK
+    }
+
+    PETS {
+        uuid id PK
+    }
+
+    KNOWLEDGE_DOCS {
+        uuid id PK
+        uuid owner_id FK
+        string title
+        string category
+        string review_status
+        int version
+        string content
+    }
+
+    CHAT_SESSIONS {
+        uuid id PK
+        uuid user_id FK
+        uuid pet_id FK
+        string title
+        string routing_status
+        datetime created_at
+    }
+
+    CHAT_MESSAGES {
+        uuid id PK
+        uuid session_id FK
+        string role
+        string content
+        jsonb token_usage
+        boolean is_from_human
+    }
+
+    AI_CALL_LOGS {
+        uuid id PK
+        uuid user_id FK
+        uuid session_id FK
+        string model_name
+        int prompt_tokens
+        int completion_tokens
+        decimal cost_usd
+        int latency_ms
+    }
+
+    AUDIT_LOGS {
+        uuid id PK
+        uuid user_id FK
+        string action
+        string resource_type
+        string resource_id
+        jsonb old_values
+        jsonb new_values
+    }

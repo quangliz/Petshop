@@ -124,7 +124,7 @@ Luồng chatbot nằm ở `app/services/chat_agent.py`:
 user message
   -> LangGraph agent
   -> tools_condition
-  -> tools: search_products, search_knowledge, confirmation-gated add_to_cart, view_cart, list_pets, get_pet_detail
+  -> tools: search_products, search_knowledge, list_pets, get_pet_detail, request_human_support
   -> assistant response streamed by /api/v1/chat/stream
 ```
 

@@ -1,0 +1,126 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+Phụ lục này bổ sung một số use case chưa được đặc tả chi tiết trong Chương \ref{chapter:Requirements} nhưng vẫn quan trọng đối với vận hành hệ thống.
+
+\section{Đặc tả use case Quản lý wishlist}
+\label{appendix:B.1}
+
+{\normalsize
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|p{3.2cm}|p{10.4cm}|}
+\caption{Đặc tả use case Quản lý wishlist}\\
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\ \hline
+Tên use case & Quản lý wishlist \\ \hline
+Tác nhân chính & Khách hàng \\ \hline
+Mục tiêu & Cho phép khách hàng lưu sản phẩm quan tâm để quay lại mua hoặc so sánh sau. \\ \hline
+Tiền điều kiện & Khách hàng đã đăng nhập; sản phẩm còn tồn tại trong catalog. \\ \hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.1cm}
+\begin{enumerate}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Khách hàng bấm lưu sản phẩm từ trang shop hoặc chi tiết sản phẩm.
+    \item Frontend gửi product id tới API wishlist.
+    \item Backend kiểm tra sản phẩm tồn tại, người dùng hiện tại và ràng buộc unique theo cặp user/product.
+    \item Hệ thống lưu hoặc trả về trạng thái đã có trong wishlist.
+    \item Khách hàng mở trang wishlist để xem và xóa sản phẩm đã lưu.
+\end{enumerate}
+\end{minipage} \\ \hline
+Hậu điều kiện & Bảng \texttt{wishlist\_items} phản ánh đúng danh sách sản phẩm người dùng đã lưu. \\ \hline
+\end{longtable}
+}
+
+\section{Đặc tả use case Đánh giá sản phẩm sau mua}
+\label{appendix:B.2}
+
+{\normalsize
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|p{3.2cm}|p{10.4cm}|}
+\caption{Đặc tả use case Đánh giá sản phẩm sau mua}\\
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\ \hline
+Tên use case & Đánh giá sản phẩm sau mua \\ \hline
+Tác nhân chính & Khách hàng \\ \hline
+Mục tiêu & Thu thập đánh giá thực tế từ khách đã mua để tăng độ tin cậy của catalog và hỗ trợ gợi ý sản phẩm. \\ \hline
+Tiền điều kiện & Khách hàng đã đăng nhập và có đơn hàng hợp lệ chứa sản phẩm cần đánh giá. \\ \hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.1cm}
+\begin{enumerate}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Khách hàng mở phần đánh giá ở trang chi tiết sản phẩm.
+    \item Frontend gọi API kiểm tra người dùng có quyền đánh giá hay không.
+    \item Khách hàng nhập số sao và bình luận.
+    \item Backend validate số sao từ 1 đến 5 và kiểm tra ràng buộc mỗi user chỉ review một sản phẩm một lần.
+    \item Hệ thống lưu review và cập nhật thống kê rating của sản phẩm.
+\end{enumerate}
+\end{minipage} \\ \hline
+Hậu điều kiện & Review được lưu trong bảng \texttt{reviews}; sản phẩm hiển thị điểm trung bình và số lượng đánh giá mới. \\ \hline
+\end{longtable}
+}
+
+\section{Đặc tả use case Yêu cầu đổi trả}
+\label{appendix:B.3}
+
+{\normalsize
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|p{3.2cm}|p{10.4cm}|}
+\caption{Đặc tả use case Yêu cầu đổi trả}\\
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\ \hline
+Tên use case & Yêu cầu đổi trả \\ \hline
+Tác nhân chính & Khách hàng, nhân viên quản trị đơn hàng \\ \hline
+Mục tiêu & Cho phép khách hàng gửi yêu cầu đổi trả và nhân viên xử lý theo trạng thái nghiệp vụ. \\ \hline
+Tiền điều kiện & Đơn hàng thuộc về khách hàng, có sản phẩm đủ điều kiện đổi trả theo chính sách. \\ \hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.1cm}
+\begin{enumerate}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Khách hàng mở chi tiết đơn hàng và chọn yêu cầu đổi trả.
+    \item Khách hàng nhập lý do và số lượng từng dòng hàng cần đổi trả.
+    \item Backend kiểm tra quyền sở hữu đơn, số lượng hợp lệ và trạng thái đơn.
+    \item Hệ thống tạo bản ghi \texttt{order\_returns} và \texttt{order\_return\_items}.
+    \item Nhân viên admin xem danh sách yêu cầu, duyệt, hoàn tất hoặc từ chối kèm ghi chú.
+\end{enumerate}
+\end{minipage} \\ \hline
+Hậu điều kiện & Yêu cầu đổi trả có trạng thái rõ ràng để khách hàng và nhân viên theo dõi. \\ \hline
+\end{longtable}
+}
+
+\section{Đặc tả use case Quản lý embedding}
+\label{appendix:B.4}
+
+{\normalsize
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|p{3.2cm}|p{10.4cm}|}
+\caption{Đặc tả use case Quản lý embedding}\\
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\ \hline
+Tên use case & Quản lý embedding \\ \hline
+Tác nhân chính & Quản trị viên, nhân viên nội dung \\ \hline
+Mục tiêu & Cho phép nhân sự vận hành reindex sản phẩm hoặc kho tri thức khi dữ liệu thay đổi. \\ \hline
+Tiền điều kiện & Người dùng có quyền phù hợp; backend được cấu hình OpenAI API key; PostgreSQL/pgvector hoạt động. \\ \hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.1cm}
+\begin{enumerate}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Nhân viên mở trang quản lý embeddings trong admin.
+    \item Nhân viên chọn collection sản phẩm hoặc knowledge.
+    \item Backend đọc dữ liệu đang active, tạo document và gọi PGVector store để thêm embedding.
+    \item Với knowledge, hệ thống đánh giá lại forum thread đủ điều kiện trước khi index.
+    \item Hệ thống trả về số lượng document/chunk đã reindex.
+\end{enumerate}
+\end{minipage} \\ \hline
+Hậu điều kiện & Collection \texttt{petshop\_products} hoặc \texttt{petshop\_knowledge} được đồng bộ lại với dữ liệu nghiệp vụ. \\ \hline
+\end{longtable}
+}
+
+\end{document}

@@ -1,0 +1,42 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "DejaVu Sans, Arial", "primaryTextColor": "#111827", "lineColor": "#475569"}}}%%
+flowchart TD
+    start(( ))
+    customer["Khách hàng<br/>Kiểm tra giỏ hàng<br/>nhập thông tin giao hàng"]
+    frontend["Frontend<br/>Gửi yêu cầu checkout<br/>kèm khóa chống lặp"]
+    system["Hệ thống<br/>Kiểm tra sản phẩm, biến thể,<br/>coupon, thông tin nhận hàng<br/>và tồn kho hiện tại"]
+    valid{"Dữ liệu hợp lệ<br/>và đủ tồn kho?"}
+    exception["Luồng ngoại lệ<br/>Thông báo lỗi<br/>yêu cầu khách điều chỉnh"]
+    order["Đơn hàng và tồn kho<br/>Tạo đơn hàng, lưu snapshot giá<br/>giữ hoặc trừ tồn kho"]
+    payment{"Phương thức<br/>thanh toán?"}
+    cod["COD<br/>Ghi nhận đơn hàng<br/>chờ xử lý giao nhận"]
+    sepay["SePay<br/>Tạo VietQR<br/>khách hàng chuyển khoản"]
+    webhook["Webhook thanh toán<br/>Xác minh nguồn, mã đơn,<br/>số tiền và giao dịch trùng"]
+    reconcile["Nếu quá hạn hoặc cần đối soát:<br/>hủy/giữ chờ và giải phóng tồn kho"]
+    result["Kết quả<br/>Cập nhật trạng thái và hiển thị cho khách hàng"]
+    stop((( )))
+
+    start --> customer --> frontend --> system --> valid
+    valid -- "Không" --> exception --> result
+    valid -- "Có" --> order --> payment
+    payment -- "COD" --> cod --> result
+    payment -- "SePay" --> sepay --> webhook --> result
+    webhook -.-> reconcile -.-> result
+    result --> stop
+
+    classDef actor fill:#dbeafe,stroke:#334155,stroke-width:1.5px,color:#111827;
+    classDef system fill:#dcfce7,stroke:#334155,stroke-width:1.5px,color:#111827;
+    classDef data fill:#ede9fe,stroke:#334155,stroke-width:1.5px,color:#111827;
+    classDef payment fill:#fce7f3,stroke:#334155,stroke-width:1.5px,color:#111827;
+    classDef exception fill:#fee2e2,stroke:#ef4444,stroke-width:1.6px,color:#111827;
+    classDef decision fill:#fef3c7,stroke:#334155,stroke-width:1.5px,color:#111827;
+    classDef note fill:#f8fafc,stroke:#94a3b8,stroke-width:1.2px,stroke-dasharray:6 5,color:#334155;
+    classDef terminal fill:#111827,stroke:#111827,color:#111827;
+
+    class customer,frontend,result actor;
+    class system,cod,webhook system;
+    class order data;
+    class sepay payment;
+    class exception exception;
+    class valid,payment decision;
+    class reconcile note;
+    class start,stop terminal;

@@ -1,0 +1,26 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+\section{Kết luận}
+\label{section:6.1}
+
+Đồ án đã xây dựng được ThePawsome, một hệ thống thương mại điện tử chuyên biệt cho thú cưng có tích hợp trợ lý AI, diễn đàn cộng đồng và trang quản trị. So với các website petshop trực tuyến thông thường, sản phẩm không chỉ dừng ở danh mục sản phẩm, giỏ hàng và đặt hàng, mà còn bổ sung hồ sơ thú cưng, tư vấn Catbot dựa trên RAG, tìm kiếm lai, forum có nhãn chuyên gia, cơ chế chuyển giao người thật và các biện pháp an toàn giao dịch như idempotency, khóa dòng tồn kho và reservation cho thanh toán SePay.
+
+Về mặt kỹ thuật, backend đã được tổ chức theo các tầng rõ ràng với FastAPI, SQLAlchemy bất đồng bộ, PostgreSQL/pgvector, Redis và Alembic migration. Frontend đã có cấu trúc Next.js App Router cho storefront, auth và admin dashboard. CSDL nghiệp vụ có 28 bảng, bao phủ user, pet, catalog, commerce, forum, chat, knowledge, review, wishlist, audit và AI observability. Bộ test backend hiện có 123 test case trong 22 file, bao phủ nhiều luồng quan trọng như auth, cart, orders, payments, forum, chat, AI safety và hardening.
+
+Các đóng góp nổi bật của đồ án gồm: (i) Catbot RAG có planner tool-routing và khả năng truy xuất sản phẩm thật, kho tri thức, forum đủ điều kiện và hồ sơ thú cưng; (ii) tìm kiếm lai kết hợp keyword, semantic search, RRF và rerank tùy chọn; (iii) governance cho dữ liệu forum trước khi đưa vào RAG; (iv) checkout có idempotency, khóa dòng và reservation; (v) thanh toán SePay VietQR với webhook xác thực; và (vi) cơ chế HITL để chuyển phiên chat sang nhân viên hỗ trợ khi AI không nên tự xử lý.
+
+Bên cạnh kết quả đạt được, hệ thống vẫn còn một số hạn chế. Thứ nhất, chất lượng tư vấn AI phụ thuộc vào độ đầy đủ của dữ liệu sản phẩm, tài liệu knowledge, forum và cấu hình API key. Thứ hai, frontend chưa có bộ kiểm thử component hoặc e2e, nên các luồng UI như checkout, SePay polling, Catbot streaming và admin form cần được kiểm thử tự động thêm. Thứ ba, hệ thống mới được đánh giá ở quy mô đồ án, chưa có dữ liệu vận hành lớn để đánh giá tải, độ chính xác tư vấn và chi phí AI trong thời gian dài.
+
+\section{Hướng phát triển}
+\label{section:6.2}
+
+Hướng phát triển gần nhất là hoàn thiện và tối ưu hóa hệ thống thanh toán tự động, tích hợp sâu hơn các cơ chế đối soát VietQR cho nhiều tài khoản và ngân hàng khác nhau để mở rộng quy mô.
+
+Hướng thứ hai là nâng cấp kiểm thử và dữ liệu mẫu. Frontend nên bổ sung Playwright hoặc Cypress cho các luồng khách hàng quan trọng, đặc biệt là đăng nhập, thêm giỏ, checkout, thanh toán QR, tra cứu đơn guest, gửi review, đặt câu hỏi Catbot và thao tác admin. Đồng thời cần chuẩn bị bộ seed dữ liệu sản phẩm, biến thể, ảnh, knowledge và forum có chất lượng để phục vụ kiểm thử, đánh giá và tái lập các kịch bản nghiệp vụ.
+
+Hướng thứ ba là cải thiện chất lượng AI. Có thể bổ sung đánh giá tự động câu trả lời Catbot theo tiêu chí groundedness, đúng slug sản phẩm, mức độ phù hợp với pet profile và khả năng từ chối câu hỏi y tế nguy hiểm. Kho knowledge nên có workflow review rõ hơn, ghi phiên bản tài liệu, người duyệt và ngày tái kiểm tra. Với forum, có thể tách các câu trả lời chuyên gia thành chunk riêng thay vì chỉ index thread, giúp retrieval chọn được đoạn trả lời chính xác hơn.
+
+Hướng thứ tư là nâng cao vận hành production. Hệ thống cần dashboard giám sát request latency, tỉ lệ lỗi, số lượng checkout thất bại, reservation quá hạn, webhook bị từ chối, chi phí AI theo ngày và số lần chuyển giao HITL. Khi triển khai thật, cần thiết lập backup PostgreSQL, chính sách rotate secret, logging tập trung, CDN/optimization cho ảnh Cloudinary và quy trình migration an toàn.
+
+Cuối cùng, ThePawsome có thể mở rộng sang các tính năng tăng giá trị cho người nuôi thú cưng như nhắc lịch tiêm phòng, lịch tái mua thức ăn, gợi ý khẩu phần theo cân nặng, hồ sơ y tế theo thời gian, tích điểm thành viên và hệ thống khuyến nghị dựa trên lịch sử mua hàng. Những hướng này đều có thể tận dụng nền tảng dữ liệu pet profile, catalog biến thể và Catbot RAG đã được xây dựng trong đồ án.
+\end{document}

@@ -1,0 +1,98 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+Chương này trình bày các nền tảng lý thuyết và công nghệ được sử dụng để hiện thực các yêu cầu đã xác định ở Chương \ref{chapter:Requirements}. Nội dung không liệt kê công nghệ theo kiểu rời rạc, mà tập trung giải thích mỗi lựa chọn giải quyết vấn đề nào trong hệ thống ThePawsome, vì sao phù hợp hơn các lựa chọn thay thế trong phạm vi đồ án, và phần nào trong mã nguồn đang hiện thực lựa chọn đó.
+
+\section{Kiến trúc ứng dụng web tách frontend và backend}
+\label{section:3.1}
+
+ThePawsome được xây dựng theo kiến trúc web tách lớp, trong đó frontend chịu trách nhiệm trải nghiệm người dùng và backend chịu trách nhiệm xử lý nghiệp vụ, dữ liệu, thanh toán và AI. Cách tổ chức này phù hợp với yêu cầu ở Mục \ref{section:2.2}, vì hệ thống có nhiều nhóm tác nhân khác nhau như khách hàng, quản trị viên, nhân viên hỗ trợ và chuyên gia thú y. Việc tách frontend/backend giúp các luồng storefront, admin dashboard và Catbot cùng sử dụng một lớp API thống nhất nhưng vẫn có thể phát triển giao diện độc lập.
+
+Backend sử dụng FastAPI vì framework này hỗ trợ chuẩn OpenAPI, tự sinh tài liệu API và khai thác type hint Python để validate dữ liệu vào/ra \cite{fastapiDocs}. Trong mã nguồn, các router canonical nằm tại \texttt{backend/app/api/routers/}; dependency dùng chung như \texttt{SessionDep}, \texttt{CurrentUser}, \texttt{OptionalUser} và \texttt{AdminUser} nằm tại \texttt{backend/app/api/deps.py}. Thiết kế này giúp mỗi phân hệ như sản phẩm, đơn hàng, forum, pets, chat và admin có ranh giới rõ ràng, đồng thời vẫn dùng chung cơ chế xác thực và phiên CSDL bất đồng bộ.
+
+Frontend sử dụng Next.js App Router để tổ chức route theo nhóm \texttt{(shop)}, \texttt{(auth)} và \texttt{admin}. App Router hỗ trợ layout lồng nhau, routing theo hệ thống file và mô hình component hiện đại của Next.js \cite{nextjsAppRouterDocs}. Trong ThePawsome, dữ liệu server-state được quản lý bằng TanStack Query, vốn cung cấp cache, retry, invalidation và workflow mutation cho ứng dụng React \cite{tanstackQueryDocs}. Các trạng thái client nhỏ như token đăng nhập và sản phẩm đang xem được lưu bằng Zustand tại \texttt{frontend/src/lib/store.ts}. Cách tách này giúp tránh đưa toàn bộ dữ liệu server vào global store, đồng thời vẫn giữ được trải nghiệm phản hồi nhanh khi người dùng duyệt sản phẩm, checkout hoặc chat.
+
+Ở tầng truy cập dữ liệu, backend dùng SQLAlchemy 2.x theo mô hình bất đồng bộ. Tài liệu SQLAlchemy mô tả \texttt{create\_async\_engine} và \texttt{AsyncSession} như lớp API bất đồng bộ cho engine và session truyền thống \cite{sqlalchemyAsyncioDocs}. Mã nguồn hiện thực điều này tại \texttt{backend/app/database.py} với \texttt{create\_async\_engine}, \texttt{async\_sessionmaker} và \texttt{expire\_on\_commit=False}. Đồ án không tạo \texttt{SessionLocal} đồng bộ cho code mới, nhằm tránh trộn hai mô hình truy cập CSDL trong cùng một backend.
+
+\section{PostgreSQL, pgvector và Redis}
+\label{section:3.2}
+
+CSDL chính của ThePawsome là PostgreSQL. Lý do lựa chọn PostgreSQL là hệ thống cần vừa đảm bảo toàn vẹn giao dịch thương mại điện tử, vừa lưu trữ dữ liệu quan hệ phức tạp như users, products, variants, orders, payments, forum và chat. Với các nghiệp vụ như checkout, hủy đơn và webhook thanh toán, việc dựa vào transaction, ràng buộc dữ liệu, khóa dòng và migration bằng Alembic là cần thiết để giảm lỗi cạnh tranh dữ liệu.
+
+Để phục vụ tìm kiếm ngữ nghĩa và RAG, hệ thống dùng pgvector, một extension cho PostgreSQL hỗ trợ lưu vector và tìm kiếm tương đồng ngay trong Postgres \cite{pgvectorDocs}. Trong mã nguồn, LangChain PGVector tạo hai collection là \texttt{petshop\_products} và \texttt{petshop\_knowledge}. Collection thứ nhất lưu embedding của sản phẩm, collection thứ hai lưu embedding của tài liệu knowledge và một phần thảo luận forum đủ điều kiện. Cách chọn pgvector thay vì một vector database độc lập giúp đồ án giữ dữ liệu nghiệp vụ và dữ liệu vector gần nhau, giảm độ phức tạp triển khai trong phạm vi đồ án tốt nghiệp.
+
+Redis được dùng cho các dữ liệu có vòng đời ngắn hoặc cần truy cập nhanh. Tài liệu Redis mô tả cơ chế hết hạn key theo TTL qua lệnh \texttt{EXPIRE} \cite{redisExpireDocs}. Trong ThePawsome, Redis được dùng để cache embedding truy vấn trong 1 giờ, cache hồ sơ thú cưng trong 7 ngày, hỗ trợ rate limiting và có thể mở rộng cho các dữ liệu nóng khác. Cách dùng Redis không thay thế PostgreSQL; Redis chỉ là lớp hỗ trợ hiệu năng và kiểm soát tải.
+
+\section{RAG, embedding và tìm kiếm lai}
+\label{section:3.3}
+
+Retrieval-Augmented Generation (RAG) là hướng tiếp cận kết hợp mô hình sinh ngôn ngữ với bộ nhớ ngoài có thể truy xuất. Công trình của Lewis và cộng sự mô tả RAG như mô hình kết hợp bộ nhớ tham số của mô hình ngôn ngữ với bộ nhớ phi tham số từ một chỉ mục tài liệu \cite{lewis2020rag}. Với ThePawsome, hướng tiếp cận này phù hợp vì Catbot không nên trả lời chỉ dựa vào tri thức nội tại của LLM; câu trả lời cần bám vào sản phẩm thật, hồ sơ thú cưng thật và kho kiến thức có kiểm soát.
+
+Embedding được tạo bằng OpenAI \texttt{text-embedding-3-small}. Theo tài liệu OpenAI, mô hình này mặc định sinh vector 1536 chiều \cite{openaiEmbeddingsDocs}. Trong mã nguồn, \texttt{backend/app/services/embeddings.py} định nghĩa \texttt{get\_embedder()}, \texttt{get\_products\_store()}, \texttt{get\_knowledge\_store()} và \texttt{embed\_query\_cached()}. Việc cache embedding truy vấn bằng Redis giúp giảm số lần gọi API khi nhiều người dùng đặt câu hỏi tương tự hoặc khi cùng một truy vấn được dùng cho cả knowledge và forum retrieval.
+
+Tìm kiếm sản phẩm không chỉ dùng vector search. Mã nguồn \texttt{backend/app/services/retrieval.py} triển khai hybrid search bằng cách kết hợp thứ hạng semantic và thứ hạng từ khóa. Thứ hạng từ khóa ưu tiên tên sản phẩm, slug, thương hiệu, danh mục và mô tả; thứ hạng semantic lấy từ PGVector khi bật tìm kiếm ngữ nghĩa. Hai danh sách được trộn bằng Reciprocal Rank Fusion. Công thức tổng quát được sử dụng như sau:
+
+\begin{equation}
+    RRF(d) = \sum_{i=1}^{n} \frac{w_i}{k + r_i(d)}
+\end{equation}
+
+Trong đó \(r_i(d)\) là thứ hạng của tài liệu hoặc sản phẩm \(d\) trong danh sách thứ \(i\), \(w_i\) là trọng số của nguồn thứ hạng và \(k\) là hằng số làm mượt. RRF được Cormack, Clarke và Buettcher đề xuất như một phương pháp đơn giản để kết hợp nhiều hệ thống truy xuất \cite{cormack2009rrf}. Trong code hiện tại, \(k=60\), trọng số semantic là 0.25 và trọng số keyword là 0.75. Cách chọn này phản ánh đặc thù tiếng Việt và dữ liệu sản phẩm: từ khóa thương hiệu, tên dòng sản phẩm, size hoặc hương vị thường rất quan trọng, trong khi vector search hỗ trợ tốt hơn cho truy vấn mô tả ý định.
+
+Cohere Rerank là thành phần tùy chọn. Tài liệu Cohere mô tả Rerank API như công cụ nhận một query và danh sách document, rồi sắp xếp lại theo độ liên quan ngữ nghĩa \cite{cohereRerankDocs}. Trong ThePawsome, nếu có \texttt{COHERE\_API\_KEY}, hàm \texttt{rerank\_products\_cohere()} và \texttt{rerank\_knowledge\_cohere()} sẽ chạy sau bước tạo candidate. Nếu không có khóa API, hệ thống vẫn hoạt động bằng RRF và PGVector.
+
+\section{LangGraph tool-calling và an toàn AI}
+\label{section:3.4}
+
+Catbot được triển khai bằng LangGraph. Tài liệu LangGraph mô tả framework này như một lớp orchestration để xây dựng agent có trạng thái, workflow dài và khả năng gọi tool \cite{langgraphDocs}. Trong ThePawsome, graph gồm node planner, node agent và node tools. Planner là một LLM chạy ở nhiệt độ thấp, sinh ra \texttt{ToolRoutingPlan} có cấu trúc để chỉ ra các tool cần gọi cho lượt hỏi hiện tại. Sau đó agent thực hiện tool-calling; nếu agent chuẩn bị trả lời trong khi còn thiếu tool đã được planner yêu cầu, graph đưa thêm một thông điệp nhắc hoàn tất kế hoạch rồi quay lại agent. Agent không được tự ý bịa dữ liệu sản phẩm; khi muốn giới thiệu sản phẩm, nó phải gọi tool tìm sản phẩm và chỉ render thẻ \texttt{\textless product\textgreater slug\textless/product\textgreater} với slug có thật trong kết quả tool.
+
+Hình \ref{fig:3.1} mô tả luồng RAG và tool-calling của Catbot theo mã nguồn hiện tại. Người dùng gửi câu hỏi từ widget chat; backend chạy bước kiểm tra an toàn sơ bộ; planner lập kế hoạch tool-call; LangGraph agent gọi tool sản phẩm, tool knowledge/forum, tool hồ sơ thú cưng hoặc tool chuyển giao người thật; phản hồi được stream về frontend bằng SSE.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\linewidth]{Hinhve/chuong3_rag_catbot.png}
+\caption{Luồng RAG và tool-calling của Catbot}
+\label{fig:3.1}
+\end{figure}
+
+Server-Sent Events được dùng để stream phản hồi từng phần từ backend tới trình duyệt. Thư viện \texttt{sse-starlette} cung cấp triển khai SSE cho Starlette/FastAPI \cite{sseStarletteDocs}. Trong router chat, producer agent chạy trong một task độc lập và đưa sự kiện vào queue, còn generator SSE chỉ đọc queue để trả về client. Thiết kế này giúp kết quả vẫn được lưu xuống CSDL nếu client ngắt kết nối giữa chừng.
+
+An toàn AI được xử lý ở nhiều lớp. Lớp thứ nhất là \texttt{preflight\_safety\_response()} trong \texttt{backend/app/services/ai\_safety.py}, phát hiện prompt injection, dấu hiệu cấp cứu thú y và yêu cầu chẩn đoán hoặc liều thuốc cụ thể để trả lời fallback trước khi gọi LLM. Lớp thứ hai là prompt hệ thống và planner tool-routing, quy định Catbot không chẩn đoán, không kê đơn, không tiết lộ secret, chọn đúng tool theo ngữ nghĩa và không làm theo chỉ dẫn nằm trong tài liệu truy xuất. Lớp thứ ba là \texttt{sanitize\_retrieved\_content()}, loại bỏ các dòng giống chỉ dẫn hệ thống trong nội dung retrieval trước khi đưa vào context.
+
+\section{Xác thực, phân quyền và giao dịch thương mại điện tử}
+\label{section:3.5}
+
+Hệ thống sử dụng JWT access token và refresh token HttpOnly Cookie. Access token được frontend lưu để gọi API, còn refresh token được lưu dưới path \texttt{/api/v1/auth} với \texttt{httponly}. Bảng \texttt{refresh\_sessions} lưu \texttt{jti}, thời điểm hết hạn, trạng thái revoke và \texttt{replaced\_by\_jti}, cho phép xoay vòng refresh token và phát hiện reuse. Phân quyền được triển khai bằng vai trò trong \texttt{RoleEnum}, gồm \texttt{user}, \texttt{admin}, \texttt{catalog\_manager}, \texttt{order\_operator}, \texttt{support}, \texttt{content\_manager} và \texttt{expert}.
+
+Với thanh toán và tồn kho, yêu cầu quan trọng nhất là tránh tạo đơn trùng và tránh overselling. PostgreSQL hỗ trợ khóa dòng với \texttt{SELECT ... FOR UPDATE}; tài liệu PostgreSQL nêu rằng các dòng được chọn bằng \texttt{FOR UPDATE} sẽ bị khóa như thể chuẩn bị cập nhật, ngăn transaction khác khóa, sửa hoặc xóa cho tới khi transaction hiện tại kết thúc \cite{postgresExplicitLocking}. Trong ThePawsome, checkout khóa các dòng \texttt{products} hoặc \texttt{product\_variants} trước khi kiểm tra tồn kho và trừ số lượng. Đồng thời, hệ thống dùng \texttt{Idempotency-Key} và advisory transaction lock theo scope người dùng hoặc guest email để tránh double-click tạo ra nhiều đơn cùng request.
+
+Luồng thanh toán QR dùng SePay. Tài liệu SePay mô tả mô hình webhook: hệ thống nhận thông báo giao dịch, xác thực API key, bóc tách mã đơn từ nội dung thanh toán và cập nhật trạng thái đơn \cite{sepayDocs}. Trong mã nguồn, \texttt{backend/app/services/sepay.py} tạo URL ảnh QR dựa trên tài khoản nhận, ngân hàng, số tiền và mô tả là mã đơn. Router \texttt{/payments/sepay/webhook} kiểm tra header \texttt{Authorization: Apikey ...}, hướng giao dịch, mã giao dịch trùng, mã đơn và số tiền trước khi chuyển payment sang \texttt{success}. Nếu reservation đã bị release nhưng tồn kho có thể reacquire, hệ thống vẫn commit được; nếu không, payment được đánh dấu \texttt{requires\_review} để quản trị viên đối soát.
+
+\section{Tổng hợp lựa chọn công nghệ}
+\label{section:3.6}
+
+Bảng \ref{table:3.1} tổng hợp các lựa chọn công nghệ chính, vấn đề mà mỗi lựa chọn giải quyết và phương án thay thế đã cân nhắc.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{2pt}
+\renewcommand{\arraystretch}{1.25}
+\caption{Tổng hợp lựa chọn công nghệ trong ThePawsome}
+\label{table:3.1}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{2.4cm}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}p{3.0cm}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Công nghệ} & \textbf{Vấn đề giải quyết} & \textbf{Lựa chọn thay thế} & \textbf{Lý do lựa chọn trong đồ án} \\ \hline
+FastAPI & API bất đồng bộ, validate dữ liệu, OpenAPI, middleware bảo mật và rate limit. & Django REST Framework, Flask, NestJS. & Phù hợp Python AI stack, nhẹ, type hint rõ và dễ chia router theo module. \\ \hline
+Next.js App Router & Giao diện storefront, auth, admin và routing theo layout. & React SPA thuần, Vue/Nuxt. & Tổ chức route tốt, hỗ trợ SSR/CSR linh hoạt và khớp hệ sinh thái React. \\ \hline
+PostgreSQL + SQLAlchemy async & Dữ liệu quan hệ, transaction, khóa dòng và migration. & MySQL, MongoDB, Firebase. & Cần toàn vẹn giao dịch cao và có thể mở rộng bằng pgvector. \\ \hline
+pgvector & Lưu và tìm kiếm embedding sản phẩm/knowledge. & Pinecone, Milvus, Weaviate, Elasticsearch vector. & Giảm độ phức tạp triển khai, tận dụng cùng PostgreSQL. \\ \hline
+Redis & Cache embedding, pet profile, rate limit và dữ liệu TTL. & In-memory process cache, Memcached. & Có TTL chuẩn, dùng chung được cho nhiều instance backend. \\ \hline
+LangGraph & Orchestration agent có trạng thái, planner node và tool-calling. & Chain tuyến tính, function-calling tự quản lý. & Phù hợp luồng agent cần lập kế hoạch tool, gọi nhiều tool và chuyển giao người thật. \\ \hline
+SePay VietQR & Thanh toán chuyển khoản QR và webhook. & MoMo, Stripe. & Phù hợp bối cảnh Việt Nam, dễ tích hợp QR chuyển khoản và đối soát webhook trong phạm vi đồ án. \\ \hline
+Cloudinary & Lưu ảnh sản phẩm, banner và avatar thú cưng. & Lưu file local, S3. & Có API upload và URL ảnh ổn định cho frontend \cite{cloudinaryUploadDocs}. \\ \hline
+\end{tabularx}
+\end{table}
+
+Tóm lại, các công nghệ trong chương này được lựa chọn để phục vụ trực tiếp các yêu cầu của Chương \ref{chapter:Requirements}: FastAPI và Next.js giải quyết kiến trúc web; PostgreSQL, pgvector và Redis giải quyết dữ liệu nghiệp vụ và retrieval; LangGraph, OpenAI và Cohere giải quyết Catbot/RAG; SePay và cơ chế locking/idempotency giải quyết an toàn giao dịch. Các chương tiếp theo sẽ trình bày cách các công nghệ này được đưa vào thiết kế, triển khai và đánh giá hệ thống.
+
+\end{document}

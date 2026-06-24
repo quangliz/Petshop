@@ -411,7 +411,7 @@ paths:
                   type: string
                 species:
                   type: string
-                  enum: [dog, cat, bird, fish, rabbit, other]
+                  enum: [dog, cat, other]
                 breed:
                   type: string
                 age_months:

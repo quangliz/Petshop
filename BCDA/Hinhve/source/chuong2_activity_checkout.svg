@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="980" viewBox="0 0 1500 980">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#475569" />
+    </marker>
+    <style>
+      .title { font: 700 27px "DejaVu Sans", Arial, sans-serif; fill: #111827; }
+      .node-title { font: 700 15px "DejaVu Sans", Arial, sans-serif; fill: #111827; }
+      .node-text { font: 14px "DejaVu Sans", Arial, sans-serif; fill: #111827; }
+      .small { font: 12px "DejaVu Sans", Arial, sans-serif; fill: #334155; }
+      .label { font: 13px "DejaVu Sans", Arial, sans-serif; fill: #334155; }
+      .actor { fill: #dbeafe; stroke: #334155; stroke-width: 1.5; }
+      .system { fill: #dcfce7; stroke: #334155; stroke-width: 1.5; }
+      .data { fill: #ede9fe; stroke: #334155; stroke-width: 1.5; }
+      .payment { fill: #fce7f3; stroke: #334155; stroke-width: 1.5; }
+      .exception { fill: #fee2e2; stroke: #ef4444; stroke-width: 1.6; }
+      .decision { fill: #fef3c7; stroke: #334155; stroke-width: 1.5; }
+      .note { fill: #f8fafc; stroke: #94a3b8; stroke-width: 1.2; stroke-dasharray: 6 5; }
+      .arrow { fill: none; stroke: #475569; stroke-width: 2; marker-end: url(#arrow); }
+      .dashed { stroke-dasharray: 8 7; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="980" fill="#ffffff" />
+  <text x="750" y="42" text-anchor="middle" class="title">Quy trình nghiệp vụ mua hàng và thanh toán</text>
+
+  <g transform="translate(1120 58)">
+    <rect x="0" y="0" width="320" height="64" rx="8" fill="#ffffff" stroke="#cbd5e1" />
+    <rect x="14" y="14" width="20" height="14" class="actor" />
+    <text x="42" y="26" class="small">Khách hàng / frontend</text>
+    <rect x="170" y="14" width="20" height="14" class="system" />
+    <text x="198" y="26" class="small">Backend</text>
+    <rect x="14" y="38" width="20" height="14" class="data" />
+    <text x="42" y="50" class="small">Tồn kho / đơn hàng</text>
+    <rect x="170" y="38" width="20" height="14" class="payment" />
+    <text x="198" y="50" class="small">SePay</text>
+  </g>
+
+  <circle cx="750" cy="92" r="10" fill="#111827" />
+
+  <g>
+    <rect x="610" y="125" width="280" height="76" rx="10" class="actor" />
+    <text x="750" y="150" text-anchor="middle" class="node-title">Khách hàng</text>
+    <text x="750" y="173" text-anchor="middle" class="node-text">
+      <tspan x="750" dy="0">Kiểm tra giỏ hàng</tspan>
+      <tspan x="750" dy="19">nhập thông tin giao hàng</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="610" y="235" width="280" height="76" rx="10" class="actor" />
+    <text x="750" y="260" text-anchor="middle" class="node-title">Frontend</text>
+    <text x="750" y="283" text-anchor="middle" class="node-text">
+      <tspan x="750" dy="0">Gửi yêu cầu checkout</tspan>
+      <tspan x="750" dy="19">kèm khóa chống lặp</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="575" y="345" width="350" height="94" rx="10" class="system" />
+    <text x="750" y="371" text-anchor="middle" class="node-title">Hệ thống</text>
+    <text x="750" y="394" text-anchor="middle" class="node-text">
+      <tspan x="750" dy="0">Kiểm tra sản phẩm, biến thể,</tspan>
+      <tspan x="750" dy="19">coupon, thông tin nhận hàng</tspan>
+      <tspan x="750" dy="19">và tồn kho hiện tại</tspan>
+    </text>
+  </g>
+
+  <g>
+    <polygon points="750,475 840,530 750,585 660,530" class="decision" />
+    <text x="750" y="524" text-anchor="middle" class="node-text">
+      <tspan x="750" dy="0">Dữ liệu hợp lệ</tspan>
+      <tspan x="750" dy="18">và đủ tồn kho?</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="150" y="490" width="300" height="80" rx="10" class="exception" />
+    <text x="300" y="518" text-anchor="middle" class="node-title">Luồng ngoại lệ</text>
+    <text x="300" y="541" text-anchor="middle" class="node-text">
+      <tspan x="300" dy="0">Thông báo lỗi</tspan>
+      <tspan x="300" dy="19">yêu cầu khách điều chỉnh</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="580" y="620" width="340" height="90" rx="10" class="data" />
+    <text x="750" y="646" text-anchor="middle" class="node-title">Đơn hàng và tồn kho</text>
+    <text x="750" y="669" text-anchor="middle" class="node-text">
+      <tspan x="750" dy="0">Tạo đơn hàng, lưu snapshot giá</tspan>
+      <tspan x="750" dy="19">giữ hoặc trừ tồn kho</tspan>
+    </text>
+  </g>
+
+  <g>
+    <polygon points="750,745 840,800 750,855 660,800" class="decision" />
+    <text x="750" y="794" text-anchor="middle" class="node-text">
+      <tspan x="750" dy="0">Phương thức</tspan>
+      <tspan x="750" dy="18">thanh toán?</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="190" y="760" width="260" height="80" rx="10" class="system" />
+    <text x="320" y="788" text-anchor="middle" class="node-title">COD</text>
+    <text x="320" y="811" text-anchor="middle" class="node-text">
+      <tspan x="320" dy="0">Ghi nhận đơn hàng</tspan>
+      <tspan x="320" dy="19">chờ xử lý giao nhận</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="1045" y="655" width="280" height="80" rx="10" class="payment" />
+    <text x="1185" y="683" text-anchor="middle" class="node-title">SePay</text>
+    <text x="1185" y="706" text-anchor="middle" class="node-text">
+      <tspan x="1185" dy="0">Tạo VietQR</tspan>
+      <tspan x="1185" dy="19">khách hàng chuyển khoản</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="1045" y="785" width="280" height="86" rx="10" class="system" />
+    <text x="1185" y="812" text-anchor="middle" class="node-title">Webhook thanh toán</text>
+    <text x="1185" y="835" text-anchor="middle" class="node-text">
+      <tspan x="1185" dy="0">Xác minh nguồn, mã đơn,</tspan>
+      <tspan x="1185" dy="19">số tiền và giao dịch trùng</tspan>
+    </text>
+  </g>
+
+  <g>
+    <rect x="555" y="885" width="390" height="70" rx="10" class="actor" />
+    <text x="750" y="913" text-anchor="middle" class="node-title">Kết quả</text>
+    <text x="750" y="936" text-anchor="middle" class="node-text">Cập nhật trạng thái và hiển thị cho khách hàng</text>
+  </g>
+
+  <g>
+    <rect x="1110" y="900" width="260" height="52" rx="10" class="note" />
+    <text x="1240" y="922" text-anchor="middle" class="small">
+      <tspan x="1240" dy="0">Nếu quá hạn hoặc cần đối soát:</tspan>
+      <tspan x="1240" dy="17">hủy/giữ chờ và giải phóng tồn kho</tspan>
+    </text>
+  </g>
+
+  <circle cx="1000" cy="920" r="12" fill="none" stroke="#111827" stroke-width="2.2" />
+  <circle cx="1000" cy="920" r="7" fill="#111827" />
+
+  <path class="arrow" d="M750 102 V125" />
+  <path class="arrow" d="M750 201 V235" />
+  <path class="arrow" d="M750 311 V345" />
+  <path class="arrow" d="M750 439 V475" />
+
+  <path class="arrow" d="M660 530 H450" />
+  <text x="520" y="517" class="label">Không</text>
+  <path class="arrow" d="M150 530 H80 V920 H555" />
+
+  <path class="arrow" d="M750 585 V620" />
+  <text x="764" y="607" class="label">Có</text>
+  <path class="arrow" d="M750 710 V745" />
+
+  <path class="arrow" d="M660 800 H450" />
+  <text x="515" y="787" class="label">COD</text>
+  <path class="arrow" d="M320 840 V920 H555" />
+
+  <path class="arrow" d="M840 800 H995 V695 H1045" />
+  <text x="920" y="787" class="label">SePay</text>
+  <path class="arrow" d="M1185 735 V785" />
+  <path class="arrow" d="M1045 828 H980 V920 H945" />
+  <path class="arrow dashed" d="M1185 871 V900" />
+  <path class="arrow dashed" d="M1110 926 H945" />
+
+  <path class="arrow" d="M945 920 H988" />
+</svg>

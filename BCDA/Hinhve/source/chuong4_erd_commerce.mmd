@@ -1,0 +1,117 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "DejaVu Sans, Arial", "primaryColor": "#fff7ed", "primaryTextColor": "#111827", "lineColor": "#475569"}}}%%
+erDiagram
+    USERS ||--o{ CARTS : owns
+    CARTS ||--o{ CART_ITEMS : contains
+    PRODUCTS ||--o{ CART_ITEMS : selected
+    PRODUCT_VARIANTS ||--o{ CART_ITEMS : selected
+    USERS ||--o{ ORDERS : places
+    PROMOTIONS ||--o{ ORDERS : product_coupon
+    PROMOTIONS ||--o{ ORDERS : shipping_coupon
+    ORDERS ||--o{ ORDER_ITEMS : contains
+    PRODUCTS ||--o{ ORDER_ITEMS : snapshot
+    PRODUCT_VARIANTS ||--o{ ORDER_ITEMS : snapshot
+    ORDERS ||--o{ PAYMENTS : has
+    ORDERS ||--o{ INVENTORY_RESERVATIONS : holds
+    ORDER_ITEMS ||--o| INVENTORY_RESERVATIONS : reserves
+    PRODUCTS ||--o{ INVENTORY_RESERVATIONS : product_stock
+    PRODUCT_VARIANTS ||--o{ INVENTORY_RESERVATIONS : variant_stock
+    ORDERS ||--o{ ORDER_RETURNS : may_have
+    USERS ||--o{ ORDER_RETURNS : requests
+    ORDER_RETURNS ||--o{ ORDER_RETURN_ITEMS : contains
+    ORDER_ITEMS ||--o{ ORDER_RETURN_ITEMS : returned_item
+
+    USERS {
+        uuid id PK
+    }
+
+    PRODUCTS {
+        uuid id PK
+    }
+
+    PRODUCT_VARIANTS {
+        uuid id PK
+    }
+
+    CARTS {
+        uuid id PK
+        uuid user_id FK
+        datetime created_at
+    }
+
+    CART_ITEMS {
+        uuid id PK
+        uuid cart_id FK
+        uuid product_id FK
+        uuid variant_id FK
+        int quantity
+    }
+
+    PROMOTIONS {
+        uuid id PK
+        string code UK
+        string promo_type
+        string discount_type
+        decimal discount_value
+        datetime starts_at
+        datetime expires_at
+    }
+
+    ORDERS {
+        uuid id PK
+        uuid user_id FK
+        string order_code UK
+        string status
+        decimal subtotal
+        decimal total
+        string payment_method
+        string payment_status
+        uuid applied_product_coupon_id FK
+        uuid applied_shipping_coupon_id FK
+    }
+
+    ORDER_ITEMS {
+        uuid id PK
+        uuid order_id FK
+        uuid product_id FK
+        uuid variant_id FK
+        string product_name_snapshot
+        decimal unit_price_snapshot
+        int quantity
+    }
+
+    PAYMENTS {
+        uuid id PK
+        uuid order_id FK
+        string method
+        decimal amount
+        string status
+        string merchant_ref UK
+        string external_txn_id UK
+    }
+
+    INVENTORY_RESERVATIONS {
+        uuid id PK
+        uuid order_id FK
+        uuid order_item_id FK
+        uuid product_id FK
+        uuid variant_id FK
+        int quantity
+        string status
+        datetime expires_at
+    }
+
+    ORDER_RETURNS {
+        uuid id PK
+        uuid order_id FK
+        uuid user_id FK
+        string status
+        string reason
+        decimal refund_amount
+    }
+
+    ORDER_RETURN_ITEMS {
+        uuid id PK
+        uuid return_id FK
+        uuid order_item_id FK
+        int quantity
+    }

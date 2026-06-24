@@ -22,6 +22,15 @@ INJECTION_PATTERNS = (
     r"hãy đóng vai",
 )
 
+MEDICAL_ADVICE_PATTERNS = (
+    r"\bchẩn đoán(?:\s+chính xác)?\b",
+    r"\bkê\s+(?:đơn|liều)\b",
+    r"\bliều\s+(?:bao nhiêu|nào|kháng sinh|thuốc)\b",
+    r"\bkháng sinh\b.*\b(?:liều|cho chó|cho mèo)\b",
+    r"\bthuốc giảm đau của người\b",
+    r"\b(?:paracetamol|ibuprofen|aspirin)\b.*\b(?:mèo|chó|thú cưng)\b",
+)
+
 CONFIRMATION_PATTERNS = (
     r"\b(?:đồng ý|xác nhận|chắc chắn)\b.*\b(?:thêm|mua)\b",
     r"\b(?:thêm|mua)\b.*\b(?:vào giỏ|sản phẩm này)\b.*\b(?:đi|nhé|giúp)\b",
@@ -55,6 +64,11 @@ def looks_like_prompt_injection(text: str) -> bool:
     return any(re.search(pattern, lowered) for pattern in INJECTION_PATTERNS)
 
 
+def asks_for_medical_diagnosis_or_dosage(text: str) -> bool:
+    lowered = text.lower()
+    return any(re.search(pattern, lowered) for pattern in MEDICAL_ADVICE_PATTERNS)
+
+
 def has_cart_confirmation(text: str) -> bool:
     lowered = text.lower()
     return any(re.search(pattern, lowered) for pattern in CONFIRMATION_PATTERNS)
@@ -74,10 +88,17 @@ def preflight_safety_response(text: str) -> str | None:
             "cứu gần nhất; giữ thú cưng yên, không tự cho dùng thuốc và mang theo thông "
             "tin về triệu chứng/chất đã ăn phải nếu có."
         )
+    if asks_for_medical_diagnosis_or_dosage(text):
+        return (
+            "Tôi không thể chẩn đoán bệnh, kê đơn hoặc đưa liều thuốc cá nhân hóa cho "
+            "thú cưng. Việc dùng kháng sinh, thuốc giảm đau của người hoặc bất kỳ thuốc "
+            "điều trị nào cần được bác sĩ thú y thăm khám và chỉ định. Nếu thú cưng có "
+            "triệu chứng bất thường, hãy liên hệ bác sĩ thú y sớm và không tự cho dùng thuốc."
+        )
     return None
 
 
-def sanitize_retrieved_content(content: str, max_chars: int = 3000) -> str:
+def sanitize_retrieved_content(content: str, max_chars: int = 1600) -> str:
     cleaned_lines = []
     for line in content.replace("\x00", "").splitlines():
         if UNTRUSTED_INSTRUCTION_RE.search(line):
@@ -85,3 +106,57 @@ def sanitize_retrieved_content(content: str, max_chars: int = 3000) -> str:
         else:
             cleaned_lines.append(line)
     return "\n".join(cleaned_lines)[:max_chars]
+
+
+# ---------------------------------------------------------------------------
+# Post-guard: validate & auto-repair AI output before sending to client
+# ---------------------------------------------------------------------------
+
+# Matches: [Any text](thepawsome.store/slug) or (https://thepawsome.store/slug)
+_MARKDOWN_PRODUCT_LINK_RE = re.compile(
+    r'\[([^\]]*?)\]\((?:https?://)?(?:www\.)?thepawsome\.store/([^)\s]+)\)'
+)
+
+# Also catches bare links without anchor text written by model
+_BARE_PRODUCT_LINK_RE = re.compile(
+    r'(?<!\()(?:https?://)?(?:www\.)?thepawsome\.store/([A-Za-z0-9][A-Za-z0-9\-]{2,})'
+)
+
+
+def postguard_response(text: str) -> tuple[str, list[str]]:
+    """Validate and auto-repair agent output before it reaches the client.
+
+    Detects markdown product links and bare thepawsome.store URLs that should
+    have been rendered as ``<product>slug</product>`` chips, converts them
+    automatically, and returns a list of warning strings for monitoring.
+
+    Returns:
+        (repaired_text, warnings): repaired_text is safe to send to client;
+        warnings is empty when the output was already correct.
+    """
+    warnings: list[str] = []
+
+    # 1. Convert [Anchor](thepawsome.store/slug) → <product>slug</product>
+    md_matches = _MARKDOWN_PRODUCT_LINK_RE.findall(text)
+    if md_matches:
+        warnings.append(
+            f"OUTPUT_FORMAT_VIOLATION: {len(md_matches)} markdown product link(s) "
+            f"found instead of <product> tags — auto-converted: "
+            + ", ".join(slug for _, slug in md_matches)
+        )
+        text = _MARKDOWN_PRODUCT_LINK_RE.sub(
+            lambda m: f"<product>{m.group(2)}</product>", text
+        )
+
+    # 2. Convert bare URLs thepawsome.store/slug → <product>slug</product>
+    bare_matches = _BARE_PRODUCT_LINK_RE.findall(text)
+    if bare_matches:
+        warnings.append(
+            f"OUTPUT_FORMAT_VIOLATION: {len(bare_matches)} bare product URL(s) "
+            f"found — auto-converted: " + ", ".join(bare_matches)
+        )
+        text = _BARE_PRODUCT_LINK_RE.sub(
+            lambda m: f"<product>{m.group(1)}</product>", text
+        )
+
+    return text, warnings

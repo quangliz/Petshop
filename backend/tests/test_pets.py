@@ -60,7 +60,7 @@ class TestPetCRUD:
         # Create then delete
         create_res = client.post("/api/v1/pets", headers=auth_headers, json={
             "name": "DeleteMe",
-            "species": "fish",
+            "species": "cat",
         })
         assert create_res.status_code == 200
         pet_id = create_res.json()["id"]

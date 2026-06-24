@@ -1,0 +1,593 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+\raggedbottom
+
+Chương này trình bày quá trình khảo sát hiện trạng, xác định tác nhân, tổng quan chức năng và đặc tả yêu cầu cho hệ thống ThePawsome. Nội dung chương bắt đầu từ việc phân tích các mô hình petshop trực tuyến đang phổ biến tại Việt Nam, chỉ ra những khoảng trống về tư vấn cá nhân hóa, độ tin cậy thông tin và an toàn giao dịch. Trên cơ sở đó, chương xây dựng biểu đồ use case ở mức tổng quát và mức phân rã, mô tả các quy trình nghiệp vụ quan trọng, đặc tả các use case cốt lõi và tổng hợp yêu cầu phi chức năng làm cơ sở cho các chương thiết kế và triển khai tiếp theo.
+
+\section{Khảo sát hiện trạng}
+\label{section:2.1}
+
+\subsection{Bối cảnh nghiệp vụ}
+\label{subsection:2.1.1}
+
+Thị trường sản phẩm và dịch vụ dành cho thú cưng tại Việt Nam đang phát triển theo hướng kết hợp giữa cửa hàng truyền thống, website bán hàng và sàn thương mại điện tử. Các chuỗi cửa hàng chuyên biệt như Pet Mart cung cấp nhiều nhóm hàng gồm thức ăn, đồ dùng, phụ kiện, sản phẩm vệ sinh, dịch vụ chăm sóc và nội dung tạp chí thú cưng trên website công khai \cite{petmart2026}. Bên cạnh đó, nhiều cửa hàng petshop mở gian hàng trên các sàn thương mại điện tử như Shopee để tận dụng hệ sinh thái thanh toán, đánh giá, vận chuyển và lượng truy cập lớn \cite{chumsaupetShopee2026,marspetcareShopee2026}.
+
+Tuy nhiên, đặc thù của sản phẩm thú cưng khác với nhiều nhóm hàng tiêu dùng thông thường. Quyết định mua thức ăn, thuốc bổ, sản phẩm vệ sinh hay phụ kiện không chỉ phụ thuộc vào giá và thương hiệu, mà còn phụ thuộc vào loài, giống, độ tuổi, cân nặng, tình trạng sức khỏe, thói quen ăn uống và dị ứng của từng thú cưng. Một sản phẩm phù hợp với mèo trưởng thành có thể không phù hợp với mèo con; một loại hạt có thành phần gà có thể gây rủi ro cho thú cưng dị ứng đạm gà; một khuyến nghị chăm sóc sức khỏe thiếu kiểm chứng có thể làm người nuôi chậm đưa thú cưng tới bác sĩ thú y.
+
+Qua khảo sát các hệ thống hiện có, có thể thấy phần lớn nền tảng tập trung tốt vào trưng bày sản phẩm, giỏ hàng, khuyến mãi, giao hàng và đánh giá. Tuy nhiên, các năng lực nâng cao như hồ sơ sức khỏe thú cưng, tư vấn cá nhân hóa bằng trí tuệ nhân tạo dựa trên dữ liệu thật của cửa hàng, diễn đàn có chuyên gia xác minh, cơ chế chuyển giao từ chatbot sang nhân viên hỗ trợ và kiểm soát an toàn giao dịch khi nhiều người cùng mua một biến thể sản phẩm vẫn chưa được tích hợp thành một luồng thống nhất. Đây là khoảng trống chính mà ThePawsome hướng tới giải quyết.
+
+\subsection{Khảo sát hệ thống tương tự}
+\label{subsection:2.1.2}
+
+Bảng \ref{table:2.1} tổng hợp kết quả khảo sát ở mức chức năng đối với một số nhóm hệ thống phổ biến. Việc so sánh tập trung vào nhu cầu của đồ án, bao gồm mua sắm trực tuyến, tư vấn theo hồ sơ thú cưng, cộng đồng tri thức và độ an toàn vận hành.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.35}
+\caption{So sánh hiện trạng một số nhóm hệ thống petshop trực tuyến}
+\label{table:2.1}
+\begin{tabular}{|p{2.5cm}|p{3.55cm}|p{3.65cm}|p{3.55cm}|}
+\hline
+\textbf{Nhóm hệ thống} & \textbf{Ưu điểm nổi bật} & \textbf{Hạn chế quan sát được} & \textbf{Khoảng trống cho ThePawsome} \\ \hline
+Website petshop chuyên biệt & Có danh mục sản phẩm theo chó, mèo và phụ kiện; hỗ trợ giỏ hàng; có nội dung tư vấn hoặc tạp chí; một số hệ thống kết hợp dịch vụ chăm sóc thú cưng. & Nội dung tư vấn chủ yếu là bài viết tĩnh; chưa cá nhân hóa theo hồ sơ từng thú cưng; chưa liên kết chặt giữa tri thức chăm sóc, sản phẩm và lịch sử mua hàng. & Tạo hồ sơ thú cưng, cho phép Catbot truy xuất dữ liệu sản phẩm và kiến thức để tư vấn theo ngữ cảnh cụ thể. \\ \hline
+Gian hàng petshop trên sàn thương mại điện tử & Có lợi thế về thanh toán, vận chuyển, đánh giá sao, khuyến mãi và lưu lượng người dùng lớn; dễ so sánh giá giữa nhiều cửa hàng. & Thông tin tư vấn phân tán theo từng gian hàng; chất lượng nội dung và độ phù hợp với từng thú cưng khó kiểm soát; khó xây dựng cộng đồng chuyên sâu của riêng cửa hàng. & Xây dựng nền tảng chuyên biệt, trong đó trải nghiệm mua hàng, diễn đàn, đánh giá đã mua và trợ lý AI cùng dùng chung dữ liệu tin cậy. \\ \hline
+Diễn đàn, nhóm mạng xã hội về thú cưng & Có nhiều kinh nghiệm thực tế từ cộng đồng; tốc độ trao đổi nhanh; dễ hỏi đáp các tình huống cụ thể. & Thông tin nhiễu, khó kiểm chứng chuyên môn; câu trả lời cũ khó tái sử dụng; thiếu liên kết trực tiếp tới sản phẩm và hồ sơ sức khỏe. & Tích hợp diễn đàn có chuyên gia xác minh, bình chọn, câu trả lời được chấp nhận và đồng bộ tri thức chất lượng vào kho RAG. \\ \hline
+Chatbot bán hàng thông thường & Hỗ trợ phản hồi nhanh các câu hỏi lặp lại; giảm tải cho nhân viên ở các tình huống đơn giản. & Thường dựa trên kịch bản cố định hoặc dữ liệu rời rạc; dễ trả lời chung chung; khó xử lý ca cần người thật hoặc câu hỏi y tế nhạy cảm. & Dùng LangGraph tool-calling có planner, RAG, guardrail tiếng Việt và chuyển giao Human-in-the-loop khi vượt quá phạm vi tư vấn an toàn. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Vấn đề cần giải quyết}
+\label{subsection:2.1.3}
+
+Từ khảo sát trên, đồ án xác định các vấn đề nghiệp vụ trọng tâm như sau:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Thiếu cá nhân hóa khi tư vấn sản phẩm:} người nuôi thường phải tự đọc mô tả sản phẩm và tự suy luận sản phẩm có phù hợp với thú cưng của mình hay không.
+    \item \textbf{Nguy cơ chọn sai sản phẩm theo dị ứng hoặc độ tuổi:} nhiều sản phẩm có biến thể, thành phần và đối tượng sử dụng khác nhau; nếu không có cảnh báo theo hồ sơ thú cưng, khách hàng dễ mua nhầm.
+    \item \textbf{Thông tin chăm sóc thú cưng phân tán:} bài viết, câu trả lời cộng đồng và kinh nghiệm người dùng tồn tại rời rạc, thiếu cơ chế đánh giá chất lượng và tái sử dụng cho tư vấn tự động.
+    \item \textbf{Độ trễ hỗ trợ khách hàng:} chatbot thông thường không đủ năng lực xử lý tình huống phức tạp, trong khi chờ nhân viên phản hồi thủ công có thể làm giảm trải nghiệm mua hàng.
+    \item \textbf{Rủi ro trong giao dịch thương mại điện tử:} các vấn đề như bán vượt tồn kho, double-click khi thanh toán, callback thanh toán giả mạo hoặc đơn hàng guest khó tra cứu cần được kiểm soát ở tầng nghiệp vụ.
+\end{itemize}
+
+\subsection{Định hướng yêu cầu cho hệ thống}
+\label{subsection:2.1.4}
+
+ThePawsome được đề xuất như một nền tảng thương mại điện tử chuyên biệt cho thú cưng, kết hợp bốn nhóm năng lực chính. Thứ nhất là năng lực bán hàng trực tuyến đầy đủ gồm danh mục, sản phẩm, biến thể, giỏ hàng, khuyến mãi, đặt hàng, thanh toán và đổi trả. Thứ hai là năng lực hồ sơ thú cưng, cho phép hệ thống ghi nhận loài, giống, tuổi, cân nặng, giới tính, ghi chú sức khỏe và dị ứng. Thứ ba là năng lực cộng đồng tri thức gồm diễn đàn hỏi đáp, bình chọn, câu trả lời chuyên gia và cơ chế đưa nội dung chất lượng vào kho kiến thức. Thứ tư là trợ lý ảo Catbot sử dụng RAG, planner tool-calling và chuyển giao người thật để hỗ trợ khách hàng bằng tiếng Việt trong phạm vi an toàn.
+
+Các yêu cầu này dẫn tới việc hệ thống không chỉ là một website bán hàng, mà là một nền tảng dữ liệu và tư vấn vận hành xung quanh nhu cầu chăm sóc thú cưng. Do đó, các phần tiếp theo của chương sẽ mô hình hóa hệ thống theo hướng tác nhân và use case.
+
+\section{Tổng quan chức năng}
+\label{section:2.2}
+
+ThePawsome có các nhóm chức năng chính: quản lý tài khoản và phân quyền, quản lý hồ sơ thú cưng, duyệt và tìm kiếm sản phẩm, quản lý giỏ hàng và đơn hàng, thanh toán, đánh giá sản phẩm, diễn đàn cộng đồng, trợ lý AI Catbot và trang quản trị vận hành. Các chức năng này được tổ chức theo bốn nhóm tác nhân chính là khách vãng lai, khách hàng đã đăng nhập, chuyên gia hoặc nhân viên hỗ trợ, và quản trị viên.
+
+\subsection{Tác nhân tham gia hệ thống}
+\label{subsection:2.2.1}
+
+Bảng \ref{table:2.2} mô tả các tác nhân chính và vai trò của từng tác nhân trong hệ thống.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.3}
+\caption{Danh sách tác nhân của hệ thống}
+\label{table:2.2}
+\begin{tabular}{|p{3.2cm}|p{10.8cm}|}
+\hline
+\textbf{Tác nhân} & \textbf{Vai trò} \\ \hline
+Khách vãng lai & Xem trang chủ, xem danh mục, tìm kiếm sản phẩm, xem chi tiết sản phẩm, thêm giỏ hàng tạm thời, đặt hàng guest, tra cứu đơn guest, đọc diễn đàn và đăng ký tài khoản. \\ \hline
+Khách hàng & Đăng nhập, quản lý thông tin cá nhân, hồ sơ thú cưng, wishlist, giỏ hàng, checkout, lịch sử đơn hàng, đổi trả, đánh giá sản phẩm, tham gia diễn đàn và sử dụng Catbot có ngữ cảnh cá nhân. \\ \hline
+Chuyên gia thú y & Tham gia diễn đàn, trả lời câu hỏi với nhãn chuyên gia đã xác minh, cung cấp nguồn tri thức chất lượng cao cho cộng đồng và kho RAG. \\ \hline
+Nhân viên hỗ trợ & Tiếp nhận phiên chat được Catbot chuyển giao, xử lý tình huống khiếu nại, đổi trả hoặc yêu cầu phức tạp cần người thật. \\ \hline
+Nhân viên quản trị & Quản lý catalog, banner, đơn hàng, khuyến mãi, bài viết diễn đàn, kho kiến thức và các tác vụ reindex embedding theo quyền được cấp. \\ \hline
+Quản trị viên & Quản lý toàn bộ người dùng, phân quyền, cấu hình hệ thống, nhật ký kiểm toán, thống kê và các nghiệp vụ nhạy cảm. \\ \hline
+Dịch vụ ngoài & OpenAI/Cohere cung cấp mô hình AI và embedding/rerank; SePay xử lý QR chuyển khoản và webhook; Cloudinary lưu trữ ảnh; Redis hỗ trợ cache/rate limit; PostgreSQL/pgvector lưu dữ liệu nghiệp vụ và vector. \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Biểu đồ use case tổng quát}
+\label{subsection:2.2.2}
+
+Hình \ref{fig:2.1} biểu diễn use case tổng quát của ThePawsome theo nhóm tác nhân. Các use case được gom theo phân hệ để thể hiện phạm vi chức năng chính của hệ thống.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong2_usecase_tong_quat.png}
+\caption{Biểu đồ use case tổng quát dạng nhóm tác nhân}
+\label{fig:2.1}
+\end{figure}
+
+Nhìn ở mức tổng quát, hệ thống được chia thành ba vùng nghiệp vụ lớn. Vùng thứ nhất là storefront dành cho khách hàng, bao gồm duyệt sản phẩm, mua hàng, thanh toán, đánh giá và theo dõi đơn. Vùng thứ hai là tri thức và hỗ trợ, bao gồm hồ sơ thú cưng, diễn đàn chuyên gia và Catbot. Vùng thứ ba là quản trị, cho phép nhân sự cửa hàng vận hành dữ liệu, nội dung, đơn hàng, người dùng và chất lượng AI.
+
+\subsection{Biểu đồ use case phân rã nhóm mua hàng}
+\label{subsection:2.2.3}
+
+Nhóm mua hàng bao phủ toàn bộ hành trình từ khám phá sản phẩm tới hoàn tất đơn hàng. Hình \ref{fig:2.2} mô tả các use case con chính của nhóm này.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong2_usecase_mua_hang.png}
+\caption{Use case phân rã nhóm mua hàng}
+\label{fig:2.2}
+\end{figure}
+
+Điểm đáng chú ý của nhóm mua hàng là hệ thống phải kiểm soát biến thể sản phẩm và tồn kho theo SKU. Khi khách hàng chọn size, hương vị hoặc thuộc tính khác, giá bán, giá khuyến mãi, tồn kho và ảnh đại diện cần được đồng bộ. Tại bước checkout, hệ thống khóa dòng tồn kho trước khi trừ số lượng. Với đơn SePay, hệ thống tạo reservation để giữ hàng trong thời gian thanh toán QR, sau đó worker sẽ giải phóng hàng nếu giao dịch quá hạn.
+
+\subsection{Biểu đồ use case phân rã nhóm hồ sơ thú cưng và Catbot}
+\label{subsection:2.2.4}
+
+Nhóm hồ sơ thú cưng và Catbot là điểm khác biệt chính của ThePawsome so với các website bán hàng thông thường. Hình \ref{fig:2.3} mô tả các use case con của nhóm này.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong2_usecase_catbot.png}
+\caption{Use case phân rã nhóm hồ sơ thú cưng và Catbot}
+\label{fig:2.3}
+\end{figure}
+
+Catbot không được thiết kế như một mô hình hỏi đáp độc lập, mà là một agent được giới hạn bởi dữ liệu, công cụ và lớp lập kế hoạch trong hệ thống. Trước khi trả lời, agent cần xác định tool phù hợp để truy xuất sản phẩm thật, hồ sơ thú cưng thật và kho kiến thức được kiểm soát. Đối với sản phẩm, Catbot chỉ được tham chiếu slug tồn tại trong kết quả truy vấn để frontend render thẻ sản phẩm, tránh hiện tượng bịa sản phẩm.
+
+\subsection{Biểu đồ use case phân rã nhóm diễn đàn cộng đồng}
+\label{subsection:2.2.5}
+
+Diễn đàn cộng đồng tạo môi trường trao đổi kinh nghiệm giữa người nuôi thú cưng và chuyên gia. Các use case con được trình bày ở Hình \ref{fig:2.4}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong2_usecase_forum.png}
+\caption{Use case phân rã nhóm diễn đàn cộng đồng}
+\label{fig:2.4}
+\end{figure}
+
+Diễn đàn không chỉ là một khu vực thảo luận độc lập. Nội dung chất lượng cao trên diễn đàn là nguồn dữ liệu thực tế giúp Catbot trả lời sát hơn với tình huống của người nuôi thú cưng tại Việt Nam. Vì vậy, hệ thống cần kết hợp cơ chế bình chọn cộng đồng, nhãn chuyên gia và kiểm duyệt của quản trị viên.
+
+\subsection{Biểu đồ use case phân rã nhóm quản trị}
+\label{subsection:2.2.6}
+
+Nhóm quản trị phục vụ nhân sự vận hành cửa hàng. Hình \ref{fig:2.5} mô tả các use case chính.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong2_usecase_quan_tri.png}
+\caption{Use case phân rã nhóm quản trị}
+\label{fig:2.5}
+\end{figure}
+
+Phân hệ quản trị cần áp dụng phân quyền chi tiết để giảm rủi ro vận hành. Ví dụ, nhân viên quản lý catalog không nhất thiết có quyền xem toàn bộ cấu hình hệ thống; nhân viên xử lý đơn không nhất thiết có quyền reindex kho kiến thức; quản trị viên cấp cao mới được phân quyền người dùng và xem nhật ký kiểm toán nhạy cảm.
+
+\subsection{Quy trình nghiệp vụ}
+\label{subsection:2.2.7}
+
+Các biểu đồ use case ở các mục trước cho biết hệ thống cung cấp những chức năng nào. Mục này bổ sung góc nhìn theo thời gian, mô tả cách các chức năng phối hợp trong hai luồng nghiệp vụ có ảnh hưởng lớn nhất tới hệ thống: mua hàng--thanh toán và tư vấn bằng Catbot. Các biểu đồ ở đây được trình bày ở mức nghiệp vụ, không đi sâu vào từng API hoặc từng bảng dữ liệu; các chi tiết kỹ thuật như khóa giao dịch, idempotency, xử lý webhook và truy xuất vector sẽ được làm rõ hơn ở chương thiết kế.
+
+\subsubsection{Quy trình mua hàng và thanh toán}
+\label{subsubsection:2.2.7.1}
+
+Quy trình mua hàng là nghiệp vụ trung tâm của ThePawsome vì nó liên kết nhiều phân hệ: catalog sản phẩm, giỏ hàng, khuyến mãi, tồn kho, đơn hàng và thanh toán. Hình \ref{fig:2.6} mô tả luồng tổng quát từ khi khách hàng kiểm tra giỏ hàng tới khi đơn được xác nhận hoặc bị hủy do lỗi thanh toán.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong2_activity_checkout.png}
+\caption{Quy trình nghiệp vụ mua hàng và thanh toán}
+\label{fig:2.6}
+\end{figure}
+
+Luồng chính của quy trình gồm các bước sau:
+
+\begin{enumerate}[leftmargin=*]
+    \item Khách hàng chọn sản phẩm, quản lý giỏ hàng và nhập thông tin giao hàng tại màn hình checkout.
+    \item Hệ thống kiểm tra tính hợp lệ của sản phẩm, biến thể, số lượng, mã khuyến mãi và thông tin nhận hàng.
+    \item Nếu dữ liệu hợp lệ, hệ thống tạo đơn hàng với snapshot giá tại thời điểm mua và cập nhật hoặc giữ tồn kho tương ứng.
+    \item Với phương thức COD, đơn hàng được ghi nhận để nhân viên tiếp tục xử lý giao nhận.
+    \item Với phương thức SePay, hệ thống tạo yêu cầu thanh toán VietQR; khách hàng chuyển khoản theo mã đơn và số tiền hiển thị.
+    \item Khi SePay gửi webhook hợp lệ, hệ thống xác nhận thanh toán, cập nhật trạng thái đơn hàng và hoàn tất giữ kho.
+\end{enumerate}
+
+Các luồng ngoại lệ quan trọng là: giỏ hàng trống hoặc sản phẩm không còn bán thì không cho tạo đơn; số lượng vượt tồn kho thì yêu cầu khách điều chỉnh; yêu cầu checkout bị gửi lặp không được tạo đơn trùng; webhook thanh toán sai mã đơn, sai số tiền hoặc không xác thực được nguồn thì không được cập nhật trạng thái thanh toán. Với đơn SePay quá hạn, hệ thống giải phóng lượng hàng đã giữ để tránh treo tồn kho.
+
+\subsubsection{Quy trình tư vấn bằng Catbot và chuyển giao hỗ trợ}
+\label{subsubsection:2.2.7.2}
+
+Quy trình tư vấn bằng Catbot phục vụ các câu hỏi trước và trong quá trình mua hàng, đặc biệt là các câu hỏi cần cá nhân hóa theo hồ sơ thú cưng. Khác với chatbot kịch bản cố định, Catbot có thể kết hợp câu hỏi hiện tại, sản phẩm khách đang xem, hồ sơ thú cưng và kho kiến thức đã kiểm soát để tạo câu trả lời. Khi câu hỏi vượt phạm vi tư vấn an toàn hoặc khách hàng yêu cầu người thật, phiên chat được chuyển sang nhân viên hỗ trợ.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\linewidth]{Hinhve/chuong2_activity_catbot.png}
+\caption{Quy trình nghiệp vụ tư vấn bằng Catbot và chuyển giao hỗ trợ}
+\label{fig:2.7}
+\end{figure}
+
+Luồng chính của quy trình gồm các bước sau:
+
+\begin{enumerate}[leftmargin=*]
+    \item Khách hàng gửi câu hỏi từ widget Catbot, có thể kèm ngữ cảnh sản phẩm đang xem hoặc hồ sơ thú cưng đã chọn.
+    \item Hệ thống kiểm tra phạm vi an toàn của câu hỏi và khởi tạo hoặc tiếp tục phiên chat.
+    \item Lớp planner của Catbot lập kế hoạch tool-call tối thiểu dựa trên ý định người dùng và dữ liệu người dùng hiện có.
+    \item Catbot tra cứu dữ liệu phù hợp theo kế hoạch: sản phẩm trong cửa hàng, hồ sơ thú cưng của người dùng và kho kiến thức chăm sóc thú cưng.
+    \item Catbot tổng hợp câu trả lời bằng tiếng Việt, có thể hiển thị thẻ sản phẩm nếu kết quả tư vấn liên quan tới catalog.
+    \item Nếu cần người thật, phiên chat được đưa vào hàng chờ để nhân viên hỗ trợ tiếp nhận và phản hồi.
+\end{enumerate}
+
+Quy trình này giúp giảm tải cho nhân viên trong các câu hỏi phổ biến nhưng vẫn giữ nguyên tắc an toàn. Catbot không thay thế bác sĩ thú y, không chẩn đoán bệnh, không tự ý thêm hàng hoặc thanh toán thay khách hàng. Các quyết định mua hàng và thao tác giao dịch vẫn do khách xác nhận trên giao diện.
+
+\section{Đặc tả chức năng}
+\label{section:2.3}
+
+Phần này đặc tả tám use case quan trọng nhất của ThePawsome. Các use case được chọn vì chúng đại diện cho những luồng nghiệp vụ có tác động trực tiếp tới trải nghiệm khách hàng, an toàn giao dịch, chất lượng tri thức và khả năng vận hành của hệ thống.
+
+\subsection{Đặc tả use case Đăng ký, đăng nhập và quản lý phiên}
+\label{subsection:2.3.1}
+
+{\normalsize
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|p{3.2cm}|p{10.4cm}|}
+\caption{Đặc tả use case Đăng ký, đăng nhập và quản lý phiên}
+\label{table:2.4}\\
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\ \hline
+Tên use case & Đăng ký, đăng nhập và quản lý phiên \\ \hline
+Tác nhân chính & Khách vãng lai, khách hàng \\ \hline
+Mục tiêu & Cho phép người dùng tạo tài khoản, đăng nhập, duy trì phiên làm việc an toàn và truy cập các chức năng yêu cầu xác thực. \\ \hline
+Tiền điều kiện & Người dùng có email hợp lệ. Với đăng nhập, tài khoản đã tồn tại và đang hoạt động. \\ \hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.1cm}
+\begin{enumerate}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Người dùng mở màn hình đăng ký hoặc đăng nhập.
+    \item Người dùng nhập email, mật khẩu và các thông tin cần thiết.
+    \item Frontend gửi yêu cầu tới backend qua API xác thực.
+    \item Backend kiểm tra dữ liệu đầu vào, kiểm tra email, hash hoặc xác minh mật khẩu bằng bcrypt.
+    \item Khi xác thực thành công, backend phát hành access token JWT và refresh token.
+    \item Frontend lưu access token để gọi API; refresh token được lưu bằng HttpOnly Cookie để giảm rủi ro bị truy cập từ JavaScript.
+    \item Người dùng được chuyển về trang phù hợp và có thể sử dụng các chức năng theo quyền.
+\end{enumerate}
+\end{minipage} \\ \hline
+Luồng phát sinh &
+\begin{minipage}[t]{10.1cm}
+\begin{itemize}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Nếu email đã tồn tại khi đăng ký, hệ thống trả thông báo lỗi và không tạo tài khoản mới.
+    \item Nếu mật khẩu sai hoặc tài khoản bị khóa, hệ thống từ chối đăng nhập.
+    \item Nếu access token hết hạn, frontend gọi API refresh để lấy token mới; nếu refresh token không hợp lệ, người dùng phải đăng nhập lại.
+    \item Nếu người dùng chọn đăng nhập Google, hệ thống xử lý callback OAuth và liên kết hoặc tạo tài khoản phù hợp.
+\end{itemize}
+\end{minipage} \\ \hline
+Hậu điều kiện & Người dùng có phiên đăng nhập hợp lệ hoặc nhận được thông báo lỗi rõ ràng. Các API phía sau có thể xác định người dùng hiện tại và vai trò của họ. \\ \hline
+\end{longtable}
+}
+
+\subsection{Đặc tả use case Tìm kiếm, xem sản phẩm và chọn biến thể}
+\label{subsection:2.3.2}
+
+{\normalsize
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|p{3.2cm}|p{10.4cm}|}
+\caption{Đặc tả use case Tìm kiếm, xem sản phẩm và chọn biến thể}
+\label{table:2.5}\\
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\ \hline
+Tên use case & Tìm kiếm, xem sản phẩm và chọn biến thể \\ \hline
+Tác nhân chính & Khách vãng lai, khách hàng \\ \hline
+Mục tiêu & Giúp người dùng tìm được sản phẩm phù hợp, xem thông tin chi tiết và chọn đúng biến thể trước khi thêm vào giỏ hàng. \\ \hline
+Tiền điều kiện & Hệ thống có dữ liệu sản phẩm, danh mục và biến thể đã được quản trị viên công bố. \\ \hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.1cm}
+\begin{enumerate}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Người dùng truy cập trang chủ, trang shop hoặc sử dụng thanh tìm kiếm.
+    \item Người dùng lọc sản phẩm theo danh mục, thương hiệu, khoảng giá, loài thú cưng hoặc từ khóa.
+    \item Backend trả danh sách sản phẩm đã phân trang, gồm tên, ảnh, giá, giá khuyến mãi, đánh giá và tồn kho tổng quan.
+    \item Người dùng mở trang chi tiết một sản phẩm.
+    \item Hệ thống hiển thị mô tả, ảnh, biến thể, đánh giá, sản phẩm tương tự và các thông tin liên quan.
+    \item Người dùng chọn biến thể như kích thước hoặc hương vị.
+    \item Frontend đồng bộ lại giá, tồn kho, SKU và ảnh tương ứng của biến thể.
+    \item Người dùng thêm sản phẩm vào giỏ hàng hoặc chọn mua ngay.
+\end{enumerate}
+\end{minipage} \\ \hline
+Luồng phát sinh &
+\begin{minipage}[t]{10.1cm}
+\begin{itemize}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Nếu không có sản phẩm phù hợp bộ lọc, hệ thống hiển thị trạng thái rỗng và cho phép bỏ lọc.
+    \item Nếu sản phẩm hết hàng hoặc biến thể hết hàng, nút mua bị vô hiệu hóa.
+    \item Nếu slug sản phẩm không tồn tại, hệ thống hiển thị trang lỗi phù hợp.
+    \item Nếu người dùng đang có hồ sơ thú cưng, hệ thống có thể ưu tiên hiển thị gợi ý theo loài hoặc độ tuổi phù hợp.
+\end{itemize}
+\end{minipage} \\ \hline
+Hậu điều kiện & Người dùng nắm được thông tin sản phẩm và biến thể. Nếu thêm giỏ thành công, giỏ hàng được cập nhật theo đúng sản phẩm, biến thể và số lượng đã chọn. \\ \hline
+\end{longtable}
+}
+
+\subsection{Đặc tả use case Quản lý giỏ hàng và đặt hàng}
+\label{subsection:2.3.3}
+
+{\normalsize
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|p{3.2cm}|p{10.4cm}|}
+\caption{Đặc tả use case Quản lý giỏ hàng và đặt hàng}
+\label{table:2.6}\\
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\ \hline
+Tên use case & Quản lý giỏ hàng và đặt hàng \\ \hline
+Tác nhân chính & Khách vãng lai, khách hàng \\ \hline
+Mục tiêu & Cho phép người dùng quản lý các sản phẩm muốn mua và tạo đơn hàng một cách nhất quán, kể cả với guest checkout. \\ \hline
+Tiền điều kiện & Giỏ hàng có ít nhất một sản phẩm hợp lệ. Các sản phẩm hoặc biến thể được chọn còn tồn tại trong catalog. \\ \hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.1cm}
+\begin{enumerate}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Người dùng thêm sản phẩm vào giỏ hàng từ trang chi tiết hoặc thẻ sản phẩm.
+    \item Hệ thống lưu giỏ hàng vào database nếu người dùng đã đăng nhập; với khách vãng lai, giỏ hàng được lưu tạm ở trình duyệt.
+    \item Người dùng mở trang giỏ hàng để xem danh sách sản phẩm, giá, biến thể và tổng tiền tạm tính.
+    \item Người dùng cập nhật số lượng, xóa sản phẩm hoặc nhập mã khuyến mãi.
+    \item Người dùng chuyển sang checkout và nhập thông tin người nhận.
+    \item Backend xác thực sản phẩm, biến thể, số lượng, mã khuyến mãi và phương thức thanh toán.
+    \item Backend tạo idempotency key cho yêu cầu đặt hàng, khóa tồn kho và tạo đơn hàng.
+    \item Hệ thống xóa hoặc cập nhật các dòng giỏ hàng đã được đặt.
+\end{enumerate}
+\end{minipage} \\ \hline
+Luồng phát sinh &
+\begin{minipage}[t]{10.1cm}
+\begin{itemize}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Nếu số lượng vượt tồn kho hiện tại, hệ thống trả lỗi và yêu cầu điều chỉnh số lượng.
+    \item Nếu mã khuyến mãi không hợp lệ hoặc chưa đạt điều kiện đơn tối thiểu, hệ thống không áp dụng mã.
+    \item Nếu người dùng double-click nút đặt hàng, idempotency key giúp hệ thống không tạo đơn trùng.
+    \item Nếu khách vãng lai đã tạo đơn, hệ thống sinh thông tin tra cứu đơn dựa trên email hoặc mã đơn.
+\end{itemize}
+\end{minipage} \\ \hline
+Hậu điều kiện & Đơn hàng được tạo với snapshot giá và thông tin nhận hàng tại thời điểm mua. Tồn kho được giữ hoặc cập nhật theo chính sách thanh toán. \\ \hline
+\end{longtable}
+}
+
+\subsection{Đặc tả use case Thanh toán và xác nhận giao dịch}
+\label{subsection:2.3.4}
+
+{\normalsize
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|p{3.2cm}|p{10.4cm}|}
+\caption{Đặc tả use case Thanh toán và xác nhận giao dịch}
+\label{table:2.7}\\
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\ \hline
+Tên use case & Thanh toán và xác nhận giao dịch \\ \hline
+Tác nhân chính & Khách hàng, khách vãng lai, dịch vụ SePay \\ \hline
+Mục tiêu & Cho phép người dùng thanh toán đơn hàng bằng COD hoặc chuyển khoản VietQR qua SePay; đảm bảo webhook được xác minh trước khi cập nhật trạng thái đơn hàng. \\ \hline
+Tiền điều kiện & Đơn hàng đã được tạo, còn trong trạng thái cho phép thanh toán và tổng tiền hợp lệ. \\ \hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.1cm}
+\begin{enumerate}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Người dùng chọn phương thức thanh toán tại checkout.
+    \item Với COD, hệ thống ghi nhận đơn hàng chờ xử lý và không yêu cầu thanh toán trực tuyến.
+    \item Với SePay VietQR, backend tạo mã tham chiếu theo mã đơn, số tiền, thông tin tài khoản nhận và URL ảnh QR.
+    \item Người dùng hoàn tất thanh toán trên kênh tương ứng.
+    \item SePay gửi webhook về backend khi phát hiện giao dịch chuyển khoản.
+    \item Backend xác minh API key, hướng giao dịch, mã đơn, số tiền, mã giao dịch và trạng thái thanh toán.
+    \item Nếu hợp lệ, backend cập nhật payment và order sang trạng thái đã thanh toán.
+\end{enumerate}
+\end{minipage} \\ \hline
+Luồng phát sinh &
+\begin{minipage}[t]{10.1cm}
+\begin{itemize}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Nếu webhook thiếu API key hợp lệ, sai số tiền hoặc không tìm được mã đơn, hệ thống từ chối cập nhật trạng thái.
+    \item Nếu người dùng hủy thanh toán, đơn hàng giữ trạng thái chờ hoặc thất bại theo chính sách.
+    \item Nếu thanh toán quá hạn, hệ thống giải phóng reservation để trả tồn kho về bán lại.
+    \item Nếu webhook được gửi lại nhiều lần, idempotency và trạng thái payment giúp hệ thống xử lý an toàn.
+\end{itemize}
+\end{minipage} \\ \hline
+Hậu điều kiện & Trạng thái thanh toán và trạng thái đơn hàng được cập nhật chính xác. Dữ liệu tồn kho và giao dịch tài chính vẫn nhất quán. \\ \hline
+\end{longtable}
+}
+
+\subsection{Đặc tả use case Quản lý hồ sơ thú cưng}
+\label{subsection:2.3.5}
+
+{\normalsize
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|p{3.2cm}|p{10.4cm}|}
+\caption{Đặc tả use case Quản lý hồ sơ thú cưng}
+\label{table:2.8}\\
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\ \hline
+Tên use case & Quản lý hồ sơ thú cưng \\ \hline
+Tác nhân chính & Khách hàng \\ \hline
+Mục tiêu & Cho phép khách hàng khai báo thông tin thú cưng để hệ thống cá nhân hóa gợi ý sản phẩm và tư vấn AI. \\ \hline
+Tiền điều kiện & Khách hàng đã đăng nhập. \\ \hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.1cm}
+\begin{enumerate}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Khách hàng mở trang hồ sơ cá nhân hoặc khu vực quản lý thú cưng.
+    \item Khách hàng chọn tạo hồ sơ thú cưng mới.
+    \item Khách hàng nhập tên, loài, giống, độ tuổi, cân nặng, giới tính, ghi chú sức khỏe và dị ứng.
+    \item Frontend gửi dữ liệu tới API pets.
+    \item Backend kiểm tra quyền sở hữu, validate dữ liệu và lưu hồ sơ.
+    \item Hệ thống cập nhật cache Redis để Catbot có thể truy xuất nhanh khi tư vấn.
+    \item Khách hàng có thể sửa, xóa hoặc tải ảnh đại diện cho hồ sơ.
+\end{enumerate}
+\end{minipage} \\ \hline
+Luồng phát sinh &
+\begin{minipage}[t]{10.1cm}
+\begin{itemize}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Nếu dữ liệu thiếu hoặc sai định dạng, hệ thống hiển thị lỗi tại trường tương ứng.
+    \item Nếu người dùng cố truy cập hồ sơ thú cưng của tài khoản khác, backend từ chối do không đúng chủ sở hữu.
+    \item Nếu upload ảnh thất bại, hồ sơ vẫn được giữ nguyên và người dùng nhận thông báo lỗi.
+\end{itemize}
+\end{minipage} \\ \hline
+Hậu điều kiện & Hồ sơ thú cưng được lưu và có thể được dùng trong gợi ý sản phẩm, cảnh báo dị ứng và hội thoại Catbot. \\ \hline
+\end{longtable}
+}
+
+\subsection{Đặc tả use case Tư vấn bằng Catbot}
+\label{subsection:2.3.6}
+
+{\normalsize
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|p{3.2cm}|p{10.4cm}|}
+\caption{Đặc tả use case Tư vấn bằng Catbot}
+\label{table:2.9}\\
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\ \hline
+Tên use case & Tư vấn bằng Catbot \\ \hline
+Tác nhân chính & Khách hàng, nhân viên hỗ trợ, OpenAI/Cohere \\ \hline
+Mục tiêu & Cung cấp tư vấn sản phẩm và kiến thức chăm sóc thú cưng bằng tiếng Việt, có căn cứ dữ liệu và có khả năng chuyển giao người thật khi cần. \\ \hline
+Tiền điều kiện & Người dùng truy cập được widget Catbot. Với tư vấn cá nhân hóa, người dùng nên đăng nhập và có hồ sơ thú cưng. \\ \hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.1cm}
+\begin{enumerate}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Người dùng mở widget Catbot và gửi câu hỏi.
+    \item Frontend gửi câu hỏi, session, hồ sơ thú cưng được chọn và ngữ cảnh sản phẩm đang xem tới backend.
+    \item Backend lưu tin nhắn người dùng, nạp lịch sử hội thoại và gọi LangGraph agent.
+    \item Planner LLM tạo kế hoạch tool-call có cấu trúc cho lượt hỏi hiện tại.
+    \item Agent thực thi kế hoạch: nếu cần dữ liệu sản phẩm thì gọi công cụ tìm sản phẩm và lấy chi tiết sản phẩm; nếu cần kiến thức thì gọi công cụ tìm knowledge/forum; nếu cần cá nhân hóa thì gọi công cụ danh sách hoặc chi tiết hồ sơ thú cưng.
+    \item Nếu agent chuẩn bị trả lời khi còn thiếu tool trong kế hoạch, graph nhắc agent hoàn tất tool cần thiết trước khi kết luận.
+    \item Agent tổng hợp kết quả truy xuất và sinh câu trả lời dựa trên dữ liệu có thật.
+    \item Backend stream phản hồi về frontend bằng SSE và lưu tin nhắn trả lời.
+    \item Frontend render nội dung tư vấn và các thẻ sản phẩm hợp lệ nếu có.
+\end{enumerate}
+\end{minipage} \\ \hline
+Luồng phát sinh &
+\begin{minipage}[t]{10.1cm}
+\begin{itemize}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Nếu câu hỏi nằm ngoài phạm vi chăm sóc thú cưng hoặc mua hàng, Catbot từ chối lịch sự và hướng người dùng về đúng phạm vi.
+    \item Nếu câu hỏi có dấu hiệu cấp cứu y tế, Catbot khuyến nghị liên hệ bác sĩ thú y hoặc cơ sở thú y gần nhất.
+    \item Nếu OpenAI hoặc hệ thống retrieval lỗi, Catbot trả lời fallback an toàn thay vì bịa thông tin.
+    \item Nếu người dùng yêu cầu gặp nhân viên hoặc tình huống vượt quá khả năng AI, phiên chat chuyển sang trạng thái \texttt{pending\_human}.
+\end{itemize}
+\end{minipage} \\ \hline
+Hậu điều kiện & Người dùng nhận được câu trả lời có căn cứ hoặc phiên chat được chuyển cho nhân viên hỗ trợ. Lịch sử hội thoại và log AI được lưu để theo dõi chất lượng. \\ \hline
+\end{longtable}
+}
+
+\subsection{Đặc tả use case Tham gia diễn đàn chuyên gia}
+\label{subsection:2.3.7}
+
+{\normalsize
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|p{3.2cm}|p{10.4cm}|}
+\caption{Đặc tả use case Tham gia diễn đàn chuyên gia}
+\label{table:2.10}\\
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\ \hline
+Tên use case & Tham gia diễn đàn chuyên gia \\ \hline
+Tác nhân chính & Khách hàng, chuyên gia thú y, quản trị viên \\ \hline
+Mục tiêu & Cho phép cộng đồng đặt câu hỏi, chia sẻ kinh nghiệm và tạo nguồn tri thức tin cậy cho hệ thống. \\ \hline
+Tiền điều kiện & Người dùng đã đăng nhập để tạo bài, trả lời hoặc bình chọn. Chuyên gia phải được quản trị viên xác minh vai trò. \\ \hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.1cm}
+\begin{enumerate}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Người dùng mở trang diễn đàn và xem danh sách chủ đề.
+    \item Người dùng tạo thread mới với tiêu đề, nội dung và tag phù hợp.
+    \item Người dùng khác trả lời, bình luận lồng nhau hoặc bình chọn nội dung.
+    \item Chuyên gia đăng câu trả lời; hệ thống hiển thị nhãn chuyên gia đã xác minh.
+    \item Chủ thread có thể đánh dấu một câu trả lời là câu trả lời tốt nhất.
+    \item Hệ thống tính điểm chất lượng dựa trên bình chọn, nhãn chuyên gia và trạng thái accepted reply.
+    \item Nội dung đạt chất lượng có thể được quản trị viên hoặc tác vụ nền đồng bộ vào kho kiến thức phục vụ RAG.
+\end{enumerate}
+\end{minipage} \\ \hline
+Luồng phát sinh &
+\begin{minipage}[t]{10.1cm}
+\begin{itemize}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Nếu nội dung vi phạm chính sách cộng đồng, quản trị viên có thể ẩn hoặc xử lý.
+    \item Nếu người dùng bình chọn nhiều lần trái quy tắc, hệ thống chỉ ghi nhận trạng thái vote hợp lệ cuối cùng.
+    \item Nếu thread chưa được duyệt, nội dung có thể bị giới hạn hiển thị trên storefront.
+\end{itemize}
+\end{minipage} \\ \hline
+Hậu điều kiện & Chủ đề và câu trả lời được lưu, tương tác cộng đồng được ghi nhận, nội dung chất lượng cao có thể trở thành nguồn tri thức cho Catbot. \\ \hline
+\end{longtable}
+}
+
+\subsection{Đặc tả use case Quản trị catalog, đơn hàng và tri thức}
+\label{subsection:2.3.8}
+
+{\normalsize
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|p{3.2cm}|p{10.4cm}|}
+\caption{Đặc tả use case Quản trị catalog, đơn hàng và tri thức}
+\label{table:2.11}\\
+\hline
+\textbf{Mục} & \textbf{Nội dung} \\ \hline
+Tên use case & Quản trị catalog, đơn hàng và tri thức \\ \hline
+Tác nhân chính & Nhân viên quản trị, quản trị viên \\ \hline
+Mục tiêu & Cho phép nhân sự cửa hàng vận hành dữ liệu sản phẩm, đơn hàng, người dùng, diễn đàn, kho kiến thức và chất lượng AI. \\ \hline
+Tiền điều kiện & Tác nhân đã đăng nhập bằng tài khoản có vai trò phù hợp như admin, catalog manager, content manager hoặc order operator. \\ \hline
+Luồng sự kiện chính &
+\begin{minipage}[t]{10.1cm}
+\begin{enumerate}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Nhân viên truy cập dashboard quản trị.
+    \item Backend kiểm tra JWT và vai trò trước khi cho phép truy cập từng nhóm API.
+    \item Nhân viên catalog tạo hoặc cập nhật danh mục, sản phẩm, biến thể, giá, tồn kho và hình ảnh.
+    \item Nhân viên đơn hàng xem danh sách đơn, cập nhật trạng thái, xử lý đổi trả và kiểm tra thanh toán.
+    \item Nhân viên nội dung tạo hoặc chỉnh sửa tài liệu knowledge, kiểm duyệt forum và kích hoạt reindex khi cần.
+    \item Quản trị viên quản lý người dùng, phân quyền, xác minh chuyên gia và xem audit log.
+    \item Hệ thống ghi lại các thay đổi quan trọng vào nhật ký kiểm toán.
+\end{enumerate}
+\end{minipage} \\ \hline
+Luồng phát sinh &
+\begin{minipage}[t]{10.1cm}
+\begin{itemize}[leftmargin=*,topsep=0pt,itemsep=0pt]
+    \item Nếu nhân viên không đủ quyền, API trả lỗi phân quyền và không thực hiện thao tác.
+    \item Nếu dữ liệu sản phẩm vi phạm ràng buộc như giá âm, sale price lớn hơn giá gốc hoặc slug trùng, hệ thống từ chối lưu.
+    \item Nếu reindex thất bại do thiếu cấu hình AI, hệ thống báo lỗi rõ ràng và giữ nguyên dữ liệu nghiệp vụ đã lưu.
+\end{itemize}
+\end{minipage} \\ \hline
+Hậu điều kiện & Dữ liệu vận hành được cập nhật nhất quán, quyền truy cập được kiểm soát và các thay đổi nhạy cảm có dấu vết kiểm toán. \\ \hline
+\end{longtable}
+}
+
+\clearpage
+\section{Yêu cầu phi chức năng}
+\label{section:2.4}
+
+Ngoài các yêu cầu chức năng, ThePawsome cần đáp ứng các yêu cầu phi chức năng để phù hợp với một hệ thống thương mại điện tử có tích hợp AI. Bảng \ref{table:2.3} tổng hợp các yêu cầu chính.
+
+{\normalsize
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{1.8cm}|>{\raggedright\arraybackslash}p{2.5cm}|>{\raggedright\arraybackslash}p{4.6cm}|>{\raggedright\arraybackslash}p{4.05cm}|}
+\caption{Yêu cầu phi chức năng của hệ thống}
+\label{table:2.3}\\
+\hline
+\textbf{Mã} & \textbf{Nhóm yêu cầu} & \textbf{Mô tả} & \textbf{Cơ chế đáp ứng} \\ \hline
+NFR-01 & Hiệu năng & Trang danh mục, giỏ hàng và API dữ liệu phổ biến cần phản hồi nhanh, hỗ trợ phân trang và không truy vấn thừa. & Index PostgreSQL, GIN trigram, Redis cache, TanStack Query và skeleton loading. \\ \hline
+NFR-02 & Khả năng mở rộng & Hệ thống cần sẵn sàng mở rộng khi tăng sản phẩm, bài forum, tài liệu knowledge và phiên chat. & Kiến trúc frontend/backend tách lớp, Docker, pgvector collection, Redis và khả năng reindex độc lập. \\ \hline
+NFR-03 & Toàn vẹn dữ liệu & Đơn hàng, thanh toán, tồn kho và giá tại thời điểm mua phải nhất quán. & Giao dịch database, snapshot order items, ràng buộc schema, Alembic migration và khóa dòng \texttt{SELECT FOR UPDATE}. \\ \hline
+NFR-04 & Bảo mật xác thực & Tài khoản người dùng và nhân viên phải được bảo vệ khỏi truy cập trái phép. & bcrypt, JWT access token, refresh token HttpOnly Cookie, RBAC và kiểm tra owner ở API. \\ \hline
+NFR-05 & An toàn thanh toán & Webhook thanh toán không được cập nhật đơn nếu không xác thực được nguồn và số tiền. & Xác minh header \texttt{Apikey} của SePay, kiểm tra amount, merchant reference, duplicate transaction và idempotency. \\ \hline
+NFR-06 & An toàn AI & Catbot không được bịa sản phẩm, không tư vấn vượt quá phạm vi và không bị tài liệu độc hại điều khiển. & Guardrail tiếng Việt, planner LLM cho tool routing, sanitize nội dung retrieval, tool theo quyền người dùng, fallback an toàn và HITL handoff. \\ \hline
+NFR-07 & Khả dụng & Hệ thống cần có khả năng chạy ổn định ở môi trường local và sẵn sàng triển khai production. & Docker Compose, Nginx reverse proxy, health check live/ready, biến môi trường và startup secret check. \\ \hline
+NFR-08 & Dễ dùng & Giao diện cần rõ ràng cho khách mua hàng, responsive và có trạng thái loading, empty, error. & Next.js App Router, Tailwind CSS, UI primitives, toast, skeleton và layout tối ưu cho desktop/mobile. \\ \hline
+NFR-09 & Dễ bảo trì & Mã nguồn cần có ranh giới module rõ ràng để phát triển tiếp sau đồ án. & Monorepo, routers/services/models tách bạch, TypeScript type chung, Ruff, Pytest, ESLint và build check. \\ \hline
+NFR-10 & Giám sát và kiểm toán & Các thao tác quản trị và cuộc gọi AI cần có dấu vết để điều tra lỗi và đo chi phí. & \texttt{audit\_logs}, \texttt{ai\_call\_logs}, metrics SLO, request ID và log có cấu trúc. \\ \hline
+\end{longtable}
+}
+
+Các yêu cầu phi chức năng trên ảnh hưởng trực tiếp tới thiết kế kiến trúc ở các chương sau. Đặc biệt, yêu cầu về toàn vẹn dữ liệu và an toàn thanh toán chi phối thiết kế transaction trong backend; yêu cầu an toàn AI chi phối cách thiết kế planner, tool-calling, prompt guardrail và dữ liệu retrieval; yêu cầu dễ bảo trì chi phối cấu trúc monorepo và quy trình kiểm thử.
+
+Tóm lại, chương này đã khảo sát hiện trạng các mô hình petshop trực tuyến, chỉ ra những vấn đề còn tồn tại và chuyển hóa các vấn đề đó thành tập tác nhân, use case, quy trình nghiệp vụ, đặc tả chức năng và yêu cầu phi chức năng của hệ thống ThePawsome. Đây là cơ sở để chương tiếp theo trình bày các công nghệ, kiến trúc và giải pháp triển khai phù hợp với phạm vi đồ án.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\flushbottom
+\end{document}
