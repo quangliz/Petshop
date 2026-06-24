@@ -421,6 +421,33 @@ export default function ChatWidget() {
     return () => { abortControllerRef.current?.abort(); };
   }, []);
 
+  // Poll active session messages if the session is in human-support mode
+  useEffect(() => {
+    if (!isOpen || !sessionId) return;
+
+    const pollInterval = setInterval(async () => {
+      // Don't poll if the user is typing/waiting for streaming response
+      if (isTypingRef.current) return;
+      try {
+        const { data } = await api.get(`/chat/sessions/${sessionId}/messages`);
+        
+        const incomingMsgs = (data.messages as { role: string; content: string; products?: ChatProduct[] }[]).map((m) => ({
+          role: m.role,
+          content: m.content,
+          ...(m.products ? { products: m.products } : {}),
+        }));
+
+        if (incomingMsgs.length !== messages.length) {
+          setMessages(incomingMsgs);
+        }
+      } catch (e) {
+        console.error("Polling messages failed:", e);
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [isOpen, sessionId, messages.length]);
+
   useEffect(() => {
     const handleOpen = (event: Event) => {
       const detail = event instanceof CustomEvent ? event.detail as OpenCatbotChatDetail | undefined : undefined;

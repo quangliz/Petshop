@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { LayoutDashboard, Package, ShoppingCart, Users, Image, ArrowLeft, Menu, BookOpen, Database, ShieldAlert, Loader2, MessageSquare, Ticket } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingCart, Users, Image, ArrowLeft, Menu, BookOpen, Database, ShieldAlert, Loader2, MessageSquare, MessageCircle, Ticket } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const menuItems = [
@@ -13,6 +13,7 @@ const menuItems = [
   { href: "/admin/promotions", label: "Khuyến mãi", icon: Ticket, roles: ["admin", "support"] },
   { href: "/admin/users", label: "Người dùng", icon: Users, roles: ["admin"] },
   { href: "/admin/banners", label: "Banner", icon: Image, roles: ["admin"] },
+  { href: "/admin/chat", label: "Hỗ trợ chat", icon: MessageCircle, roles: ["admin", "support"] },
   { href: "/admin/knowledge", label: "Tri thức", icon: BookOpen, roles: ["admin", "support"] },
   { href: "/admin/embeddings", label: "Embeddings", icon: Database, roles: ["admin", "support"] },
   { href: "/admin/forum", label: "Forum", icon: MessageSquare, roles: ["admin", "support"] },

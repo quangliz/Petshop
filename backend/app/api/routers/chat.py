@@ -103,7 +103,11 @@ async def get_session_messages(session_id: str, db: SessionDep, current_user: Op
         messages.append(msg_dict)
 
     return {
-        "session": {"id": str(session.id), "title": session.title},
+        "session": {
+            "id": str(session.id),
+            "title": session.title,
+            "routing_status": session.routing_status.value,
+        },
         "messages": messages,
     }
 
