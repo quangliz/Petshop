@@ -397,7 +397,13 @@ export default function ChatWidget() {
         if (dataLines.length === 0) return;
         let data: { content?: string; items?: ChatProduct[]; session_id?: string };
         try { data = JSON.parse(dataLines.join("\n")); } catch { return; }
-        if (eventType === "message" && data.content) {
+        if (eventType === "message_reset") {
+          // Server discarded an intermediate generation (draft text emitted
+          // before the final answer). Clear what we've streamed so only the
+          // final answer is shown.
+          aiContent = "";
+          setMessages((prev) => { const clone = [...prev]; clone[clone.length - 1].content = ""; return clone; });
+        } else if (eventType === "message" && data.content) {
           aiContent += data.content;
           setMessages((prev) => { const clone = [...prev]; clone[clone.length - 1].content = aiContent; return clone; });
         } else if (eventType === "products" && Array.isArray(data.items)) {

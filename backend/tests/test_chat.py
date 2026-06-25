@@ -75,6 +75,77 @@ def test_chat_sessions(client: TestClient, auth_headers: dict, mock_agent):
     assert "Xin chào," in messages[1]["content"]
 
 
+@pytest.fixture
+def mock_agent_with_planner_and_duplicate():
+    """Mock the real multi-generation flow that caused two bugs:
+
+    1. The planner node streams structured-output JSON — must NOT reach the user.
+    2. An intermediate agent answer (pre-enforcement) is regenerated — the final
+       message must contain the answer exactly once, not concatenated.
+    """
+
+    async def fake_astream(*args, **kwargs):
+        planner_meta = {"langgraph_node": "planner", "langgraph_step": 1}
+        agent_meta = {"langgraph_node": "agent", "langgraph_step": 2}
+
+        # Generation 1: planner structured-output JSON (must be suppressed)
+        yield AIMessageChunk(content='{"required_tools": ["search_products_tool"]}'), planner_meta
+        yield AIMessageChunk(
+            content="",
+            usage_metadata={"input_tokens": 10, "output_tokens": 8, "total_tokens": 18},
+        ), planner_meta
+
+        # Generation 2: agent draft answer (pre-enforcement)
+        yield AIMessageChunk(content="Câu trả lời cuối cùng."), agent_meta
+        yield AIMessageChunk(
+            content="",
+            usage_metadata={"input_tokens": 20, "output_tokens": 10, "total_tokens": 30},
+        ), agent_meta
+
+        # Generation 3: agent regenerates the same answer (the duplicate)
+        yield AIMessageChunk(content="Câu trả lời cuối cùng."), agent_meta
+        yield AIMessageChunk(
+            content="",
+            usage_metadata={"input_tokens": 25, "output_tokens": 10, "total_tokens": 35},
+            response_metadata={"model_name": "gpt-4o-mini"},
+        ), agent_meta
+
+    agent = MagicMock()
+    agent.astream = fake_astream
+    return agent
+
+
+def test_planner_output_suppressed_and_no_duplicate(
+    client: TestClient, auth_headers: dict, mock_agent_with_planner_and_duplicate
+):
+    with patch(
+        "app.api.routers.chat.build_agent",
+        return_value=mock_agent_with_planner_and_duplicate,
+    ):
+        res = client.post(
+            "/api/v1/chat/stream",
+            json={"message": "tư vấn sản phẩm"},
+            headers=auth_headers,
+        )
+        assert res.status_code == 200
+        stream = res.text
+
+    # Planner JSON must never be streamed to the user.
+    assert "required_tools" not in stream
+    # A reset must be emitted when the duplicate generation supersedes the first.
+    assert "event: message_reset" in stream
+
+    # The PERSISTED assistant message must contain the answer exactly once.
+    sessions = client.get("/api/v1/chat/sessions", headers=auth_headers).json()
+    session_id = sessions[0]["id"]
+    msgs = client.get(
+        f"/api/v1/chat/sessions/{session_id}/messages", headers=auth_headers
+    ).json()["messages"]
+    assistant = next(m for m in reversed(msgs) if m["role"] == "assistant")
+    assert assistant["content"].count("Câu trả lời cuối cùng.") == 1
+    assert "required_tools" not in assistant["content"]
+
+
 def test_guest_chat_stream(client: TestClient, mock_agent):
     with patch("app.api.routers.chat.build_agent", return_value=mock_agent):
         res = client.post(

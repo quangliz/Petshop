@@ -365,23 +365,43 @@ async def chat_stream(
 
                     llm_call_start: float | None = None
                     notified_tool_names: set = set()
+                    gen_counter = 0       # increments on every LLM generation
+                    content_gen = -1      # generation whose text is displayed
 
                     async for chunk, metadata in agent.astream(
                         state, stream_mode="messages", config=run_config
                     ):
+                        node = (metadata or {}).get("langgraph_node")
                         # ── AIMessageChunk: LLM is generating ────────
                         if isinstance(chunk, AIMessageChunk):
                             # Detect new LLM-call start
                             if llm_call_start is None:
                                 llm_call_start = time.perf_counter()
+                                gen_counter += 1
                                 await queue.put({
                                     "event": "status",
                                     "data": json.dumps({"state": "model_start"}),
                                 })
 
-                            # Stream text tokens
+                            # Stream text tokens — ONLY from the agent node. The
+                            # planner node also runs an LLM (structured-output
+                            # JSON); its tokens must never reach the user.
                             token = chunk.content if isinstance(chunk.content, str) else ""
-                            if token:
+                            if token and node == "agent":
+                                # First text of a NEW agent generation supersedes
+                                # any earlier draft (text emitted alongside tool
+                                # calls, or a pre-enforcement answer). Replace it
+                                # instead of concatenating → no duplicated message.
+                                # Driven by actual content, so a trailing tool-only
+                                # generation can never wipe the final answer.
+                                if gen_counter != content_gen:
+                                    if content_gen != -1:
+                                        await queue.put({
+                                            "event": "message_reset",
+                                            "data": json.dumps({}),
+                                        })
+                                    full_content = ""
+                                    content_gen = gen_counter
                                 full_content += token
                                 await queue.put({
                                     "event": "message",
