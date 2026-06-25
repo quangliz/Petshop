@@ -101,6 +101,8 @@ def _matches_filters(
     brands: Optional[List[str]],
     min_price: Optional[float],
     max_price: Optional[float],
+    exclude_allergens: Optional[set[str]] = None,
+    life_stage: Optional[str] = None,
 ) -> bool:
     if not _matches_species(product.target_species, species):
         return False
@@ -113,6 +115,12 @@ def _matches_filters(
         return False
     if max_price is not None and price > max_price:
         return False
+    if exclude_allergens or life_stage:
+        from app.services.product_suitability import assess_product
+        facts = (product.attributes or {}).get("facts") if product.attributes else None
+        verdict = assess_product(facts, exclude_allergens or set(), life_stage)
+        if not verdict.suitable:
+            return False
     return True
 
 
@@ -193,6 +201,8 @@ async def _word_ranked_products(
     brands: Optional[List[str]],
     min_price: Optional[float],
     max_price: Optional[float],
+    exclude_allergens: Optional[set[str]] = None,
+    life_stage: Optional[str] = None,
 ) -> list[Product]:
     tokens = _tokenize_query(query)
     phrase = query.strip()
@@ -264,6 +274,8 @@ async def _word_ranked_products(
             brands=brands,
             min_price=min_price,
             max_price=max_price,
+            exclude_allergens=exclude_allergens,
+            life_stage=life_stage,
         )
     ]
     return sorted(
@@ -454,6 +466,8 @@ async def search_products(
     max_price: Optional[float] = None,
     keyword_only: bool = True,
     short: bool = False,
+    exclude_allergens: Optional[set[str]] = None,
+    life_stage: Optional[str] = None,
 ) -> List[dict]:
     """Hybrid product search using semantic vector rank and keyword rank.
 
@@ -474,6 +488,8 @@ async def search_products(
             brands=brands,
             min_price=min_price,
             max_price=max_price,
+            exclude_allergens=exclude_allergens,
+            life_stage=life_stage,
         )
     else:
         semantic_slugs = await _semantic_ranked_slugs(query, fetch_k)
@@ -486,6 +502,8 @@ async def search_products(
             brands=brands,
             min_price=min_price,
             max_price=max_price,
+            exclude_allergens=exclude_allergens,
+            life_stage=life_stage,
         )
 
     if not semantic_slugs and not word_products:
@@ -524,6 +542,8 @@ async def search_products(
             brands=brands,
             min_price=min_price,
             max_price=max_price,
+            exclude_allergens=exclude_allergens,
+            life_stage=life_stage,
         )
     ]
     def get_search_sort_key(p: Product):
@@ -549,10 +569,12 @@ async def search_knowledge(query: str, limit: int = 4, embedding: list[float] | 
         from app.services.embeddings import embed_query_cached
         embedding = await embed_query_cached(query)
 
+    # Retrieve a wide candidate pool (>= 20) so the reranker has enough to
+    # choose the top `limit` from.
     results = await asyncio.to_thread(
         store.similarity_search_with_score_by_vector,
         embedding,
-        k=max(12, limit * 4)
+        k=max(20, limit * 3)
     )
 
     ranked = []
