@@ -18,6 +18,13 @@ type ChatSessionMeta = { id: string; title: string; created_at: string | null };
 type OpenCatbotChatDetail = { message?: string };
 
 const PRODUCT_TAG_RE = /<product>\s*([^<>\s]+)\s*<\/product>/gi;
+const PRODUCT_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const PLACEHOLDER_PRODUCT_SLUGS = new Set(["slug", "product-slug", "ten-san-pham", "slug-san-pham"]);
+
+function isRenderableProductSlug(slug: string): boolean {
+  const normalized = slug.trim().toLowerCase();
+  return PRODUCT_SLUG_RE.test(normalized) && !PLACEHOLDER_PRODUCT_SLUGS.has(normalized);
+}
 
 function ProductCard({ pr, onAddToCart }: { pr: ChatProduct; onAddToCart?: (e: React.MouseEvent) => void }) {
   const effectivePrice = pr.sale_price ?? pr.price;
@@ -134,6 +141,11 @@ function ProductCardWrapper({
 
     let isMounted = true;
     const fetchProduct = async () => {
+      if (!isRenderableProductSlug(slug)) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const { data } = await api.get(`/products/${slug}`);
@@ -245,6 +257,12 @@ function renderInlineContent(
     const textBefore = cleanContent.slice(last, match.index);
     if (textBefore) parts.push(<ReactMarkdown key={`t${idx}`} components={mdComponents}>{textBefore}</ReactMarkdown>);
     const slug = match[1];
+    if (!isRenderableProductSlug(slug)) {
+      parts.push(<ReactMarkdown key={`invalid-p${idx}`} components={mdComponents}>{slug}</ReactMarkdown>);
+      last = match.index + match[0].length;
+      idx++;
+      continue;
+    }
     const pr = bySlug[slug];
     parts.push(
       <div key={`p${idx}`} style={{ display: "flex", gap: 8, margin: "6px 0" }}>

@@ -30,6 +30,13 @@ from langchain_core.messages import (
 router = APIRouter()
 
 PRODUCT_TAG_RE = re.compile(r"<product>\s*([^\s<>]+)\s*</product>", re.IGNORECASE)
+VALID_PRODUCT_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+PLACEHOLDER_PRODUCT_SLUGS = {
+    "slug",
+    "product-slug",
+    "ten-san-pham",
+    "slug-san-pham",
+}
 CHAT_STREAM_PING_SECONDS = 5
 logger = logging.getLogger("app.chat")
 
@@ -120,7 +127,11 @@ class ChatRequest(BaseModel):
 
 
 async def _extract_products(db, content: str) -> list[dict]:
-    slugs = list(dict.fromkeys(PRODUCT_TAG_RE.findall(content)))
+    slugs = [
+        slug.strip().lower()
+        for slug in dict.fromkeys(PRODUCT_TAG_RE.findall(content))
+        if _is_valid_product_tag_slug(slug)
+    ]
     if not slugs:
         return []
     result = await db.execute(
@@ -142,6 +153,43 @@ async def _extract_products(db, content: str) -> list[dict]:
             "thumbnail_url": p.images.get("main") if p.images else None,
         })
     return out
+
+
+def _is_valid_product_tag_slug(slug: str) -> bool:
+    normalized = slug.strip().lower()
+    return bool(
+        normalized
+        and normalized not in PLACEHOLDER_PRODUCT_SLUGS
+        and VALID_PRODUCT_SLUG_RE.fullmatch(normalized)
+    )
+
+
+async def _remove_invalid_product_tags(db, content: str) -> tuple[str, list[str]]:
+    slugs = [
+        slug.strip().lower()
+        for slug in dict.fromkeys(PRODUCT_TAG_RE.findall(content))
+        if _is_valid_product_tag_slug(slug)
+    ]
+    if not slugs:
+        if PRODUCT_TAG_RE.search(content):
+            return PRODUCT_TAG_RE.sub(lambda m: m.group(1), content), ["placeholder_or_malformed"]
+        return content, []
+
+    result = await db.execute(
+        select(Product.slug).where(Product.slug.in_(slugs), Product.is_active)
+    )
+    active_slugs = set(result.scalars().all())
+    removed: list[str] = []
+
+    def replace_invalid(match: re.Match) -> str:
+        slug = match.group(1).strip().lower()
+        if slug in active_slugs:
+            return match.group(0)
+        removed.append(slug)
+        return match.group(1)
+
+    cleaned = PRODUCT_TAG_RE.sub(replace_invalid, content)
+    return cleaned, removed
 
 
 @router.post("/stream")
@@ -428,6 +476,16 @@ async def chat_stream(
                         for w in pg_warnings:
                             logger.warning("[postguard] session=%s: %s", session.id, w)
                         full_content = repaired
+                    cleaned, removed_product_tags = await _remove_invalid_product_tags(
+                        db_session, full_content
+                    )
+                    if removed_product_tags:
+                        logger.warning(
+                            "[postguard] session=%s: removed invalid product tag(s): %s",
+                            session.id,
+                            ", ".join(dict.fromkeys(removed_product_tags)),
+                        )
+                        full_content = cleaned
 
                 # ── Persist assistant message ─────────────────────────
                 am = ChatMessage(

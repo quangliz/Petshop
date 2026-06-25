@@ -1,7 +1,10 @@
 import pytest
+import asyncio
 from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessageChunk
+
+from app.api.routers.chat import _extract_products, _remove_invalid_product_tags
 
 
 @pytest.fixture
@@ -111,3 +114,61 @@ def test_guest_chat_sessions(client: TestClient, mock_agent):
     assert messages[0]["role"] == "user"
     assert messages[0]["content"] == "Hello guest"
     assert messages[1]["role"] == "assistant"
+
+
+class _FakeScalarResult:
+    def __init__(self, values):
+        self._values = values
+
+    def all(self):
+        return self._values
+
+
+class _FakeDbResult:
+    def __init__(self, values):
+        self._values = values
+
+    def scalars(self):
+        return _FakeScalarResult(self._values)
+
+
+class _FakeProductDb:
+    def __init__(self):
+        self.calls = 0
+
+    async def execute(self, _stmt):
+        self.calls += 1
+        if self.calls == 1:
+            return _FakeDbResult(["real-product"])
+        product = MagicMock()
+        product.slug = "real-product"
+        product.name = "Real Product"
+        product.brand = "Brand"
+        product.price = 100000
+        product.sale_price = None
+        product.images = {"main": "https://example.com/product.jpg"}
+        return _FakeDbResult([product])
+
+
+def test_invalid_product_tags_are_not_extracted_or_persisted():
+    db = _FakeProductDb()
+
+    cleaned, removed = asyncio.run(
+        _remove_invalid_product_tags(
+            db,
+            "Sai <product>slug</product>, đúng <product>real-product</product>.",
+        )
+    )
+    products = asyncio.run(_extract_products(db, cleaned))
+
+    assert "<product>slug</product>" not in cleaned
+    assert "<product>real-product</product>" in cleaned
+    assert removed == ["slug"]
+    assert products == [{
+        "slug": "real-product",
+        "name": "Real Product",
+        "brand": "Brand",
+        "price": 100000.0,
+        "sale_price": None,
+        "thumbnail_url": "https://example.com/product.jpg",
+    }]

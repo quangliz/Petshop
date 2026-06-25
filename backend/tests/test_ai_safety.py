@@ -1,5 +1,6 @@
 from app.services.ai_safety import (
     has_cart_confirmation,
+    postguard_response,
     preflight_safety_response,
     sanitize_retrieved_content,
 )
@@ -40,3 +41,12 @@ def test_retrieved_instructions_are_sanitized():
 def test_cart_mutation_requires_explicit_confirmation():
     assert not has_cart_confirmation("Sản phẩm này có tốt không?")
     assert has_cart_confirmation("Tôi xác nhận thêm sản phẩm này vào giỏ nhé")
+
+
+def test_postguard_converts_product_links_to_tags():
+    repaired, warnings = postguard_response(
+        "Xem [Whiskas](https://thepawsome.store/hat-meo-whiskas-junior) nhé"
+    )
+
+    assert repaired == "Xem <product>hat-meo-whiskas-junior</product> nhé"
+    assert warnings

@@ -9,6 +9,13 @@ import { toast } from "sonner";
 import { Product } from "@/lib/types";
 
 const PRODUCT_TAG_RE = /<product>\s*([^<>\s]+)\s*<\/product>/gi;
+const PRODUCT_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const PLACEHOLDER_PRODUCT_SLUGS = new Set(["slug", "product-slug", "ten-san-pham", "slug-san-pham"]);
+
+function isRenderableProductSlug(slug: string): boolean {
+  const normalized = slug.trim().toLowerCase();
+  return PRODUCT_SLUG_RE.test(normalized) && !PLACEHOLDER_PRODUCT_SLUGS.has(normalized);
+}
 
 type ChatProduct = {
   slug: string;
@@ -69,6 +76,11 @@ function ProductCardWrapper({
   useEffect(() => {
     let isMounted = true;
     const fetchProduct = async () => {
+      if (!isRenderableProductSlug(slug)) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const { data } = await api.get(`/products/${slug}`);
         if (isMounted) {
@@ -159,6 +171,12 @@ export function ProductMarkdownRenderer({
     const textBefore = content.slice(last, match.index);
     if (textBefore) parts.push(<ReactMarkdown key={`t${idx}`} components={mdComponents}>{textBefore}</ReactMarkdown>);
     const slug = match[1];
+    if (!isRenderableProductSlug(slug)) {
+      parts.push(<ReactMarkdown key={`invalid-p${idx}`} components={mdComponents}>{slug}</ReactMarkdown>);
+      last = match.index + match[0].length;
+      idx++;
+      continue;
+    }
     parts.push(
       <div key={`p${idx}`} className="flex w-full">
         <ProductCardWrapper slug={slug} onOpenDrawer={onOpenDrawer} />
